@@ -624,6 +624,10 @@
                         <p class="text-xs text-slate-400">Ikan Raksasa / Rekor (> 10kg).</p>
                     </div>
                 </div>
+
+                <div class="pt-6 pb-2 text-center">
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Powered by Wayan & StoryBali</p>
+                </div>
             </div>
         </div>
     </div>
@@ -777,30 +781,38 @@
 
         // --- AI SETUP (Web Worker & Lazy Loading) ---
         let aiWorker = null;
+        let isAiReady = false; // Flag to check if AI model is pre-loaded
 
         function getAiWorker() {
             if (!aiWorker) {
                 const workerCode = `
                     self.importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest', 'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest');
                     let model = null;
-
+ 
                     async function loadModel() {
                         if (!model) {
-                            self.postMessage({ type: 'status', message: 'Loading AI model...' });
+                            self.postMessage({ type: 'status', message: 'AI_LOADING' });
                             try {
                                 model = await mobilenet.load();
-                                self.postMessage({ type: 'status', message: 'AI model loaded.' });
+                                self.postMessage({ type: 'status', message: 'AI_READY' });
                             } catch (e) {
                                 self.postMessage({ type: 'error', message: 'Failed to load AI model.' });
                             }
                         }
                         return model;
                     }
-
+ 
                     self.onmessage = async (e) => {
+                        // Handle pre-loading message
+                        if (e.data.type === 'init') {
+                            await loadModel();
+                            return;
+                        }
+
+                        // Handle classification message
                         const { imageData } = e.data;
                         try {
-                            const classifier = await loadModel();
+                            const classifier = await loadModel(); // Will be fast if already loaded
                             if (!classifier) { throw new Error("Model not available."); }
                             if (!imageData) { throw new Error("No image data received."); }
                             
@@ -814,6 +826,14 @@
                 `;
                 const blob = new Blob([workerCode], { type: 'application/javascript' });
                 aiWorker = new Worker(URL.createObjectURL(blob));
+
+                // Add a permanent listener to update the isAiReady flag
+                aiWorker.addEventListener('message', (e) => {
+                    if (e.data.type === 'status' && e.data.message === 'AI_READY') {
+                        isAiReady = true;
+                        console.log("AI Model is ready and pre-loaded.");
+                    }
+                });
             }
             return aiWorker;
         }
@@ -1168,6 +1188,9 @@
             // PERBAIKAN: Refresh ukuran peta agar tidak error/abu-abu saat muncul
             setTimeout(() => { map.invalidateSize(); }, 100);
             
+            // Pre-load the AI model in the background for faster analysis later
+            getAiWorker().postMessage({ type: 'init' });
+
             getUserWeather(); // Ambil cuaca lokasi user saat ini
             loadSpots();
             setTimeout(initScrollDots, 500); // Init dots setelah layout render
@@ -1895,7 +1918,7 @@
             // 2. Auto-detect fish name (AI) - with resize to prevent crash
             const nameInput = document.getElementById('spotName');
             if (nameInput.value.trim() === '') {
-                nameInput.placeholder = "Memuat AI & Menganalisa...";
+                nameInput.placeholder = isAiReady ? "Menganalisa gambar..." : "Memuat AI & Menganalisa...";
                 try {
                     const detectedName = await detectFish(file);
                     if (detectedName) {
