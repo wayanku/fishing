@@ -2188,7 +2188,9 @@
                         return; // Stop process
                     }
                 } catch(e) {
-                    console.error("AI Error, skipping validation:", e);
+                    console.error("AI Error:", e);
+                    alert("Gagal memverifikasi gambar (AI Error). Coba refresh halaman.");
+                    btn.innerText = oldText; btn.disabled = false; return;
                 }
                 btn.innerText = "Menyimpan...";
             }
@@ -2332,7 +2334,12 @@
                             const match = predictions.find(p => fishKeywords.some(k => p.className.toLowerCase().includes(k)));
 
                             if (match) {
-                                if (match.probability < 0.2) { resolve({ valid: true, name: "Ikan (Jenis Tidak Pasti)" }); return; }
+                                // UPDATE: Perketat filter. Jika confidence < 40%, tolak gambar.
+                                if (match.probability < 0.40) { 
+                                    resolve({ valid: false, reason: `Objek ikan tidak terdeteksi dengan jelas (Akurasi ${(match.probability*100).toFixed(0)}%). Harap foto lebih dekat.` }); 
+                                    return; 
+                                }
+                                
                                 let name = match.className.split(',')[0].toLowerCase();
                                 for (const [eng, id] of Object.entries(fishTranslations)) {
                                     if (name.includes(eng)) { name = id; break; }
