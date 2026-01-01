@@ -60,17 +60,72 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Weather Animations */
-        .wx-particle { position: fixed; pointer-events: none; z-index: 9999; }
-        .wx-particle.snow { top: -20px; color: white; text-shadow: 0 0 2px black; animation: wxFall linear forwards; }
-        .wx-particle.rain { top: -20px; width: 2px; height: 15px; background: #60a5fa; border-radius: 2px; animation: wxFall 0.7s linear forwards; }
-        @keyframes wxFall { to { transform: translateY(110vh); } }
+        /* Weather Animations - Advanced 3D */
+        .wx-overlay {
+            position: fixed; inset: 0; background: #000; opacity: 0;
+            pointer-events: none; z-index: 9990; transition: opacity 1.5s ease;
+        }
+        .wx-overlay.active { opacity: 0.5; } /* Gelapkan background 50% saat hujan */
+
+        .wx-particle { position: fixed; pointer-events: none; z-index: 9999; top: -50px; }
         
-        .wx-particle.wind { left: -100px; width: 100px; height: 2px; background: rgba(255,255,255,0.1); border-radius: 50%; animation: wxWind 2s linear forwards; }
+        /* Snow: Swaying motion */
+        .wx-particle.snow { 
+            color: white; text-shadow: 0 0 2px black; 
+            animation: wxSnowFall linear forwards; 
+        }
+        @keyframes wxSnowFall {
+            0% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(25vh) translateX(20px); }
+            50% { transform: translateY(50vh) translateX(-20px); }
+            75% { transform: translateY(75vh) translateX(20px); }
+            100% { transform: translateY(110vh) translateX(0); }
+        }
+
+        /* Rain: 3D Layers & Tilt */
+        .wx-particle.rain {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(147, 197, 253, 0.9));
+            border-radius: 50px;
+            animation: wxRainFall linear forwards;
+        }
+        /* Layer 1: Depan (Cepat, Besar, Jelas) */
+        .wx-particle.rain.front { width: 3px; height: 60px; opacity: 0.9; z-index: 9999; }
+        /* Layer 2: Tengah (Normal) */
+        .wx-particle.rain.mid { width: 2px; height: 40px; opacity: 0.6; z-index: 9995; }
+        /* Layer 3: Belakang (Lambat, Kecil, Banyak) */
+        .wx-particle.rain.back { width: 1px; height: 25px; opacity: 0.3; z-index: 9991; }
+
+        @keyframes wxRainFall {
+            0% { transform: translateY(0) rotate(15deg); }
+            100% { transform: translateY(110vh) rotate(15deg); }
+        }
+        
+        /* Wind */
+        .wx-particle.wind { 
+            left: -150px; width: 150px; height: 2px; 
+            background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.3), rgba(255,255,255,0)); 
+            animation: wxWind linear forwards; 
+        }
         @keyframes wxWind { to { transform: translateX(120vw); } }
 
-        .storm-flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 9998; animation: wxFlash 5s infinite; }
-        @keyframes wxFlash { 0%, 90%, 100% { opacity: 0; } 92% { opacity: 0.3; } 93% { opacity: 0; } 94% { opacity: 0.1; } }
+        /* Storm */
+        .storm-flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 9998; animation: wxFlash 6s infinite; }
+        @keyframes wxFlash { 
+            0%, 90%, 100% { opacity: 0; } 
+            92% { opacity: 0.6; } 
+            92.5% { opacity: 0; } 
+            93% { opacity: 0.2; } 
+            94% { opacity: 0; } 
+        }
+        
+        /* Screen Shake */
+        .shake-effect { animation: wxShake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes wxShake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
 
         /* Mobile Optimizations */
         input, button { touch-action: manipulation; }
@@ -880,9 +935,10 @@
             if(currentDetailSpot) openStreetView(currentDetailSpot.lat, currentDetailSpot.lng);
         }
 
-        // --- FITUR ANIMASI CUACA (Snow, Rain, Wind, Storm) ---
+        // --- FITUR ANIMASI CUACA CANGGIH (3D Rain, Dimming, Shake) ---
         let wxInterval = null;
         let currentWxType = null;
+        let wxOverlay = null;
 
         function startWeatherEffect(type) {
             if(currentWxType === type) return;
@@ -891,32 +947,78 @@
             
             const container = document.body;
             
+            // 1. Buat Overlay Gelap (Dimming)
+            if(!wxOverlay) {
+                wxOverlay = document.createElement('div');
+                wxOverlay.className = 'wx-overlay';
+                container.appendChild(wxOverlay);
+            }
+            
+            // Aktifkan overlay jika Hujan/Badai/Salju (agar partikel terlihat)
+            if(['rain', 'storm', 'snow'].includes(type)) {
+                setTimeout(() => wxOverlay.classList.add('active'), 10);
+            }
+
+            // 2. Setup Badai (Flash + Shake)
             if(type === 'storm') {
                 const flash = document.createElement('div');
                 flash.className = 'storm-flash';
                 container.appendChild(flash);
+                
+                // Efek Guncangan Layar saat kilat (sinkron dengan animasi CSS flash)
+                setInterval(() => {
+                    document.body.classList.add('shake-effect');
+                    setTimeout(() => document.body.classList.remove('shake-effect'), 500);
+                }, 6000);
+                
                 type = 'rain'; // Storm includes rain
             }
 
+            // 3. Loop Partikel
             if(type === 'snow' || type === 'rain') {
+                // Interval lebih cepat untuk hujan deras
+                const intervalTime = type === 'rain' ? 20 : 150; 
+                
                 wxInterval = setInterval(() => {
                     const p = document.createElement('div');
                     p.classList.add('wx-particle', type);
+                    
+                    // Posisi Random Horizontal
                     p.style.left = Math.random() * 100 + 'vw';
                     
                     if(type === 'snow') {
                         p.innerHTML = '❄';
                         p.style.opacity = Math.random() * 0.7 + 0.3;
-                        p.style.fontSize = (Math.random() * 10 + 10) + 'px';
-                        p.style.animationDuration = (Math.random() * 3 + 2) + 's';
-                    } else {
-                        p.style.opacity = Math.random() * 0.5 + 0.3;
-                        p.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
+                        p.style.fontSize = (Math.random() * 15 + 10) + 'px';
+                        p.style.animationDuration = (Math.random() * 5 + 3) + 's'; // 3-8s jatuh
+                    } else if (type === 'rain') {
+                        // LOGIKA 3D LAYERING
+                        const layerRand = Math.random();
+                        let duration;
+                        
+                        if(layerRand < 0.1) {
+                            // Depan (10%) - Cepat & Besar
+                            p.classList.add('front');
+                            duration = 0.5 + Math.random() * 0.2; // 0.5s - 0.7s
+                        } else if(layerRand < 0.4) {
+                            // Tengah (30%) - Normal
+                            p.classList.add('mid');
+                            duration = 0.8 + Math.random() * 0.3; // 0.8s - 1.1s
+                        } else {
+                            // Belakang (60%) - Lambat & Kecil
+                            p.classList.add('back');
+                            duration = 1.2 + Math.random() * 0.5; // 1.2s - 1.7s
+                        }
+                        p.style.animationDuration = duration + 's';
                     }
                     
                     container.appendChild(p);
-                    setTimeout(() => p.remove(), 5000);
-                }, type === 'rain' ? 50 : 200);
+                    
+                    // Hapus elemen setelah animasi selesai (plus buffer)
+                    setTimeout(() => p.remove(), 6000);
+                    
+                }, intervalTime);
+                
             } else if (type === 'wind') {
                 wxInterval = setInterval(() => {
                     const p = document.createElement('div');
@@ -925,14 +1027,22 @@
                     p.style.animationDuration = (Math.random() * 1 + 0.5) + 's';
                     container.appendChild(p);
                     setTimeout(() => p.remove(), 2000);
-                }, 100);
+                }, 150);
             }
         }
 
         function stopWeatherEffect() {
             if(wxInterval) { clearInterval(wxInterval); wxInterval = null; }
             currentWxType = null;
+            
+            // Hapus Overlay
+            if(wxOverlay) {
+                wxOverlay.classList.remove('active');
+                setTimeout(() => { if(wxOverlay) wxOverlay.remove(); wxOverlay = null; }, 1500);
+            }
+            
             document.querySelectorAll('.wx-particle, .storm-flash').forEach(el => el.remove());
+            document.body.classList.remove('shake-effect');
         }
 
         // 3. Auth Logic
