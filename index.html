@@ -2056,7 +2056,21 @@
         }
         
         map.on('locationfound', e => {
+            // Hapus marker lokasi lama jika ada agar tidak menumpuk
+            map.eachLayer(layer => {
+                if(layer instanceof L.CircleMarker && layer.options.color === '#3b82f6') {
+                    map.removeLayer(layer);
+                }
+            });
+
             L.circleMarker(e.latlng, {radius:8, color:'#3b82f6', fillOpacity:0.8}).addTo(map);
+            
+            // PERBAIKAN: Update data cuaca saat lokasi GPS ditemukan via tombol
+            // Ini memastikan cuaca tidak lagi menggunakan data IP Address lama
+            userLatlng = e.latlng;
+            localStorage.setItem('lastLat', e.latlng.lat);
+            localStorage.setItem('lastLng', e.latlng.lng);
+            fetchUserWeather(e.latlng.lat, e.latlng.lng);
         });
 
         map.on('locationerror', e => {
