@@ -202,13 +202,13 @@
         <!-- Search Bar (New Feature) -->
         <div class="fixed top-6 left-4 right-4 z-[1000] transition-all duration-300 pointer-events-none">
             <div class="glass rounded-full flex items-center p-2 max-w-lg mx-auto shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto transform hover:scale-[1.02] transition-transform bg-slate-900/60">
-                <button onclick="startVoiceSearch()" id="mic-btn" class="p-2 text-slate-400 hover:text-white transition-colors">
+                <button onclick="startVoiceSearch()" id="mic-btn" class="p-2 text-slate-400 hover:text-white transition-colors" aria-label="Cari dengan suara">
                     <i data-lucide="mic" class="w-4 h-4"></i>
                 </button>
                 <input type="text" id="search-input" data-i18n-placeholder="search_placeholder" placeholder="Cari lokasi (Desa, Kota, Laut)..." 
                        class="bg-transparent border-none text-sm text-white placeholder-slate-400 focus:outline-none w-full ml-3"
                        onkeypress="handleSearch(event)">
-                <button onclick="searchLocation()" id="search-btn" class="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/30">
+                <button onclick="searchLocation()" id="search-btn" class="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/30" aria-label="Cari lokasi">
                     <i data-lucide="search" class="w-4 h-4"></i>
                 </button>
             </div>
@@ -229,7 +229,7 @@
                         </h3>
                         <p id="panel-coords" class="text-xs text-slate-400 font-mono mt-1">-</p>
                     </div>
-                    <button onclick="closeLocationPanel()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    <button onclick="closeLocationPanel()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700" aria-label="Tutup panel lokasi"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
 
                 <!-- Weather Grid (Updated to 3x2 for more info) -->
@@ -293,7 +293,7 @@
         </div>
 
         <!-- Floating Locate Button -->
-        <button onclick="locateUser()" class="fixed bottom-28 right-4 md:bottom-32 md:right-8 z-[900] glass p-3 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform active:scale-90"><i data-lucide="navigation" class="w-6 h-6"></i></button>
+        <button onclick="locateUser()" class="fixed bottom-28 right-4 md:bottom-32 md:right-8 z-[900] glass p-3 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform active:scale-90" aria-label="Lokasi saya"><i data-lucide="navigation" class="w-6 h-6"></i></button>
 
         <!-- Bottom Navigation Bar (Instagram Style) -->
         <div class="fixed bottom-0 left-0 right-0 md:bottom-6 md:w-[500px] md:left-1/2 md:-translate-x-1/2 z-[900] bg-[#020617]/95 md:bg-slate-900/80 backdrop-blur-2xl border-t md:border border-white/10 pb-6 pt-2 px-2 md:rounded-3xl md:pb-2 md:px-8 grid grid-cols-5 justify-items-center items-end md:items-center shadow-2xl transition-all duration-300 ring-1 ring-white/5">
@@ -308,7 +308,7 @@
             
             <!-- Center Add Button -->
             <div class="relative -top-6">
-                <button onclick="openAddModal()" class="bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 border-[6px] border-[#020617] hover:scale-110 transition-transform active:scale-95">
+                <button onclick="openAddModal()" class="bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 border-[6px] border-[#020617] hover:scale-110 transition-transform active:scale-95" aria-label="Tambah spot baru">
                     <i data-lucide="plus" class="w-8 h-8"></i>
                 </button>
             </div>
@@ -329,7 +329,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
             <h3 id="addModalTitle" class="text-lg font-bold flex items-center gap-2"><i data-lucide="map-pin" class="text-blue-500"></i> <span data-i18n="modal_add_title">Tambah Spot</span></h3>
-            <button onclick="closeModal()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button onclick="closeModal()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full" aria-label="Tutup modal"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <!-- Content -->
         <div class="p-6 overflow-y-auto flex-1">
@@ -349,7 +349,7 @@
                     </label>
                     <div id="imagePreviewContainer" class="hidden mt-4 relative rounded-2xl overflow-hidden border border-white/10 shadow-xl">
                         <img id="imagePreview" class="w-full h-48 object-cover">
-                        <button onclick="clearImage()" class="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-500 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                        <button onclick="clearImage()" class="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-500 transition-colors" aria-label="Hapus foto"><i data-lucide="x" class="w-4 h-4"></i></button>
                     </div>
                 </div>
                 <!-- Street View Info -->
@@ -378,9 +378,9 @@
                 <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
                 
                 <!-- Favorite Button -->
-                <button onclick="toggleFavorite()" id="btn-favorite" class="absolute top-4 right-16 p-3 bg-black/30 rounded-full hover:bg-black/50 text-white backdrop-blur-md border border-white/10 transition-all active:scale-90"><i data-lucide="heart" class="w-6 h-6"></i></button>
+                <button onclick="toggleFavorite()" id="btn-favorite" class="absolute top-4 right-16 p-3 bg-black/30 rounded-full hover:bg-black/50 text-white backdrop-blur-md border border-white/10 transition-all active:scale-90" aria-label="Tambah ke favorit"><i data-lucide="heart" class="w-6 h-6"></i></button>
                 
-                <button onclick="closeSpotDetail()" class="absolute top-4 right-4 p-3 bg-black/30 rounded-full hover:bg-black/50 text-white backdrop-blur-md border border-white/10 transition-all active:scale-90"><i data-lucide="x" class="w-6 h-6"></i></button>
+                <button onclick="closeSpotDetail()" class="absolute top-4 right-4 p-3 bg-black/30 rounded-full hover:bg-black/50 text-white backdrop-blur-md border border-white/10 transition-all active:scale-90" aria-label="Tutup detail"><i data-lucide="x" class="w-6 h-6"></i></button>
                 
                 <div class="absolute bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-slate-950 to-transparent">
                     <h3 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 leading-tight drop-shadow-sm" id="detail-name">Nama Spot</h3>
@@ -402,7 +402,7 @@
                         <p class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="label_record">Rekor Ikan</p>
                         <p class="text-2xl font-black text-emerald-400" id="detail-max-weight">-</p>
                     </div>
-                    <button onclick="openStreetViewFromDetail()" class="bg-blue-600/20 border border-blue-500/50 p-3 rounded-xl text-blue-400 hover:bg-blue-600 hover:text-white transition-all"><i data-lucide="eye" class="w-5 h-5"></i></button>
+                    <button onclick="openStreetViewFromDetail()" class="bg-blue-600/20 border border-blue-500/50 p-3 rounded-xl text-blue-400 hover:bg-blue-600 hover:text-white transition-all" aria-label="Lihat Street View"><i data-lucide="eye" class="w-5 h-5"></i></button>
                 </div>
 
                 <h4 class="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2 tracking-wider"><i data-lucide="message-square" class="w-3 h-3"></i> Ulasan & Foto Komunitas</h4>
@@ -421,7 +421,7 @@
     <!-- MODAL WEATHER DETAIL (New Feature) -->
     <div id="weatherDetailModal" class="fixed inset-0 z-[10000] bg-black/80 hidden flex items-center justify-center p-4">
         <div class="glass w-full max-w-3xl p-6 rounded-[2rem] animate-in zoom-in duration-200 relative m-4 shadow-2xl border border-white/10 max-h-[90vh] overflow-y-auto no-scrollbar">
-            <button onclick="closeDetailModal()" class="absolute top-4 right-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+            <button onclick="closeDetailModal()" class="absolute top-4 right-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700" aria-label="Tutup detail cuaca"><i data-lucide="x" class="w-4 h-4"></i></button>
             <h3 class="text-xl font-bold mb-1 flex items-center gap-2" id="detail-title">Detail Cuaca</h3>
             <p class="text-xs text-slate-400 mb-4" id="detail-date">...</p>
             
@@ -469,7 +469,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
                 <h3 class="text-xl font-bold flex items-center gap-2 text-white"><i data-lucide="heart" class="text-red-500 fill-red-500"></i> Spot Favorit</h3>
-            <button onclick="closeFavorites()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button onclick="closeFavorites()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full" aria-label="Tutup favorit"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <!-- Content -->
         <div class="p-6 overflow-y-auto flex-1">
@@ -484,7 +484,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
                 <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="settings" class="text-blue-400"></i> Pengaturan</h3>
-            <button onclick="closeLegend()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button onclick="closeLegend()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full" aria-label="Tutup pengaturan"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <!-- Content -->
         <div class="p-6 overflow-y-auto flex-1">
@@ -537,7 +537,7 @@
 
     <!-- MODAL LIGHTBOX (New Feature) -->
     <div id="lightboxModal" class="fixed inset-0 z-[11000] bg-black/95 hidden flex items-center justify-center p-2 backdrop-blur-sm transition-opacity duration-300" onclick="closeImageLightbox()">
-        <button onclick="closeImageLightbox()" class="absolute top-6 right-6 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-50"><i data-lucide="x" class="w-8 h-8"></i></button>
+        <button onclick="closeImageLightbox()" class="absolute top-6 right-6 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-50" aria-label="Tutup gambar"><i data-lucide="x" class="w-8 h-8"></i></button>
         <img id="lightbox-img" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in duration-300" onclick="event.stopPropagation()">
     </div>
 
