@@ -1631,7 +1631,7 @@
             // 4. Fetch Tide Data (Marine API)
             try {
                 // Added sea_surface_temperature
-                const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${latlng.lat}&longitude=${latlng.lng}&hourly=tide_height,sea_surface_temperature&timezone=auto`);
+                const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${latlng.lat}&longitude=${latlng.lng}&hourly=sea_level_height_msl,sea_surface_temperature&timezone=auto`);
                 const data = await res.json();
 
                 // Perbaikan: Cek jika API mengembalikan error (misal: lokasi di darat) atau tidak ada data 'hourly'
@@ -1643,7 +1643,7 @@
                     const currentHour = new Date().getHours();
 
                     // Handle Tide Data
-                    const tide = data.hourly.tide_height ? data.hourly.tide_height[currentHour] : null;
+                    const tide = data.hourly.sea_level_height_msl ? data.hourly.sea_level_height_msl[currentHour] : null;
                     document.getElementById('wx-tide').innerText = (tide !== null && typeof tide === 'number') ? `${tide.toFixed(2)} m` : '-- m';
 
                     // Handle Sea Surface Temperature (SST) Data
