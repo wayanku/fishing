@@ -33,6 +33,7 @@
         #auth-overlay { z-index: 9999; background: #0f172a; }
         .leaflet-popup-content-wrapper { background: rgba(30, 41, 59, 0.95) !important; color: white !important; border-radius: 16px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         .leaflet-popup-tip { background: #1e293b !important; }
+        .leaflet-popup-content { margin: 0 !important; width: auto !important; }
 
         /* Animations */
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -331,7 +332,13 @@
         const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
         const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
         
-        var map = L.map('map', { zoomControl: false, layers: [satLayer] }).setView([-6.2000, 106.8166], 13);
+        // Cek penyimpanan lokal agar saat refresh langsung ke lokasi terakhir
+        const lastLat = localStorage.getItem('lastLat');
+        const lastLng = localStorage.getItem('lastLng');
+        const initLat = lastLat ? parseFloat(lastLat) : -6.2000;
+        const initLng = lastLng ? parseFloat(lastLng) : 106.8166;
+        
+        var map = L.map('map', { zoomControl: false, layers: [satLayer] }).setView([initLat, initLng], lastLat ? 15 : 13);
         
         let isSat = true;
         function toggleMapLayer() {
@@ -622,6 +629,13 @@
                     const lng = position.coords.longitude;
                     userLatlng = L.latLng(lat, lng);
                     
+                    // Simpan lokasi ke browser agar refresh selanjutnya instan
+                    localStorage.setItem('lastLat', lat);
+                    localStorage.setItem('lastLng', lng);
+                    
+                    // Auto-center map ke lokasi user saat data lokasi didapat
+                    map.flyTo([lat, lng], 15);
+                    
                     try {
                         const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
                         const data = await res.json();
@@ -644,6 +658,27 @@
                     if(err.code === 1) msg = "Izin Ditolak"; // User menolak izin
                     if(err.code === 3) msg = "Timeout GPS";  // Sinyal lemah
                     document.getElementById('user-weather-info').innerText = msg;
+                    
+                    // FALLBACK: Jika GPS ditolak/gagal, gunakan estimasi lokasi via IP Address
+                    // Ini solusi untuk pengguna baru yang menolak izin lokasi agar tidak stuck di Jakarta
+                    fetch('https://ipapi.co/json/')
+                        .then(res => res.json())
+                        .then(data => {
+                            if(data.latitude && data.longitude) {
+                                const lat = data.latitude;
+                                const lng = data.longitude;
+                                
+                                // Pindahkan peta ke lokasi IP (Zoom level 12 karena kurang akurat dibanding GPS)
+                                map.flyTo([lat, lng], 12);
+                                
+                                // Simpan estimasi ini agar refresh selanjutnya tetap di area user
+                                localStorage.setItem('lastLat', lat);
+                                localStorage.setItem('lastLng', lng);
+                                
+                                document.getElementById('user-weather-info').innerText = `Lokasi: ${data.city} (IP)`;
+                            }
+                        })
+                        .catch(() => console.log("Gagal deteksi lokasi IP"));
                 }, { timeout: 10000, enableHighAccuracy: true });
             }
         }
@@ -1174,18 +1209,23 @@
             const dynamicIcon = getSpotStyle(maxWeight);
 
             const popupHtml = `
-                <div class="w-48 overflow-hidden">
-                    ${coverPhoto ? `<img src="${coverPhoto}" class="w-full h-28 object-cover rounded-xl mb-2 shadow-md">` : ''}
-                    <h4 class="font-bold text-sm mb-1 leading-tight">${mainSpot.name}</h4>
-                    ${maxWeight > 0 ? `<div class="text-[10px] font-bold text-emerald-400 mb-1">🏆 Rekor: ${maxWeight} kg</div>` : ''}
-                    <div class="flex items-center gap-1 text-xs text-yellow-500 mb-2 font-bold">
-                        <i data-lucide="star" class="w-3 h-3 fill-current"></i> ${avgRating} <span class="text-slate-400 font-normal">(${count} ulasan)</span>
+                <div class="w-56 p-3">
+                    ${coverPhoto ? `<div class="w-full h-32 rounded-xl overflow-hidden mb-3 shadow-md border border-white/10 relative">
+                        <img src="${coverPhoto}" class="w-full h-full object-cover">
+                    </div>` : ''}
+                    
+                    <h4 class="font-bold text-sm text-white mb-1 leading-tight">${mainSpot.name}</h4>
+                    
+                    ${maxWeight > 0 ? `<div class="text-[10px] font-bold text-emerald-400 mb-1 flex items-center gap-1"><i data-lucide="trophy" class="w-3 h-3"></i> Rekor: ${maxWeight} kg</div>` : ''}
+                    
+                    <div class="flex items-center gap-2 text-xs text-yellow-400 mb-3 font-bold">
+                        <i data-lucide="star" class="w-3 h-3 fill-current"></i> ${avgRating} 
+                        <span class="text-slate-500 font-normal">(${count} ulasan)</span>
                     </div>
-                    <div class="flex flex-col gap-2">
-                        <button id="btn-detail-${mainSpot.id}" class="bg-slate-800 text-white text-[10px] py-2 rounded-lg font-bold hover:bg-slate-700 border border-slate-600">
-                            LIHAT DETAIL
-                        </button>
-                    </div>
+                    
+                    <button id="btn-detail-${mainSpot.id}" class="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs py-2 rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
+                        LIHAT DETAIL
+                    </button>
                 </div>
             `;
             
