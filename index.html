@@ -635,6 +635,20 @@
             <h3 class="text-xl font-bold mb-1 flex items-center gap-2" id="detail-title">Detail Cuaca</h3>
             <p class="text-xs text-slate-400 mb-4" id="detail-date">...</p>
             
+            <!-- AI Insight Box (New Feature) -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-blue-500/30 mb-5 relative overflow-hidden shadow-lg group">
+                <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><i data-lucide="bot" class="w-16 h-16 text-blue-400"></i></div>
+                <h4 class="text-xs font-bold text-blue-300 uppercase mb-3 flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i> Analisa Cerdas (AI)</h4>
+                <div id="ai-insight-content" class="grid md:grid-cols-2 gap-4 text-sm text-slate-200 leading-relaxed">
+                    <!-- Left Column for Warnings -->
+                    <div id="ai-warnings-container" class="space-y-2">
+                        <p class="text-xs text-slate-500 animate-pulse">Menganalisa potensi bahaya...</p>
+                    </div>
+                    <!-- Right Column for Recommendations -->
+                    <div id="ai-recommendations-container" class="space-y-2"></div>
+                </div>
+            </div>
+
             <!-- Chart Tabs -->
             <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
                 <button onclick="switchChart('temp')" id="tab-temp" class="chart-tab active px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-slate-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="thermometer" class="w-3 h-3"></i> Suhu & Hujan</button>
@@ -1828,6 +1842,114 @@
             if(moonTransit) moonNadir = new Date(moonTransit.getTime() + 12.4 * 3600 * 1000);
 
             currentSolunarData = { sunTimes, moonTimes, moonTransit, moonNadir };
+
+            // --- AI ANALYSIS & SUMMARY (New Logic) ---
+            const warningsContainer = document.getElementById('ai-warnings-container');
+            const recommendationsContainer = document.getElementById('ai-recommendations-container');
+
+            if(warningsContainer && recommendationsContainer) {
+                // Reset content
+                warningsContainer.innerHTML = '<p class="text-xs text-slate-500 animate-pulse">Menganalisa potensi bahaya...</p>';
+                recommendationsContainer.innerHTML = '<p class="text-xs text-slate-500 animate-pulse">Mencari waktu terbaik...</p>';
+
+                let warningsHtml = '';
+                let recommendationsHtml = '';
+                let aiWarnings = [];
+                
+                // 1. Analisa Bahaya (Warnings)
+                const dCode = currentWeatherData.daily.weathercode[dayIndex];
+                const dWind = currentWeatherData.daily.windspeed_10m_max[dayIndex];
+                const dRain = currentWeatherData.daily.precipitation_sum[dayIndex];
+                const dWave = currentWeatherData.hourly.wave_height ? Math.max(...currentWeatherData.hourly.wave_height.slice(dayIndex*24, (dayIndex+1)*24)) : 0;
+
+                if([95, 96, 99].includes(dCode)) aiWarnings.push({ icon: 'cloud-lightning', text: "<b>BAHAYA PETIR:</b> Sebaiknya jangan melaut di area terbuka." });
+                if(dWind > 25) aiWarnings.push({ icon: 'wind', text: "<b>ANGIN KENCANG:</b> Waspada gelombang tinggi, bahaya untuk perahu kecil." });
+                if(dWave > 2.0) aiWarnings.push({ icon: 'waves', text: `<b>OMBAK TINGGI:</b> Gelombang mencapai ${dWave.toFixed(1)}m. Sangat berbahaya.` });
+                if(dRain > 15) aiWarnings.push({ icon: 'cloud-rain', text: "<b>HUJAN LEBAT:</b> Jarak pandang terbatas & licin." });
+
+                // 2. Cari Waktu Terbaik (Golden Hours)
+                const events = [
+                    { t: sunTimes.sunrise, label: "Pagi (Sunrise)" },
+                    { t: sunTimes.sunset, label: "Sore (Sunset)" },
+                    { t: moonTransit, label: "Puncak Bulan" },
+                    { t: moonNadir, label: "Lembah Bulan" }
+                ];
+                
+                let goodHours = [];
+                const hourly = currentWeatherData.hourly;
+                const startIdx = dayIndex * 24;
+
+                events.forEach(ev => { if(ev.t && !isNaN(ev.t)) {
+                    const h = ev.t.getHours();
+                    const idx = startIdx + h;
+                    if(idx < hourly.time.length) {
+                        const wSpeed = hourly.windspeed_10m[idx];
+                        const wRain = hourly.precipitation_probability[idx];
+                        const wCode = hourly.weathercode[idx];
+                        // Syarat: Angin < 20, Hujan < 50%, Tidak Badai
+                        if(wSpeed < 20 && wRain < 50 && wCode < 90) {
+                            goodHours.push(`<b>Jam ${h}:00</b> (${ev.label})`);
+                        }
+                    }
+                }});
+
+                // 3. Susun HTML
+                // Warnings
+                if(aiWarnings.length > 0) {
+                    warningsHtml = aiWarnings.map(w => `
+                        <div class="flex items-start gap-3 bg-red-900/30 p-3 rounded-lg border border-red-500/30 text-red-300 text-xs">
+                            <i data-lucide="${w.icon}" class="w-5 h-5 text-red-400 shrink-0 mt-0.5"></i>
+                            <p class="leading-relaxed">${w.text}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    warningsHtml = `
+                        <div class="flex items-start gap-3 bg-emerald-900/30 p-3 rounded-lg border border-emerald-500/30 text-emerald-300 text-xs">
+                            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400 shrink-0 mt-0.5"></i>
+                            <p class="leading-relaxed"><b>Kondisi Aman:</b> Cuaca relatif bersahabat untuk memancing hari ini.</p>
+                        </div>
+                    `;
+                }
+
+                // Recommendations
+                if(goodHours.length > 0) {
+                    let unique = [...new Set(goodHours)];
+                    recommendationsHtml += `
+                        <div class="flex items-start gap-3 bg-blue-900/30 p-3 rounded-lg border border-blue-500/30 text-blue-200 text-xs">
+                            <i data-lucide="clock" class="w-5 h-5 text-blue-300 shrink-0 mt-0.5"></i>
+                            <div>
+                                <p class="font-bold text-blue-200 mb-1">Waktu Potensial</p>
+                                <p class="leading-relaxed">Coba mancing pada ${unique.join(", ")}. Ikan diprediksi lebih aktif & cuaca mendukung.</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    recommendationsHtml += `
+                        <div class="flex items-start gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 text-slate-400 text-xs">
+                            <i data-lucide="moon-star" class="w-5 h-5 text-slate-500 shrink-0 mt-0.5"></i>
+                            <p class="leading-relaxed"><b>Waktu Premium Tidak Ditemukan:</b> Cuaca kurang mendukung pada jam-jam aktif ikan. Cari spot terlindung.</p>
+                        </div>
+                    `;
+                }
+                
+                // NEW: Detailed Solunar Explanation
+                recommendationsHtml += `
+                    <div class="flex items-start gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 text-slate-400 text-xs">
+                        <i data-lucide="moon" class="w-5 h-5 text-purple-400 shrink-0 mt-0.5"></i>
+                        <div>
+                            <p class="font-bold text-purple-300 mb-1">Info Solunar & Pasang Surut</p>
+                            <p class="leading-relaxed text-slate-300">
+                                Gravitasi bulan memicu 2 periode makan utama:<br>
+                                • <b>Puncak Bulan:</b> Saat bulan tepat di atas, seringkali bersamaan dengan pasang naik.<br>
+                                • <b>Lembah Bulan:</b> Saat bulan di bawah kaki kita, juga memicu pasang dan aktivitas ikan.
+                            </p>
+                        </div>
+                    </div>
+                `;
+
+                warningsContainer.innerHTML = warningsHtml;
+                recommendationsContainer.innerHTML = recommendationsHtml;
+            }
 
             // Default Chart
             switchChart('temp');
