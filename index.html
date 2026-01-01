@@ -60,123 +60,6 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Weather Animations - Advanced 3D */
-        .wx-overlay {
-            position: fixed; inset: 0; background: #000; opacity: 0;
-            pointer-events: none; z-index: 9990; transition: opacity 1.5s ease;
-        }
-        .wx-overlay.active { opacity: 0; } /* Latar tidak digelapkan sesuai permintaan */
-
-        /* Splash Effect (New) */
-        #splash-container {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            height: 50px; pointer-events: none; z-index: 10000;
-        }
-        .wx-particle.splash {
-            position: absolute; bottom: 0; width: 50px; height: 20px;
-            background: transparent; border-top: 2px solid rgba(147, 197, 253, 0.8);
-            border-radius: 50%; animation: splashAnim 0.5s ease-out forwards;
-            transform-origin: bottom;
-        }
-        @keyframes splashAnim {
-            0% { transform: scale(0, 0); opacity: 1; }
-            50% { opacity: 0.8; }
-            100% { transform: scale(1.5, 0.5); opacity: 0; }
-        }
-
-        .wx-particle { position: fixed; pointer-events: none; z-index: 9999; top: -50px; }
-        
-        /* Snow: Swaying motion */
-        .wx-particle.snow { 
-            color: white; text-shadow: 0 0 2px black; 
-            animation: wxSnowFall linear forwards; 
-        }
-        @keyframes wxSnowFall {
-            0% { transform: translateY(0) translateX(0); }
-            25% { transform: translateY(25vh) translateX(20px); }
-            50% { transform: translateY(50vh) translateX(-20px); }
-            75% { transform: translateY(75vh) translateX(20px); }
-            100% { transform: translateY(110vh) translateX(0); }
-        }
-
-        /* Rain: 3D Layers & Tilt */
-        .wx-particle.rain {
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(147, 197, 253, 0.9));
-            border-radius: 50px;
-            animation: wxRainFall linear forwards;
-        }
-        /* Layer 1: Depan (Cepat, Besar, Jelas) */
-        .wx-particle.rain.front { width: 3px; height: 60px; opacity: 0.9; z-index: 9999; }
-        /* Layer 2: Tengah (Normal) */
-        .wx-particle.rain.mid { width: 2px; height: 40px; opacity: 0.6; z-index: 9995; }
-        /* Layer 3: Belakang (Lambat, Kecil, Banyak) */
-        .wx-particle.rain.back { width: 1px; height: 25px; opacity: 0.3; z-index: 9991; }
-
-        @keyframes wxRainFall {
-            0% { transform: translateY(0) rotate(15deg); }
-            100% { transform: translateY(110vh) rotate(15deg); }
-        }
-        
-        /* Wind */
-        .wx-particle.wind { 
-            left: -150px; width: 150px; height: 2px; 
-            background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.3), rgba(255,255,255,0)); 
-            animation: wxWind linear forwards; 
-        }
-        @keyframes wxWind { to { transform: translateX(120vw); } }
-
-        /* Storm */
-        .storm-flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 9998; animation: wxFlash 6s infinite; }
-        @keyframes wxFlash { 
-            0%, 90%, 100% { opacity: 0; } 
-            92% { opacity: 0.6; } 
-            92.5% { opacity: 0; } 
-            93% { opacity: 0.2; } 
-            94% { opacity: 0; } 
-        }
-
-        /* Clouds (Berawan) */
-        .wx-particle.cloud {
-            left: -300px;
-            background: radial-gradient(closest-side, rgba(255,255,255,0.3), rgba(255,255,255,0));
-            border-radius: 50%;
-            filter: blur(20px);
-            animation: wxCloudMove linear forwards;
-        }
-        @keyframes wxCloudMove { to { transform: translateX(150vw); } }
-
-        /* Sun Effect (Cerah) - Enhanced */
-        .wx-sun-container {
-            position: fixed; top: -150px; right: -150px;
-            width: 600px; height: 600px;
-            z-index: 9990; pointer-events: none;
-        }
-        
-        .wx-sun-core {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 300px; height: 300px;
-            background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 215, 0, 0.6) 40%, rgba(255, 215, 0, 0) 70%);
-            border-radius: 50%;
-            filter: blur(30px);
-            animation: wxSunPulse 4s ease-in-out infinite;
-        }
-        
-        .wx-sun-rays {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 100%; height: 100%;
-            background: repeating-conic-gradient(from 0deg, rgba(255, 200, 0, 0) 0deg, rgba(255, 200, 0, 0.2) 5deg, rgba(255, 200, 0, 0) 10deg);
-            animation: wxSunRotate 20s linear infinite;
-        }
-
-        @keyframes wxSunPulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
-            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
-        }
-        @keyframes wxSunRotate {
-            from { transform: translate(-50%, -50%) rotate(0deg); }
-            to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-        
         /* Mobile Optimizations */
         input, button { touch-action: manipulation; }
         
@@ -279,8 +162,7 @@
 <body class="overflow-hidden">
 
     <!-- LOGIN / REGISTER OVERLAY -->
-    <!-- Splash & Wet Glass Containers (New) -->
-    <div id="splash-container"></div>
+    <canvas id="weather-canvas" class="fixed inset-0 z-[900] pointer-events-none"></canvas>
 
     <div id="auth-overlay" class="fixed inset-0 flex items-center justify-center p-6 hidden">
         <div class="glass w-full max-w-md p-6 md:p-8 rounded-[2rem] shadow-2xl border border-blue-500/20 m-4 relative">
@@ -988,153 +870,126 @@
             if(currentDetailSpot) openStreetView(currentDetailSpot.lat, currentDetailSpot.lng);
         }
 
-        // --- FITUR ANIMASI CUACA CANGGIH (3D Rain, Dimming, Shake) ---
+        // --- HIGH-PERFORMANCE WEATHER ANIMATION (CANVAS) ---
+        const canvas = document.getElementById('weather-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let animationFrameId = null;
         let wxInterval = null;
         let currentWxType = null;
-        let wxOverlay, wxSplashContainer;
+        let storm = null;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class RainDrop {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = -Math.random() * 50;
+                const layerRand = Math.random();
+                if (layerRand < 0.1) { // Front
+                    this.length = 60; this.speed = 25 + Math.random() * 10; this.width = 3; this.opacity = 0.9; this.splash = true;
+                } else if (layerRand < 0.4) { // Mid
+                    this.length = 40; this.speed = 15 + Math.random() * 5; this.width = 2; this.opacity = 0.6; this.splash = Math.random() > 0.5;
+                } else { // Back
+                    this.length = 25; this.speed = 8 + Math.random() * 4; this.width = 1; this.opacity = 0.3; this.splash = false;
+                }
+            }
+            update() {
+                this.y += this.speed;
+                if (this.y > canvas.height) {
+                    if (this.splash) particles.push(new Splash(this.x));
+                    this.y = -this.length; this.x = Math.random() * canvas.width;
+                }
+            }
+            draw() {
+                ctx.beginPath(); ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + this.length * 0.25, this.y + this.length); // Tilt
+                ctx.strokeStyle = `rgba(147, 197, 253, ${this.opacity})`; ctx.lineWidth = this.width; ctx.stroke();
+            }
+        }
+
+        class Splash {
+            constructor(x) { this.x = x; this.y = canvas.height; this.radius = 20 + Math.random() * 20; this.maxRadius = this.radius * 1.5; this.life = 0; this.maxLife = 20; this.isDead = false; }
+            update() { this.life++; if (this.life >= this.maxLife) this.isDead = true; }
+            draw() {
+                const p = this.life / this.maxLife;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * p, Math.PI, 2 * Math.PI, false);
+                ctx.strokeStyle = `rgba(147, 197, 253, ${0.8 * (1 - p)})`; ctx.lineWidth = 2; ctx.stroke();
+            }
+        }
+
+        class SnowFlake {
+            constructor() { this.x = Math.random() * canvas.width; this.y = -Math.random() * 20; this.size = 10 + Math.random() * 15; this.speed = 1 + Math.random() * 2; this.sway = 0.5 + Math.random() * 0.5; this.swaySpeed = 0.02 + Math.random() * 0.01; this.angle = 0; }
+            update() { this.y += this.speed; this.angle += this.swaySpeed; this.x += Math.sin(this.angle) * this.sway; if (this.y > canvas.height) { this.y = -20; this.x = Math.random() * canvas.width; } }
+            draw() { ctx.font = `${this.size}px Arial`; ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + this.size / 30})`; ctx.fillText('❄', this.x, this.y); }
+        }
+
+        class Cloud {
+            constructor() { this.x = -300; this.y = Math.random() * (canvas.height * 0.4); this.width = 200 + Math.random() * 200; this.height = 100 + Math.random() * 80; this.speed = 0.1 + Math.random() * 0.2; this.opacity = 0.1 + Math.random() * 0.3; }
+            update() { this.x += this.speed; if (this.x > canvas.width + 50) { this.x = -300 - Math.random() * 200; this.y = Math.random() * (canvas.height * 0.4); } }
+            draw() {
+                ctx.filter = 'blur(20px)';
+                const g = ctx.createRadialGradient(this.x + this.width / 2, this.y + this.height / 2, 0, this.x + this.width / 2, this.y + this.height / 2, this.width / 2);
+                g.addColorStop(0, `rgba(255, 255, 255, ${this.opacity})`); g.addColorStop(1, `rgba(255, 255, 255, 0)`);
+                ctx.fillStyle = g; ctx.fillRect(this.x, this.y, this.width, this.height); ctx.filter = 'none';
+            }
+        }
+
+        class WindLine {
+            constructor() { this.x = -150; this.y = Math.random() * canvas.height; this.length = 150; this.speed = 15 + Math.random() * 10; }
+            update() { this.x += this.speed; if (this.x > canvas.width + 50) { this.x = -150; this.y = Math.random() * canvas.height; } }
+            draw() {
+                const g = ctx.createLinearGradient(this.x, this.y, this.x + this.length, this.y);
+                g.addColorStop(0, 'rgba(255, 255, 255, 0)'); g.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)'); g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.length, this.y); ctx.stroke();
+            }
+        }
+
+        function animate() {
+            animationFrameId = requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles = particles.filter(p => !p.isDead);
+            for (const p of particles) { p.update(); p.draw(); }
+
+            if (storm) {
+                if (Math.random() > 0.995) storm.flashOpacity = 0.6;
+                if (storm.flashOpacity > 0) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${storm.flashOpacity})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    storm.flashOpacity -= 0.05;
+                }
+            }
+        }
 
         function startWeatherEffect(type) {
             if(currentWxType === type) return;
             stopWeatherEffect();
             currentWxType = type;
-            
-            const container = document.body;
-            
-            // 1. Buat Overlay Gelap (Dimming)
-            if(!wxOverlay) {
-                wxOverlay = document.createElement('div');
-                wxOverlay.className = 'wx-overlay';
-                container.appendChild(wxOverlay);
+
+            if (type === 'rain') for (let i = 0; i < 150; i++) particles.push(new RainDrop());
+            else if (type === 'snow') for (let i = 0; i < 50; i++) particles.push(new SnowFlake());
+            else if (type === 'cloud') for (let i = 0; i < 5; i++) particles.push(new Cloud());
+            else if (type === 'wind') for (let i = 0; i < 10; i++) particles.push(new WindLine());
+            else if (type === 'storm') {
+                for (let i = 0; i < 200; i++) particles.push(new RainDrop());
+                storm = { flashOpacity: 0 };
             }
 
-            // Buat Wet Glass & Splash Container jika belum ada
-            if(!wxSplashContainer) {
-                wxSplashContainer = document.getElementById('splash-container');
-            }
-            
-            // Aktifkan overlay jika Hujan/Badai/Salju (agar partikel terlihat)
-            if(['rain', 'storm', 'snow'].includes(type)) {
-                setTimeout(() => {
-                    wxOverlay.classList.add('active');
-                }, 10);
-            }
-
-            // 2. Setup Badai (Flash + Shake)
-            if(type === 'storm') {
-                const flash = document.createElement('div');
-                flash.className = 'storm-flash';
-                container.appendChild(flash);
-                // Efek getar dihilangkan sesuai permintaan
-                
-                type = 'rain'; // Storm includes rain
-            }
-
-            // 3. Setup Cerah (Sun Glare)
-            if(type === 'clear') {
-                const containerDiv = document.createElement('div');
-                containerDiv.className = 'wx-sun-container';
-                
-                const rays = document.createElement('div');
-                rays.className = 'wx-sun-rays';
-                const core = document.createElement('div');
-                core.className = 'wx-sun-core';
-                
-                containerDiv.appendChild(rays);
-                containerDiv.appendChild(core);
-                container.appendChild(containerDiv);
-            }
-
-            // 3. Loop Partikel
-            if(type === 'snow' || type === 'rain' || type === 'cloud') {
-                // Interval lebih cepat untuk hujan deras
-                let intervalTime = 150;
-                if(type === 'rain') intervalTime = 20;
-                if(type === 'cloud') intervalTime = 5000; // Awan muncul setiap 5 detik
-                
-                wxInterval = setInterval(() => {
-                    const p = document.createElement('div');
-                    p.classList.add('wx-particle', type);
-                    
-                    // Posisi Random Horizontal
-                    if(type !== 'cloud') p.style.left = Math.random() * 100 + 'vw';
-                    
-                    if(type === 'snow') {
-                        p.innerHTML = '❄';
-                        p.style.opacity = Math.random() * 0.7 + 0.3;
-                        p.style.fontSize = (Math.random() * 15 + 10) + 'px';
-                        p.style.animationDuration = (Math.random() * 5 + 3) + 's'; // 3-8s jatuh
-                    } else if (type === 'rain') {
-                        // LOGIKA 3D LAYERING
-                        const layerRand = Math.random();
-                        let duration;
-                        
-                        if(layerRand < 0.1) {
-                            // Depan (10%) - Cepat & Besar
-                            p.classList.add('front');
-                            duration = 0.5 + Math.random() * 0.2; // 0.5s - 0.7s
-                        } else if(layerRand < 0.4) {
-                            // Tengah (30%) - Normal
-                            p.classList.add('mid');
-                            duration = 0.8 + Math.random() * 0.3; // 0.8s - 1.1s
-                        } else {
-                            // Belakang (60%) - Lambat & Kecil
-                            p.classList.add('back');
-                            duration = 1.2 + Math.random() * 0.5; // 1.2s - 1.7s
-                        }
-                        p.style.animationDuration = duration + 's';
-
-                        // Buat cipratan untuk tetesan hujan depan & tengah
-                        if (layerRand < 0.3 && wxSplashContainer) {
-                            const splash = document.createElement('div');
-                            splash.className = 'wx-particle splash';
-                            splash.style.left = p.style.left; // Cipratan di posisi x yang sama
-                            wxSplashContainer.appendChild(splash);
-                            setTimeout(() => splash.remove(), 500);
-                        }
-                    } else if (type === 'cloud') {
-                        // Awan
-                        p.style.top = (Math.random() * 40) + 'vh'; // Muncul di 40% atas layar
-                        p.style.width = (200 + Math.random() * 200) + 'px';
-                        p.style.height = (100 + Math.random() * 80) + 'px';
-                        p.style.opacity = Math.random() * 0.3 + 0.1;
-                        p.style.animationDuration = (30 + Math.random() * 30) + 's'; // Gerak lambat 30-60s
-                    }
-                    
-                    container.appendChild(p);
-                    
-                    // Hapus elemen setelah animasi selesai (plus buffer)
-                    setTimeout(() => p.remove(), type === 'cloud' ? 60000 : 6000);
-                    
-                }, intervalTime);
-                
-            } else if (type === 'wind') {
-                wxInterval = setInterval(() => {
-                    const p = document.createElement('div');
-                    p.classList.add('wx-particle', 'wind');
-                    p.style.top = Math.random() * 100 + 'vh';
-                    p.style.animationDuration = (Math.random() * 1 + 0.5) + 's';
-                    container.appendChild(p);
-                    setTimeout(() => p.remove(), 2000);
-                }, 150);
-            }
+            if (!animationFrameId) animate();
         }
 
         function stopWeatherEffect() {
-            if(wxInterval) { clearInterval(wxInterval); wxInterval = null; }
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            particles = [];
+            storm = null;
             currentWxType = null;
-            
-            // Hapus Overlay
-            if(wxOverlay) {
-                wxOverlay.classList.remove('active');
-                // Jangan hapus elemennya, cukup sembunyikan agar bisa dipakai lagi
-            }
-            
-            // Hapus Efek Kaca Basah & Cipratan
-            if(wxSplashContainer) {
-                wxSplashContainer.innerHTML = ''; // Hapus sisa cipratan
-            }
-
-            document.querySelectorAll('.wx-particle, .storm-flash, .wx-sun-container').forEach(el => el.remove());
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
         // 3. Auth Logic
@@ -1283,7 +1138,6 @@
             
             // New: Cloudy & Clear
             if([1, 2, 3, 45, 48].includes(code)) { startWeatherEffect('cloud'); return; }
-            if([0].includes(code)) { startWeatherEffect('clear'); return; }
             
             stopWeatherEffect();
         }
