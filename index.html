@@ -67,25 +67,6 @@
         }
         .wx-overlay.active { opacity: 0; } /* Latar tidak digelapkan sesuai permintaan */
 
-        /* Wet Glass Effect (New) */
-        #wet-glass-overlay {
-            position: fixed;
-            inset: 0;
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCI+PGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMiIgZmlsbD0icmdiYSgyNTUsIDI1NSwgMjU1LCAwLjEpIi8+PGNpcmNsZSBjeD0iNSIgY3k9IjUiIHI9IjEiIGZpbGw9InJnYmEoMjU1LCAyNTUsIDI1NSwgMC4wNSkiLz48Y2lyY2xlIGN4PSIyNSIgY3k9IjI1IiByPSIxLjUiIGZpbGw9InJnYmEoMjU1LCAyNTUsIDI1NSwgMC4wOCkiLz48L3N2Zz4=');
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px);
-            z-index: 9992;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 1.5s ease;
-            animation: slideDown 10s linear infinite;
-        }
-        #wet-glass-overlay.active { opacity: 1; }
-        @keyframes slideDown {
-            from { background-position: 0 0; }
-            to { background-position: 0 400px; }
-        }
-
         /* Splash Effect (New) */
         #splash-container {
             position: fixed; bottom: 0; left: 0; right: 0;
@@ -258,7 +239,6 @@
     <!-- LOGIN / REGISTER OVERLAY -->
     <!-- Splash & Wet Glass Containers (New) -->
     <div id="splash-container"></div>
-    <div id="wet-glass-overlay"></div>
 
     <div id="auth-overlay" class="fixed inset-0 flex items-center justify-center p-6 hidden">
         <div class="glass w-full max-w-md p-6 md:p-8 rounded-[2rem] shadow-2xl border border-blue-500/20 m-4 relative">
@@ -969,7 +949,7 @@
         // --- FITUR ANIMASI CUACA CANGGIH (3D Rain, Dimming, Shake) ---
         let wxInterval = null;
         let currentWxType = null;
-        let wxOverlay, wxWetGlass, wxSplashContainer;
+        let wxOverlay, wxSplashContainer;
 
         function startWeatherEffect(type) {
             if(currentWxType === type) return;
@@ -986,9 +966,6 @@
             }
 
             // Buat Wet Glass & Splash Container jika belum ada
-            if(!wxWetGlass) {
-                wxWetGlass = document.getElementById('wet-glass-overlay');
-            }
             if(!wxSplashContainer) {
                 wxSplashContainer = document.getElementById('splash-container');
             }
@@ -997,10 +974,6 @@
             if(['rain', 'storm', 'snow'].includes(type)) {
                 setTimeout(() => {
                     wxOverlay.classList.add('active');
-                    // Efek kaca basah hanya untuk hujan/badai
-                    if (type !== 'snow') {
-                        wxWetGlass.classList.add('active');
-                    }
                 }, 10);
             }
 
@@ -1091,9 +1064,6 @@
             }
             
             // Hapus Efek Kaca Basah & Cipratan
-            if(wxWetGlass) {
-                wxWetGlass.classList.remove('active');
-            }
             if(wxSplashContainer) {
                 wxSplashContainer.innerHTML = ''; // Hapus sisa cipratan
             }
