@@ -134,10 +134,6 @@
         <div class="fixed top-4 left-4 right-4 z-[1000] flex justify-between items-start pointer-events-none gap-2">
             <div class="glass p-2 md:p-3 rounded-full md:rounded-2xl flex items-center gap-2 md:gap-3 shadow-lg shadow-black/20 transition-all">
                 <div id="user-avatar" class="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-xs md:text-base shadow-inner">U</div>
-                <div class="flex flex-col justify-center">
-                    <p class="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase hidden sm:block">Anggota Pro</p>
-                    <p id="user-display-email" class="text-[10px] md:text-xs font-medium max-w-[80px] sm:max-w-none truncate">user@mail.com</p>
-                </div>
                 <button onclick="logout()" class="ml-1 p-1.5 md:p-2 text-red-400 hover:bg-white/5 rounded-full transition-colors"><i data-lucide="log-out" class="w-4 h-4"></i></button>
             </div>
             
@@ -147,8 +143,6 @@
                 <select onchange="changeLanguage(this.value)" class="bg-transparent text-white text-[10px] font-bold outline-none border-r border-white/20 pr-2 mr-1">
                     <option value="id" class="bg-slate-900">ID</option><option value="en" class="bg-slate-900">EN</option><option value="jp" class="bg-slate-900">JP</option>
                 </select>
-                <div id="user-weather-icon" class="text-yellow-400"><i data-lucide="sun" class="w-4 h-4"></i></div>
-                <span id="user-weather-info" class="text-[10px] md:text-xs font-bold text-white whitespace-nowrap">Memuat...</span>
             </div>
         </div>
 
@@ -251,9 +245,9 @@
                 <i data-lucide="layers" class="w-6 h-6"></i>
                 <span class="text-[10px] font-medium">Peta</span>
             </button>
-            <button onclick="toggleRadar()" id="radar-btn" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
-                <i data-lucide="cloud-rain" class="w-6 h-6"></i>
-                <span class="text-[10px] font-medium">Radar</span>
+            <button onclick="showUserWeatherPanel()" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
+                <i data-lucide="cloud-sun" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Cuaca</span>
             </button>
             
             <!-- Center Add Button -->
@@ -435,6 +429,12 @@
         </div>
     </div>
 
+    <!-- MODAL LIGHTBOX (New Feature) -->
+    <div id="lightboxModal" class="fixed inset-0 z-[11000] bg-black/95 hidden flex items-center justify-center p-2 backdrop-blur-sm transition-opacity duration-300" onclick="closeImageLightbox()">
+        <button onclick="closeImageLightbox()" class="absolute top-6 right-6 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-50"><i data-lucide="x" class="w-8 h-8"></i></button>
+        <img id="lightbox-img" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in duration-300" onclick="event.stopPropagation()">
+    </div>
+
     <script>
         lucide.createIcons();
 
@@ -447,9 +447,9 @@
                 wx_score: "AI Score", wx_temp: "Suhu", wx_wind: "Angin", wx_weather: "Cuaca",
                 wx_wave: "Ombak (Max)", wx_travel: "Perjalanan", wx_tide: "Pasang Surut", wx_sun: "Matahari",
                 forecast_title: "Prakiraan 7 Hari & Potensi Mancing",
-                btn_savespot: "Simpan Spot", modal_add_title: "Tambah Spot",
+                btn_savespot: "Simpan Spot", modal_add_title: "Posting Spot",
                 placeholder_spotname: "Nama Spot/Ikan", placeholder_comment: "Komentar...",
-                label_add_photo: "Tambah Foto (Opsional)", btn_save_cloud: "Simpan ke Cloud", btn_cancel: "Batal",
+                label_add_photo: "Tambah Foto (Opsional)", btn_save_cloud: "Posting", btn_cancel: "Batal",
                 label_contributors: "Kontributor", label_record: "Rekor Ikan", btn_add_review: "Tambah Foto / Ulasan Disini"
             },
             en: {
@@ -459,9 +459,9 @@
                 wx_score: "AI Score", wx_temp: "Temp", wx_wind: "Wind", wx_weather: "Weather",
                 wx_wave: "Wave (Max)", wx_travel: "Travel", wx_tide: "Tide", wx_sun: "Sun",
                 forecast_title: "7-Day Forecast & Fishing Potential",
-                btn_savespot: "Save Spot", modal_add_title: "Add Spot",
+                btn_savespot: "Save Spot", modal_add_title: "Post Spot",
                 placeholder_spotname: "Spot Name/Fish", placeholder_comment: "Comment...",
-                label_add_photo: "Add Photo (Optional)", btn_save_cloud: "Save to Cloud", btn_cancel: "Cancel",
+                label_add_photo: "Add Photo (Optional)", btn_save_cloud: "Post", btn_cancel: "Cancel",
                 label_contributors: "Contributors", label_record: "Fish Record", btn_add_review: "Add Photo / Review Here"
             },
             jp: {
@@ -471,9 +471,9 @@
                 wx_score: "AIスコア", wx_temp: "気温", wx_wind: "風", wx_weather: "天気",
                 wx_wave: "波 (最大)", wx_travel: "移動", wx_tide: "潮汐", wx_sun: "太陽",
                 forecast_title: "7日間の予報と釣りの可能性",
-                btn_savespot: "スポット保存", modal_add_title: "スポット追加",
+                btn_savespot: "スポット保存", modal_add_title: "スポット投稿",
                 placeholder_spotname: "スポット名/魚", placeholder_comment: "コメント...",
-                label_add_photo: "写真を追加 (任意)", btn_save_cloud: "クラウドに保存", btn_cancel: "キャンセル",
+                label_add_photo: "写真を追加 (任意)", btn_save_cloud: "投稿", btn_cancel: "キャンセル",
                 label_contributors: "投稿者", label_record: "最大記録", btn_add_review: "写真/レビューを追加"
             }
         };
@@ -620,101 +620,15 @@
             isSat = !isSat;
         }
 
-        // --- FITUR BARU: RADAR HUJAN (RainViewer API) ---
-        let radarLayer = null;
-        let isRadarOn = false;
-        let radarInterval = null;
-        let radarTimestamps = [];
-        let radarCurrentIndex = 0;
-        let radarHost = 'https://tile.rainviewer.com'; // Default host
-
-        function toggleRadar() {
-            const btn = document.getElementById('radar-btn');
-            
-            if(isRadarOn) {
-                if(radarLayer) map.removeLayer(radarLayer);
-                if(radarInterval) clearInterval(radarInterval);
-                isRadarOn = false;
-                btn.classList.remove('text-blue-400');
-                btn.classList.add('text-slate-400');
-                
-                // Hapus bar progress jika ada
-                const bar = document.getElementById('radar-progress');
-                if(bar) bar.remove();
+        // --- FITUR INFO CUACA USER ---
+        function showUserWeatherPanel() {
+            if(userLatlng) {
+                showLocationPanel(userLatlng);
+                map.flyTo(userLatlng, 15); // Fokus ke lokasi user
             } else {
-                // Tampilkan loading
-                const originalContent = btn.innerHTML;
-                btn.innerHTML = '<div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>';
-                
-                // Ambil data timestamp terbaru dari RainViewer
-                fetch('https://api.rainviewer.com/public/weather-maps.json')
-                    .then(res => res.json())
-                    .then(data => {
-                        if(data.radar && data.radar.past) {
-                            if(data.host) radarHost = data.host; // Gunakan host dinamis dari API agar tidak error DNS
-                            
-                            // Gabungkan data masa lalu (past) dan prediksi (nowcast)
-                            radarTimestamps = data.radar.past;
-                            if(data.radar.nowcast) {
-                                radarTimestamps = [...radarTimestamps, ...data.radar.nowcast];
-                            }
-                            
-                            radarCurrentIndex = radarTimestamps.length - 1; // Mulai dari yang terbaru
-                            const latest = radarTimestamps[radarCurrentIndex].time;
-                            
-                            // Layer Radar
-                            // PERBAIKAN: Gunakan host dari API & Hapus path /v2/radar yang salah
-                            radarLayer = L.tileLayer(`${radarHost}/${latest}/256/{z}/{x}/{y}/2/1_1.png`, {
-                                opacity: 0.6,
-                                attribution: 'RainViewer'
-                            }).addTo(map);
-                            
-                            isRadarOn = true;
-                            btn.innerHTML = originalContent; // Kembalikan icon
-                            btn.classList.add('text-blue-400');
-                            btn.classList.remove('text-slate-400');
-                            
-                            // Mulai Animasi
-                            startRadarAnimation();
-                        }
-                    })
-                    .catch(err => { 
-                        console.error(err); 
-                        alert("Gagal memuat Radar Hujan (Koneksi/API Error)"); 
-                        btn.innerHTML = originalContent;
-                    });
+                alert("Lokasi Anda belum ditemukan. Pastikan GPS aktif.");
+                getUserWeather();
             }
-        }
-
-        function startRadarAnimation() {
-            if(radarInterval) clearInterval(radarInterval);
-            
-            // Buat Progress Bar Animasi
-            let bar = document.getElementById('radar-progress');
-            if(!bar) {
-                bar = document.createElement('div');
-                bar.id = 'radar-progress';
-                bar.className = 'fixed bottom-24 left-20 right-20 h-1 bg-slate-800/50 rounded-full overflow-hidden z-[900] pointer-events-none backdrop-blur-sm';
-                bar.innerHTML = '<div id="radar-bar-inner" class="h-full bg-blue-400 w-full transition-all duration-500 shadow-[0_0_10px_rgba(96,165,250,0.8)]"></div>';
-                document.body.appendChild(bar);
-            }
-
-            radarInterval = setInterval(() => {
-                // Loop index
-                radarCurrentIndex = (radarCurrentIndex + 1) % radarTimestamps.length;
-                const ts = radarTimestamps[radarCurrentIndex].time;
-                
-                // Update URL Layer
-                if(radarLayer) {
-                    radarLayer.setUrl(`${radarHost}${pathTemplate.replace('{ts}', ts)}`);
-                }
-                
-                // Update Progress Bar
-                const pct = ((radarCurrentIndex + 1) / radarTimestamps.length) * 100;
-                const inner = document.getElementById('radar-bar-inner');
-                if(inner) inner.style.width = `${pct}%`;
-                
-            }, 800); // Ganti frame setiap 0.8 detik
         }
 
         let tempLatlng = null;
@@ -870,7 +784,8 @@
             currentUser = user;
             document.getElementById('auth-overlay').classList.add('hidden');
             document.getElementById('app-content').classList.remove('hidden');
-            document.getElementById('user-display-email').innerText = user.email;
+            const emailEl = document.getElementById('user-display-email');
+            if(emailEl) emailEl.innerText = user.email;
             document.getElementById('user-avatar').innerText = user.email[0].toUpperCase();
             
             // PERBAIKAN: Refresh ukuran peta agar tidak error/abu-abu saat muncul
@@ -923,31 +838,15 @@
                     // Auto-center map ke lokasi user saat data lokasi didapat
                     map.flyTo([lat, lng], 15);
                     
-                    try {
-                        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
-                        const data = await res.json();
-                        if(data.current_weather) {
-                            const temp = Math.round(data.current_weather.temperature);
-                            currentUserWeatherCode = data.current_weather.weathercode;
-                            
-                            const lang = localStorage.getItem('appLang') || 'id';
-                            const locText = dynamicTranslations[lang].location;
-                            document.getElementById('user-weather-info').innerText = `${locText}: ${temp}°C`;
-                            // Update icon based on weather code could be added here
-                            
-                            // Cek Salju di lokasi user
-                            checkWeatherForSnow(currentUserWeatherCode);
-                        }
-                    } catch(e) {
-                        document.getElementById('user-weather-info').innerText = "Cuaca Offline";
-                    }
+                    fetchUserWeather(lat, lng);
                 }, (err) => {
                     // Handle Error Lokasi (Penting agar user tahu kenapa tidak muncul)
                     console.warn("Geo Error:", err);
                     let msg = "Gagal Lokasi";
                     if(err.code === 1) msg = "Izin Ditolak"; // User menolak izin
                     if(err.code === 3) msg = "Timeout GPS";  // Sinyal lemah
-                    document.getElementById('user-weather-info').innerText = msg;
+                    const infoEl = document.getElementById('user-weather-info');
+                    if(infoEl) infoEl.innerText = msg;
                     
                     // FALLBACK: Jika GPS ditolak/gagal, gunakan estimasi lokasi via IP Address
                     // Ini solusi untuk pengguna baru yang menolak izin lokasi agar tidak stuck di Jakarta
@@ -957,6 +856,7 @@
                             if(data.latitude && data.longitude) {
                                 const lat = data.latitude;
                                 const lng = data.longitude;
+                                userLatlng = L.latLng(lat, lng);
                                 
                                 // Pindahkan peta ke lokasi IP (Zoom level 12 karena kurang akurat dibanding GPS)
                                 map.flyTo([lat, lng], 12);
@@ -965,11 +865,35 @@
                                 localStorage.setItem('lastLat', lat);
                                 localStorage.setItem('lastLng', lng);
                                 
-                                document.getElementById('user-weather-info').innerText = `Lokasi: ${data.city} (IP)`;
+                                fetchUserWeather(lat, lng);
                             }
                         })
                         .catch(() => console.log("Gagal deteksi lokasi IP"));
                 }, { timeout: 10000, enableHighAccuracy: true });
+            }
+        }
+
+        async function fetchUserWeather(lat, lng) {
+            try {
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+                const data = await res.json();
+                if(data.current_weather) {
+                    const temp = Math.round(data.current_weather.temperature);
+                    currentUserWeatherCode = data.current_weather.weathercode;
+                    
+                    const infoEl = document.getElementById('user-weather-info');
+                    if(infoEl) {
+                        const lang = localStorage.getItem('appLang') || 'id';
+                        const locText = dynamicTranslations[lang].location;
+                        infoEl.innerText = `${locText}: ${temp}°C`;
+                    }
+                    
+                    // Cek Salju di lokasi user
+                    checkWeatherForSnow(currentUserWeatherCode);
+                }
+            } catch(e) {
+                const infoEl = document.getElementById('user-weather-info');
+                if(infoEl) infoEl.innerText = "Cuaca Offline";
             }
         }
 
@@ -1529,6 +1453,7 @@
             if(!isContribution) {
                 // Mode: ADD NEW SPOT
                 // Reset form
+                document.getElementById('spotName').classList.remove('hidden');
                 document.getElementById('spotName').value = '';
                 document.getElementById('spotRating').value = '';
                 document.getElementById('spotWeight').value = '';
@@ -1548,10 +1473,11 @@
             } else {
                 // Mode: ADD REVIEW (spot already exists)
                 // Save button must be active
+                document.getElementById('spotName').classList.add('hidden');
                 saveBtn.disabled = false;
                 saveBtn.classList.remove('bg-slate-600', 'hover:bg-slate-600', 'cursor-not-allowed');
                 saveBtn.classList.add('bg-blue-600', 'hover:bg-blue-500');
-                document.getElementById('btnSaveSpot').innerText = "Kirim Ulasan";
+                document.getElementById('btnSaveSpot').innerText = "Posting";
                 
                 // Sembunyikan info GPS karena tidak wajib untuk ulasan
                 svPreview.classList.add('hidden');
@@ -1717,7 +1643,7 @@
             }
 
             // 3. Simpan Data ke Google Sheets
-            btn.innerText = "Menyimpan ke Sheet...";
+            btn.innerText = "Posting...";
             const spotData = {
                 name: name,
                 lat: tempLatlng.lat,
@@ -1743,11 +1669,11 @@
                     openSpotDetail([spotData]);
                     map.flyTo([spotData.lat, spotData.lng], 16);
                     
-                    btn.innerText = "Simpan ke Cloud"; btn.disabled = false;
+                    btn.innerText = "Posting"; btn.disabled = false;
                 }).catch(err => {
                     console.error(err);
                     alert("Gagal koneksi ke Google Sheet. Cek URL Script.");
-                    btn.innerText = "Simpan ke Cloud"; btn.disabled = false;
+                    btn.innerText = "Posting"; btn.disabled = false;
                 });
             } else {
                 // Fallback LocalStorage jika URL belum diisi
@@ -1761,7 +1687,7 @@
                 openSpotDetail([spotData]);
                 map.flyTo([spotData.lat, spotData.lng], 16);
                 
-                btn.innerText = "Simpan ke Cloud"; btn.disabled = false;
+                btn.innerText = "Posting"; btn.disabled = false;
             }
         }
 
@@ -2049,7 +1975,7 @@
                     
                     grid += `
                         <div class="bg-slate-900 rounded-xl border border-white/5 overflow-hidden flex flex-col shadow-lg">
-                            <div class="relative aspect-[4/5] bg-slate-800 group cursor-pointer" onclick="window.open('${g.photo}')">
+                            <div class="relative aspect-[4/5] bg-slate-800 group cursor-pointer" onclick="openImageLightbox('${g.photo}')">
                                 <img src="${g.photo}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                                 <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60"></div>
                                 ${weight}
@@ -2139,6 +2065,17 @@
         map.on('locationfound', e => {
             L.circleMarker(e.latlng, {radius:8, color:'#3b82f6', fillOpacity:0.8}).addTo(map);
         });
+
+        // --- LIGHTBOX FUNCTIONS ---
+        function openImageLightbox(url) {
+            document.getElementById('lightbox-img').src = url;
+            document.getElementById('lightboxModal').classList.remove('hidden');
+        }
+        
+        function closeImageLightbox() {
+            document.getElementById('lightboxModal').classList.add('hidden');
+            setTimeout(() => { document.getElementById('lightbox-img').src = ''; }, 300);
+        }
 
     </script>
 </body>
