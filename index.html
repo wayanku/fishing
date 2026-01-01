@@ -134,6 +134,31 @@
             93% { opacity: 0.2; } 
             94% { opacity: 0; } 
         }
+
+        /* Clouds (Berawan) */
+        .wx-particle.cloud {
+            left: -300px;
+            background: radial-gradient(closest-side, rgba(255,255,255,0.3), rgba(255,255,255,0));
+            border-radius: 50%;
+            filter: blur(20px);
+            animation: wxCloudMove linear forwards;
+        }
+        @keyframes wxCloudMove { to { transform: translateX(150vw); } }
+
+        /* Sun Glare (Cerah) */
+        .wx-sun-glare {
+            position: fixed; top: -150px; right: -150px;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(253, 224, 71, 0.4) 0%, rgba(253, 224, 71, 0) 70%);
+            filter: blur(50px);
+            z-index: 9990;
+            pointer-events: none;
+            animation: wxSunPulse 8s ease-in-out infinite;
+        }
+        @keyframes wxSunPulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
         
         /* Mobile Optimizations */
         input, button { touch-action: manipulation; }
@@ -987,17 +1012,26 @@
                 type = 'rain'; // Storm includes rain
             }
 
+            // 3. Setup Cerah (Sun Glare)
+            if(type === 'clear') {
+                const sun = document.createElement('div');
+                sun.className = 'wx-sun-glare';
+                container.appendChild(sun);
+            }
+
             // 3. Loop Partikel
-            if(type === 'snow' || type === 'rain') {
+            if(type === 'snow' || type === 'rain' || type === 'cloud') {
                 // Interval lebih cepat untuk hujan deras
-                const intervalTime = type === 'rain' ? 20 : 150; 
+                let intervalTime = 150;
+                if(type === 'rain') intervalTime = 20;
+                if(type === 'cloud') intervalTime = 5000; // Awan muncul setiap 5 detik
                 
                 wxInterval = setInterval(() => {
                     const p = document.createElement('div');
                     p.classList.add('wx-particle', type);
                     
                     // Posisi Random Horizontal
-                    p.style.left = Math.random() * 100 + 'vw';
+                    if(type !== 'cloud') p.style.left = Math.random() * 100 + 'vw';
                     
                     if(type === 'snow') {
                         p.innerHTML = '❄';
@@ -1032,12 +1066,19 @@
                             wxSplashContainer.appendChild(splash);
                             setTimeout(() => splash.remove(), 500);
                         }
+                    } else if (type === 'cloud') {
+                        // Awan
+                        p.style.top = (Math.random() * 40) + 'vh'; // Muncul di 40% atas layar
+                        p.style.width = (200 + Math.random() * 200) + 'px';
+                        p.style.height = (100 + Math.random() * 80) + 'px';
+                        p.style.opacity = Math.random() * 0.3 + 0.1;
+                        p.style.animationDuration = (30 + Math.random() * 30) + 's'; // Gerak lambat 30-60s
                     }
                     
                     container.appendChild(p);
                     
                     // Hapus elemen setelah animasi selesai (plus buffer)
-                    setTimeout(() => p.remove(), 6000);
+                    setTimeout(() => p.remove(), type === 'cloud' ? 60000 : 6000);
                     
                 }, intervalTime);
                 
@@ -1068,7 +1109,7 @@
                 wxSplashContainer.innerHTML = ''; // Hapus sisa cipratan
             }
 
-            document.querySelectorAll('.wx-particle, .storm-flash').forEach(el => el.remove());
+            document.querySelectorAll('.wx-particle, .storm-flash, .wx-sun-glare').forEach(el => el.remove());
         }
 
         // 3. Auth Logic
@@ -1214,6 +1255,11 @@
             if([71, 73, 75, 77, 85, 86].includes(code)) { startWeatherEffect('snow'); return; }
             if([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) { startWeatherEffect('rain'); return; }
             if(windSpeed > 20) { startWeatherEffect('wind'); return; }
+            
+            // New: Cloudy & Clear
+            if([1, 2, 3, 45, 48].includes(code)) { startWeatherEffect('cloud'); return; }
+            if([0].includes(code)) { startWeatherEffect('clear'); return; }
+            
             stopWeatherEffect();
         }
 
