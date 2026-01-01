@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -1889,6 +1890,9 @@
             // Tentukan Icon berdasarkan Max Weight
             const dynamicIcon = getSpotStyle(maxWeight);
 
+            // ID unik untuk elemen alamat
+            const addrId = 'addr-' + Math.random().toString(36).substr(2, 9);
+
             const popupHtml = `
                 <div class="w-64 bg-slate-900/90 backdrop-blur-xl rounded-[1.5rem] border border-white/10 shadow-2xl overflow-hidden pb-1">
                     ${coverPhoto ? `<div class="h-36 w-full relative group cursor-pointer" onclick="openSpotDetailByKey('${key}')">
@@ -1899,6 +1903,10 @@
                     
                     <div class="px-4 pt-3 pb-3">
                         <h4 class="font-black text-lg text-white leading-tight mb-1 truncate">${mainSpot.name}</h4>
+                        
+                        <div class="flex items-center gap-1 text-[10px] text-slate-400 mb-2">
+                            <i data-lucide="map-pin" class="w-3 h-3"></i> <span id="${addrId}">Memuat lokasi...</span>
+                        </div>
                         
                         <div class="flex items-center justify-between mb-3">
                             <div class="flex items-center gap-1 text-xs text-yellow-400 font-bold"><i data-lucide="star" class="w-3 h-3 fill-current"></i> ${avgRating}</div>
@@ -1914,6 +1922,40 @@
             
             // Simpan maxWeight di options marker untuk filtering nanti
             const marker = L.marker([mainSpot.lat, mainSpot.lng], {icon: dynamicIcon, maxWeight: maxWeight}).addTo(map).bindPopup(popupHtml);
+            
+            // Event saat popup dibuka: Fetch Nama Lokasi
+            marker.on('popupopen', () => {
+                const el = document.getElementById(addrId);
+                if(el && el.innerText === "Memuat lokasi...") {
+                    fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${mainSpot.lat}&lon=${mainSpot.lng}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const addr = data.address;
+                            let locName = "";
+                            
+                            // Prioritas Nama: Desa > Kecamatan > Kota
+                            if(addr.village) locName = addr.village;
+                            else if(addr.hamlet) locName = addr.hamlet;
+                            else if(addr.town) locName = addr.town;
+                            else if(addr.city) locName = addr.city;
+                            else if(addr.county) locName = addr.county;
+                            
+                            // Tambahkan detail kedua jika ada (misal: Desa, Kota)
+                            if(locName) {
+                                if(addr.city && locName !== addr.city) locName += `, ${addr.city}`;
+                                else if(addr.county && locName !== addr.county) locName += `, ${addr.county}`;
+                            } else {
+                                locName = "Lokasi Terpencil";
+                            }
+
+                            el.innerText = locName;
+                        })
+                        .catch(() => {
+                            el.innerText = `${parseFloat(mainSpot.lat).toFixed(4)}, ${parseFloat(mainSpot.lng).toFixed(4)}`;
+                        });
+                }
+            });
+
             allMarkers.push(marker);
             
             lucide.createIcons(); // Refresh icon di dalam popup
