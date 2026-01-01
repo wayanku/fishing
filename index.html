@@ -135,7 +135,33 @@
         
         /* Fix Search Bar in Light Mode */
         .light-mode #search-input { background-color: transparent !important; border: none !important; box-shadow: none !important; }
-        .light-mode .bg-slate-900\/60 { background-color: transparent !important; }
+        .light-mode .bg-slate-900\/60 { background-color: #ffffff !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important; }
+        .light-mode #search-input { color: #0f172a !important; }
+        .light-mode #search-input::placeholder { color: #94a3b8 !important; }
+        .light-mode #mic-btn, .light-mode #search-btn { color: #64748b !important; }
+        .light-mode #search-btn { background-color: #eff6ff !important; color: #3b82f6 !important; }
+
+        /* Chart Improvements in Light Mode */
+        .light-mode #chart-container { background-color: #f8fafc !important; border-color: #e2e8f0 !important; }
+        .light-mode #chart-container text { fill: #64748b !important; }
+        .light-mode #chart-container line { stroke: #cbd5e1 !important; }
+
+        /* Chart Tooltip & Tabs */
+        #chart-tooltip {
+            position: absolute; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 12px; border-radius: 8px; pointer-events: none; font-size: 11px; color: white;
+            z-index: 50; display: none; backdrop-filter: blur(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            min-width: 80px;
+        }
+        .light-mode #chart-tooltip { background: rgba(255, 255, 255, 0.95); border: 1px solid #e2e8f0; color: #0f172a; }
+        
+        .chart-tab.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        
+        /* Custom Scrollbar for Tabs */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #chart-cursor { pointer-events: none; transition: left 0.05s linear; }
     </style>
 </head>
 <body class="overflow-hidden">
@@ -295,8 +321,8 @@
                 <span class="text-[10px] font-medium">Favorit</span>
             </button>
             <button onclick="openLegend()" class="p-2 text-slate-400 hover:text-yellow-400 flex flex-col items-center gap-1 transition-colors">
-                <i data-lucide="info" class="w-6 h-6"></i>
-                <span class="text-[10px] font-medium">Info</span>
+                <i data-lucide="settings" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Pengaturan</span>
             </button>
         </div>
     </div>
@@ -394,20 +420,42 @@
         <div class="glass w-full max-w-lg p-6 rounded-[2rem] animate-in zoom-in duration-200 relative m-4 shadow-2xl border border-white/10">
             <button onclick="closeDetailModal()" class="absolute top-4 right-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
             <h3 class="text-xl font-bold mb-1 flex items-center gap-2" id="detail-title">Detail Cuaca</h3>
-            <p class="text-xs text-slate-400 mb-6" id="detail-date">...</p>
+            <p class="text-xs text-slate-400 mb-4" id="detail-date">...</p>
             
+            <!-- Chart Tabs -->
+            <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
+                <button onclick="switchChart('temp')" id="tab-temp" class="chart-tab active px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-slate-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="thermometer" class="w-3 h-3"></i> Suhu & Hujan</button>
+                <button onclick="switchChart('wind')" id="tab-wind" class="chart-tab px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-slate-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="wind" class="w-3 h-3"></i> Angin</button>
+                <button onclick="switchChart('wave')" id="tab-wave" class="chart-tab px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-slate-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="waves" class="w-3 h-3"></i> Ombak</button>
+            </div>
+
             <!-- Chart Container -->
-            <div class="w-full h-48 bg-slate-900/50 rounded-xl border border-slate-700 p-4 relative mb-4" id="chart-container">
+            <div class="w-full h-56 bg-slate-900/50 rounded-xl border border-slate-700 p-4 relative mb-4 cursor-crosshair touch-none" id="chart-wrapper">
                 <!-- SVG Chart will be injected here -->
-            </div>
-            <div class="flex justify-between text-[10px] text-slate-500 px-2 mb-4">
-                <span class="flex items-center gap-1"><div class="w-2 h-2 bg-yellow-400 rounded-full"></div> Suhu (°C)</span>
-                <span class="flex items-center gap-1"><div class="w-2 h-2 bg-blue-400 rounded-sm"></div> Peluang Hujan (%)</span>
+                <div id="chart-container" class="w-full h-full"></div>
+                <div id="chart-tooltip"></div>
+                <div id="chart-cursor" class="absolute top-4 bottom-4 w-px bg-white/30 hidden border-l border-dashed border-white"></div>
             </div>
             
-            <!-- Hourly List -->
-            <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Ringkasan Hujan</h4>
-            <div class="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 text-sm text-white" id="rain-summary">
+            <!-- Advanced Details Grid -->
+            <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Data Atmosfer</h4>
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <div class="bg-slate-800/30 p-2 rounded-xl border border-white/5 text-center">
+                    <p class="text-[9px] text-slate-500 uppercase">Kelembaban</p>
+                    <p class="text-sm font-bold text-blue-300" id="det-humidity">-%</p>
+                </div>
+                <div class="bg-slate-800/30 p-2 rounded-xl border border-white/5 text-center">
+                    <p class="text-[9px] text-slate-500 uppercase">Tekanan</p>
+                    <p class="text-sm font-bold text-emerald-300" id="det-pressure">- hPa</p>
+                </div>
+                <div class="bg-slate-800/30 p-2 rounded-xl border border-white/5 text-center">
+                    <p class="text-[9px] text-slate-500 uppercase">UV Index</p>
+                    <p class="text-sm font-bold text-yellow-300" id="det-uv">-</p>
+                </div>
+            </div>
+            
+            <!-- Summary -->
+            <div class="p-3 bg-slate-800/50 rounded-xl border border-slate-700/50 text-xs text-slate-300" id="rain-summary">
                 <!-- Summary -->
             </div>
         </div>
@@ -430,7 +478,7 @@
     <div id="legendModal" class="fixed inset-0 z-[10000] bg-black/80 hidden flex items-center justify-center p-4">
         <div class="glass w-full max-w-sm p-6 rounded-[2rem] animate-in zoom-in duration-200 m-4 shadow-2xl border border-white/10">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="info" class="text-blue-400"></i> Keterangan Marker</h3>
+                <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="settings" class="text-blue-400"></i> Pengaturan</h3>
                 <button onclick="closeLegend()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700 text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
             <div class="space-y-4">
@@ -1081,7 +1129,7 @@
             // 3. Fetch Weather & Marine Data (Open-Meteo API)
             try {
                 // Mengambil Weather + Marine (Wave Height) + Sun (Sunrise/Sunset)
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode,wave_height&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset&timezone=auto`);
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode,wave_height,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure,visibility&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset,uv_index_max&timezone=auto`);
                 const data = await res.json();
                 currentWeatherData = data; // Simpan data untuk detail view
                 updateWeatherUI(data);
@@ -1232,9 +1280,13 @@
         }
 
         // --- FITUR DETAIL CUACA (Chart & Hourly) ---
+        let currentChartType = 'temp';
+        let currentDayIndex = 0;
+
         function openDetailModal(dayIndex) {
             if(!currentWeatherData || !currentWeatherData.hourly) return;
             
+            currentDayIndex = dayIndex;
             const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
             const dateStr = currentWeatherData.daily.time[dayIndex];
             const dateObj = new Date(dateStr);
@@ -1242,69 +1294,158 @@
             document.getElementById('detail-title').innerText = days[dateObj.getDay()];
             document.getElementById('detail-date').innerText = dateStr;
             
-            // Ambil data 24 jam untuk hari tersebut
-            const startIndex = dayIndex * 24;
+            // Update Advanced Details (Ambil data jam 12 siang sebagai representasi)
+            const noonIdx = (dayIndex * 24) + 12;
+            const humidity = currentWeatherData.hourly.relativehumidity_2m[noonIdx] || '-';
+            const pressure = currentWeatherData.hourly.surface_pressure[noonIdx] || '-';
+            const uv = currentWeatherData.daily.uv_index_max[dayIndex] || '-';
+            
+            document.getElementById('det-humidity').innerText = `${humidity}%`;
+            document.getElementById('det-pressure').innerText = `${pressure} hPa`;
+            document.getElementById('det-uv').innerText = uv;
+
+            // Render Summary Text
+            const dailyCode = currentWeatherData.daily.weathercode[dayIndex];
+            const isSnow = [71, 73, 75, 77, 85, 86].includes(dailyCode);
+            const rainSum = currentWeatherData.daily.precipitation_sum[dayIndex];
+            
+            let summary = `<div class="flex items-center gap-2"><i data-lucide="info" class="text-blue-400 w-4 h-4"></i> <p>Total presipitasi: ${rainSum}mm. `;
+            if(rainSum > 5) summary += "Siapkan jas hujan.";
+            else summary += "Cuaca relatif kering.";
+            summary += "</p></div>";
+            document.getElementById('rain-summary').innerHTML = summary;
+
+            // Default Chart
+            switchChart('temp');
+            
+            document.getElementById('weatherDetailModal').classList.remove('hidden');
+            lucide.createIcons();
+            initChartInteractivity();
+        }
+
+        function switchChart(type) {
+            currentChartType = type;
+            // Update Tabs UI
+            document.querySelectorAll('.chart-tab').forEach(btn => {
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-600');
+                btn.classList.add('bg-slate-800/50', 'text-slate-400', 'border-white/10');
+            });
+            const activeBtn = document.getElementById(`tab-${type}`);
+            if(activeBtn) {
+                activeBtn.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-600');
+                activeBtn.classList.remove('bg-slate-800/50', 'text-slate-400', 'border-white/10');
+            }
+            renderChart();
+        }
+
+        function renderChart() {
+            const container = document.getElementById('chart-container');
+            const startIndex = currentDayIndex * 24;
             const hourly = currentWeatherData.hourly;
             
-            const temps = [];
-            const rains = [];
-            const times = [];
+            const labels = [];
+            const data1 = []; // Main Line
+            const data2 = []; // Secondary
             
             for(let i=0; i<24; i++) {
                 const idx = startIndex + i;
                 if(idx >= hourly.time.length) break;
-                temps.push(hourly.temperature_2m[idx]);
-                rains.push(hourly.precipitation_probability[idx]);
-                times.push(new Date(hourly.time[idx]).getHours());
+                labels.push(i);
+                
+                if(currentChartType === 'temp') {
+                    data1.push(hourly.temperature_2m[idx]);
+                    data2.push(hourly.precipitation_probability[idx]);
+                } else if(currentChartType === 'wind') {
+                    data1.push(hourly.windspeed_10m[idx]);
+                    data2.push(hourly.winddirection_10m[idx]);
+                } else if(currentChartType === 'wave') {
+                    data1.push(hourly.wave_height[idx] || 0);
+                }
             }
             
-            // Render Chart SVG
-            const w = 300, h = 100, pad = 10;
-            const minT = Math.min(...temps) - 2;
-            const maxT = Math.max(...temps) + 2;
+            const w = container.clientWidth || 300;
+            const h = container.clientHeight || 150;
+            const pad = 20;
+            
+            const minVal = Math.min(...data1);
+            const maxVal = Math.max(...data1);
+            const range = (maxVal - minVal) || 1;
             
             const getX = (i) => pad + (i / 23) * (w - 2 * pad);
-            const getYTemp = (t) => h - pad - ((t - minT) / (maxT - minT)) * (h - 2 * pad);
-            const getYRain = (p) => h - pad - (p / 100) * (h - 2 * pad);
+            const getY = (v) => h - pad - ((v - minVal) / range) * (h - 2 * pad);
             
-            let pathD = `M ${getX(0)} ${getYTemp(temps[0])}`;
-            for(let i=1; i<temps.length; i++) pathD += ` L ${getX(i)} ${getYTemp(temps[i])}`;
+            let svgContent = '';
+            // Grid Lines
+            svgContent += `<line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="#475569" stroke-width="1" />`;
+            svgContent += `<line x1="${pad}" y1="${pad}" x2="${w-pad}" y2="${pad}" stroke="#475569" stroke-width="1" stroke-dasharray="4" opacity="0.5" />`;
             
-            let bars = rains.map((r, i) => r > 0 ? `<rect x="${getX(i)-2}" y="${getYRain(r)}" width="4" height="${(h-pad)-getYRain(r)}" fill="#60a5fa" opacity="0.6" rx="1" />` : '').join('');
-            let points = temps.map((t, i) => `<circle cx="${getX(i)}" cy="${getYTemp(t)}" r="1.5" fill="#fbbf24" />`).join('');
-            let labels = times.map((t, i) => i%4===0 ? `<text x="${getX(i)}" y="${h+5}" font-size="8" fill="#94a3b8" text-anchor="middle">${t}:00</text>` : '').join('');
-
-            document.getElementById('chart-container').innerHTML = `
-                <svg viewBox="0 0 ${w} ${h+10}" class="w-full h-full overflow-visible">
-                    <line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="#334155" stroke-width="1" />
-                    ${bars}
-                    <path d="${pathD}" fill="none" stroke="#fbbf24" stroke-width="2" />
-                    ${points}
-                    ${labels}
-                </svg>
-            `;
-            
-            // Render Summary Hujan
-            let rainIntervals = [];
-            let start = -1;
-            for(let i=0; i<rains.length; i++) {
-                if(rains[i] >= 30) { if(start === -1) start = times[i]; }
-                else { if(start !== -1) { rainIntervals.push(`${start}:00 - ${times[i]}:00`); start = -1; } }
+            if(currentChartType === 'temp') {
+                // Rain Bars
+                const getYRain = (p) => h - pad - (p / 100) * (h - 2 * pad);
+                data2.forEach((r, i) => { if(r > 0) svgContent += `<rect x="${getX(i)-3}" y="${getYRain(r)}" width="6" height="${(h-pad)-getYRain(r)}" fill="#3b82f6" opacity="0.3" rx="2" />`; });
+                
+                // Temp Line
+                let path = `M ${getX(0)} ${getY(data1[0])}`;
+                for(let i=1; i<data1.length; i++) path += ` L ${getX(i)} ${getY(data1[i])}`;
+                let area = path + ` L ${getX(data1.length-1)} ${h-pad} L ${getX(0)} ${h-pad} Z`;
+                
+                svgContent += `<defs><linearGradient id="gradTemp" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#fbbf24" stop-opacity="0.4"/><stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/></linearGradient></defs>`;
+                svgContent += `<path d="${area}" fill="url(#gradTemp)" stroke="none" />`;
+                svgContent += `<path d="${path}" fill="none" stroke="#fbbf24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />`;
+                data1.forEach((v, i) => { if(i%3===0) svgContent += `<circle cx="${getX(i)}" cy="${getY(v)}" r="3" fill="#fbbf24" stroke="#1e293b" stroke-width="2" />`; });
+                
+            } else if(currentChartType === 'wind') {
+                let path = `M ${getX(0)} ${getY(data1[0])}`;
+                for(let i=1; i<data1.length; i++) path += ` L ${getX(i)} ${getY(data1[i])}`;
+                svgContent += `<path d="${path}" fill="none" stroke="#22d3ee" stroke-width="2" />`;
+                data2.forEach((dir, i) => { if(i%3===0) svgContent += `<g transform="translate(${getX(i)},${getY(data1[i])-15}) rotate(${dir})"><path d="M0 5 L-3 -2 L0 0 L3 -2 Z" fill="#cbd5e1" /></g>`; });
+                
+            } else if(currentChartType === 'wave') {
+                let path = `M ${getX(0)} ${getY(data1[0])}`;
+                for(let i=1; i<data1.length; i++) path += ` L ${getX(i)} ${getY(data1[i])}`;
+                let area = path + ` L ${getX(data1.length-1)} ${h-pad} L ${getX(0)} ${h-pad} Z`;
+                svgContent += `<defs><linearGradient id="gradWave" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#60a5fa" stop-opacity="0.6"/><stop offset="100%" stop-color="#60a5fa" stop-opacity="0.1"/></linearGradient></defs>`;
+                svgContent += `<path d="${area}" fill="url(#gradWave)" stroke="none" />`;
+                svgContent += `<path d="${path}" fill="none" stroke="#60a5fa" stroke-width="2" />`;
             }
-            if(start !== -1) rainIntervals.push(`${start}:00 - 23:59`);
             
-            // Cek tipe presipitasi hari itu (Hujan vs Salju) untuk teks detail
-            const dailyCode = currentWeatherData.daily.weathercode[dayIndex];
-            const isSnow = [71, 73, 75, 77, 85, 86].includes(dailyCode);
+            labels.forEach((t, i) => { if(i%4===0) svgContent += `<text x="${getX(i)}" y="${h+5}" font-size="9" fill="#94a3b8" text-anchor="middle">${t}:00</text>`; });
+            container.innerHTML = `<svg viewBox="0 0 ${w} ${h+10}" class="w-full h-full overflow-visible">${svgContent}</svg>`;
+        }
 
-            const summary = rainIntervals.length > 0 
-                ? `<div class="flex items-start gap-2"><i data-lucide="${isSnow ? 'snowflake' : 'cloud-rain'}" class="text-blue-400 w-5 h-5 mt-0.5"></i> <div><p class="font-bold text-blue-300">Potensi ${isSnow ? 'Salju' : 'Hujan'} Tinggi (>30%)</p><p>${rainIntervals.join(', ')}</p></div></div>`
-                : `<div class="flex items-center gap-2"><i data-lucide="sun" class="text-yellow-400 w-5 h-5"></i> <p>Cuaca cenderung cerah/berawan, kecil kemungkinan hujan.</p></div>`;
+        function initChartInteractivity() {
+            const wrapper = document.getElementById('chart-wrapper');
+            const tooltip = document.getElementById('chart-tooltip');
+            const cursor = document.getElementById('chart-cursor');
             
-            document.getElementById('rain-summary').innerHTML = summary;
+            wrapper.onmousemove = (e) => {
+                const rect = wrapper.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const w = rect.width;
+                const pad = 20;
+                
+                let idx = Math.round(((x - pad) / (w - 2 * pad)) * 23);
+                if(idx < 0) idx = 0; if(idx > 23) idx = 23;
+                
+                const cursorX = pad + (idx / 23) * (w - 2 * pad);
+                cursor.style.left = `${cursorX}px`;
+                cursor.classList.remove('hidden');
+                
+                const realIdx = (currentDayIndex * 24) + idx;
+                const h = currentWeatherData.hourly;
+                
+                let html = `<strong>${idx}:00</strong><br>`;
+                if(currentChartType === 'temp') html += `🌡️ ${h.temperature_2m[realIdx]}°C<br>💧 ${h.precipitation_probability[realIdx]}%`;
+                else if(currentChartType === 'wind') html += `💨 ${h.windspeed_10m[realIdx]} km/h<br>🧭 ${h.winddirection_10m[realIdx]}°`;
+                else if(currentChartType === 'wave') html += `🌊 ${h.wave_height[realIdx] || 0} m`;
+                
+                tooltip.innerHTML = html;
+                tooltip.style.display = 'block';
+                tooltip.style.left = `${Math.min(x + 10, w - 80)}px`;
+                tooltip.style.top = '10px';
+            };
             
-            document.getElementById('weatherDetailModal').classList.remove('hidden');
-            lucide.createIcons();
+            wrapper.onmouseleave = () => { tooltip.style.display = 'none'; cursor.classList.add('hidden'); };
         }
 
         function closeDetailModal() {
