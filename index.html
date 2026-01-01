@@ -1920,10 +1920,11 @@
             nameInput.placeholder = "Memuat AI...";
 
             try {
-                const aiResult = await detectFish(file);
+                const aiResult = await detectFish(file, isContributionMode);
                 if (!aiResult.valid) {
-                    // Jika AI mendeteksi gambar tidak valid (ilegal, bukan ikan, dll.)
-                    alert("Gambar Ditolak!\n" + aiResult.reason);
+                    // Perbaikan: Tampilkan alasan penolakan dengan lebih jelas
+                    const reason = aiResult.reason || "Tidak ada detail spesifik.";
+                    alert("Gambar Ditolak!\n\nAlasan: " + reason);
                     clearImage();
                     saveBtn.innerText = "Gambar Tidak Valid"; // Tombol tetap disabled
                     nameInput.placeholder = "Nama Spot/Ikan";
@@ -2143,6 +2144,11 @@
                 return;
             }
 
+            if (isContributionMode && !fileToUpload) {
+                alert("Wajib menyertakan foto ikan untuk ulasan!");
+                return;
+            }
+
             const btn = document.getElementById('btnSaveSpot');
             const oldText = btn.innerText;
             
@@ -2180,9 +2186,11 @@
                 btn.disabled = true;
 
                 try {
-                    const aiResult = await detectFish(fileToUpload);
+                    const aiResult = await detectFish(fileToUpload, isContributionMode);
                     if(!aiResult.valid) {
-                        alert(`Gambar Ditolak!\n${aiResult.reason}\n\nMohon unggah foto yang valid.`);
+                        // Perbaikan: Tampilkan alasan penolakan dengan lebih jelas
+                        const reason = aiResult.reason || "Tidak ada detail spesifik.";
+                        alert(`Gambar Ditolak!\n\nAlasan: ${reason}\n\nMohon unggah foto yang valid.`);
                         btn.innerText = oldText;
                         btn.disabled = false;
                         return; // Stop process
@@ -2271,7 +2279,7 @@
             }
         }
 
-        function detectFish(file) {
+        function detectFish(file, isReview = false) {
             return new Promise((resolve) => {
                 const img = document.createElement('img');
                 const objectURL = URL.createObjectURL(file);
@@ -2330,28 +2338,55 @@
                                 return;
                             }
 
+                            // 3. Cek Ikan dengan Logika Berbeda (Spot Baru vs Ulasan)
                             const fishKeywords = ['fish', 'shark', 'ray', 'eel', 'trout', 'salmon', 'bass', 'pike', 'carp', 'tench', 'barracouta', 'coho', 'gar', 'sturgeon', 'marlin', 'anemone', 'seahorse', 'goldfish', 'whaleshark', 'hammerhead', 'crab', 'lobster', 'lionfish'];
-                            const match = predictions.find(p => fishKeywords.some(k => p.className.toLowerCase().includes(k)));
+                            if (!predictions || predictions.length === 0) {
+                                resolve({ valid: false, reason: "Analisa AI gagal, tidak ada hasil." });
+                                return;
+                            }
 
-                            if (match) {
-                                // UPDATE: Perketat filter. Jika confidence < 40%, tolak gambar.
-                                if (match.probability < 0.40) { 
-                                    resolve({ valid: false, reason: `Objek ikan tidak terdeteksi dengan jelas (Akurasi ${(match.probability*100).toFixed(0)}%). Harap foto lebih dekat.` }); 
-                                    return; 
+                            const topPrediction = predictions[0];
+                            const isTopPredictionFish = fishKeywords.some(k => topPrediction.className.toLowerCase().includes(k));
+
+                            // LOGIKA BARU: Aturan lebih ketat untuk Ulasan
+                            if (isReview) {
+                                // Untuk Ulasan: WAJIB prediksi #1 adalah ikan, dan confidence > 60%
+                                if (isTopPredictionFish && topPrediction.probability > 0.6) {
+                                    let name = topPrediction.className.split(',')[0].toLowerCase();
+                                    for (const [eng, id] of Object.entries(fishTranslations)) {
+                                        if (name.includes(eng)) { name = id; break; }
+                                    }
+                                    resolve({ valid: true, name: name.charAt(0).toUpperCase() + name.slice(1) });
+                                } else {
+                                    let reason = `Objek utama terdeteksi sebagai "${topPrediction.className.split(',')[0]}", bukan ikan.`;
+                                    if (isTopPredictionFish) { // It was a fish, but low confidence
+                                        reason = `Akurasi deteksi ikan terlalu rendah (${(topPrediction.probability*100).toFixed(0)}%) untuk ulasan. Harap gunakan foto yang lebih jelas.`;
+                                    }
+                                    resolve({ valid: false, reason: reason });
                                 }
-                                
-                                let name = match.className.split(',')[0].toLowerCase();
-                                for (const [eng, id] of Object.entries(fishTranslations)) {
-                                    if (name.includes(eng)) { name = id; break; }
-                                }
-                                resolve({ valid: true, name: name.charAt(0).toUpperCase() + name.slice(1) });
                             } else {
-                                resolve({ valid: false, reason: "Objek ikan tidak terdeteksi." });
+                                // Untuk Spot Baru (+): Logika yang lebih longgar
+                                // Cari ikan di top 3 prediksi, dengan confidence > 40%
+                                const match = predictions.slice(0, 3).find(p => fishKeywords.some(k => p.className.toLowerCase().includes(k)));
+                                if (match && match.probability > 0.40) {
+                                    let name = match.className.split(',')[0].toLowerCase();
+                                    for (const [eng, id] of Object.entries(fishTranslations)) {
+                                        if (name.includes(eng)) { name = id; break; }
+                                    }
+                                    resolve({ valid: true, name: name.charAt(0).toUpperCase() + name.slice(1) });
+                                } else {
+                                    resolve({ valid: false, reason: "Objek ikan tidak terdeteksi dengan jelas." });
+                                }
                             }
                         } else if (type === 'error') {
                             console.error("AI Worker Error:", message);
-                            // Fallback jika error teknis (fail open)
-                            resolve({ valid: true, name: "Ikan (AI Error)" });
+                            if (isReview) {
+                                // Untuk ulasan, jika AI error, tolak gambar (fail-closed)
+                                resolve({ valid: false, reason: "Gagal menganalisa gambar (AI Error). Coba lagi." });
+                            } else {
+                                // Untuk spot baru, biarkan lolos jika AI error (fail-open)
+                                resolve({ valid: true, name: "Ikan (AI Error)" });
+                            }
                         }
                     };
 
