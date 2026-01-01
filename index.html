@@ -7,6 +7,14 @@
     <title>Fishing Master Cloud - Street View & Auth</title>
     <meta name="theme-color" content="#0f172a">
     
+    <!-- PWA Manifest & Icons -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Fishing Spot">
+    <meta name="application-name" content="Fishing Spot">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2970/2970068.png">
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRmlzaGluZyBTcG90Iiwic2hvcnRfbmFtZSI6IkZpc2hpbmcgU3BvdCIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMDIwNjE3IiwidGhlbWVfY29sb3IiOiIjMDIwNjE3IiwiaWNvbnMiOlt7InNyYyI6Imh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzI5NzAvMjk3MDA2OC5wbmciLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2UvcG5nIn1dfQ==">
+
     <!-- CSS & Frameworks -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -15,6 +23,8 @@
     <!-- AI Image Recognition -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
+    <!-- EXIF Reader (Untuk baca lokasi dari foto) -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
@@ -69,13 +79,19 @@
 
     <!-- LOGIN / REGISTER OVERLAY -->
     <div id="auth-overlay" class="fixed inset-0 flex items-center justify-center p-6 hidden">
-        <div class="glass w-full max-w-md p-6 md:p-8 rounded-[2rem] shadow-2xl border border-blue-500/20 m-4">
+        <div class="glass w-full max-w-md p-6 md:p-8 rounded-[2rem] shadow-2xl border border-blue-500/20 m-4 relative">
+            <!-- Language Selector (Auth) -->
+            <div class="absolute top-6 right-6">
+                <select onchange="changeLanguage(this.value)" class="bg-slate-800/50 text-white text-xs p-1.5 rounded-lg border border-white/10 outline-none">
+                    <option value="id">🇮🇩 ID</option><option value="en">🇺🇸 EN</option><option value="jp">🇯🇵 JP</option>
+                </select>
+            </div>
             <div class="text-center mb-8">
                 <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-900/40">
                     <i data-lucide="anchor" class="text-white w-8 h-8"></i>
                 </div>
-                <h2 class="text-2xl font-black tracking-tight">FISHING CLOUD</h2>
-                <p class="text-slate-400 text-sm">Masuk untuk simpan spot memancing Anda</p>
+                <h2 class="text-2xl font-black tracking-tight" data-i18n="app_title">FISHING CLOUD</h2>
+                <p class="text-slate-400 text-sm" data-i18n="login_subtitle">Masuk untuk simpan spot memancing Anda</p>
             </div>
             
             <div class="space-y-4">
@@ -87,8 +103,8 @@
                     <label class="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
                     <input type="password" id="auth-pass" class="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-4 mt-1 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-                <button onclick="handleAuth('login')" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold transition-all shadow-lg">Masuk Sekarang</button>
-                <button onclick="handleAuth('register')" class="w-full py-2 text-slate-400 text-sm hover:text-white">Belum punya akun? Daftar gratis</button>
+                <button onclick="handleAuth('login')" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold transition-all shadow-lg" data-i18n="btn_login">Masuk Sekarang</button>
+                <button onclick="handleAuth('register')" class="w-full py-2 text-slate-400 text-sm hover:text-white" data-i18n="btn_register">Belum punya akun? Daftar gratis</button>
             </div>
             <p id="auth-error" class="text-red-400 text-xs mt-4 text-center hidden"></p>
         </div>
@@ -109,6 +125,10 @@
             
             <!-- Weather Badge (Global) -->
             <div class="glass px-3 py-2 md:px-4 md:py-2 rounded-full flex items-center gap-2 md:gap-3 pointer-events-auto min-w-0 md:min-w-[140px] shadow-lg shadow-yellow-500/10">
+                <!-- Language Selector (App) -->
+                <select onchange="changeLanguage(this.value)" class="bg-transparent text-white text-[10px] font-bold outline-none border-r border-white/20 pr-2 mr-1">
+                    <option value="id" class="bg-slate-900">ID</option><option value="en" class="bg-slate-900">EN</option><option value="jp" class="bg-slate-900">JP</option>
+                </select>
                 <div id="user-weather-icon" class="text-yellow-400"><i data-lucide="sun" class="w-4 h-4"></i></div>
                 <span id="user-weather-info" class="text-[10px] md:text-xs font-bold text-white whitespace-nowrap">Memuat...</span>
             </div>
@@ -120,7 +140,7 @@
                 <button onclick="startVoiceSearch()" id="mic-btn" class="p-2 text-slate-400 hover:text-white transition-colors">
                     <i data-lucide="mic" class="w-4 h-4"></i>
                 </button>
-                <input type="text" id="search-input" placeholder="Cari lokasi (Desa, Kota, Laut)..." 
+                <input type="text" id="search-input" data-i18n-placeholder="search_placeholder" placeholder="Cari lokasi (Desa, Kota, Laut)..." 
                        class="bg-transparent border-none text-sm text-white placeholder-slate-400 focus:outline-none w-full ml-3"
                        onkeypress="handleSearch(event)">
                 <button onclick="searchLocation()" id="search-btn" class="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/30">
@@ -152,15 +172,15 @@
                 <div class="flex overflow-x-auto gap-3 mb-6 pb-2 no-scrollbar snap-x">
                     <div class="min-w-[100px] snap-center bg-gradient-to-br from-blue-600 to-indigo-600 p-3 rounded-2xl shadow-lg shadow-blue-900/20 text-center relative overflow-hidden flex flex-col justify-center transform transition hover:scale-105">
                         <div class="absolute top-0 right-0 p-1"><i data-lucide="sparkles" class="w-3 h-3 text-yellow-400 animate-pulse"></i></div>
-                        <p class="text-[10px] text-blue-100 uppercase font-bold mb-1">AI Score</p>
+                        <p class="text-[10px] text-blue-100 uppercase font-bold mb-1" data-i18n="wx_score">AI Score</p>
                         <div class="text-2xl font-black text-white" id="wx-score">--%</div>
                     </div>
                     <div class="min-w-[100px] snap-center bg-slate-800/60 p-3 rounded-2xl border border-white/5 text-center flex flex-col justify-center">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Suhu</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_temp">Suhu</p>
                         <div class="text-2xl font-black text-white" id="wx-temp">--°</div>
                     </div>
                     <div class="min-w-[100px] snap-center bg-slate-800/60 p-3 rounded-2xl border border-white/5 text-center flex flex-col items-center justify-center">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Angin</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_wind">Angin</p>
                         <div class="flex items-center gap-1">
                             <i data-lucide="arrow-up" id="wx-wind-dir" class="w-4 h-4 text-blue-400 wind-arrow"></i>
                             <span class="text-xl font-bold text-white" id="wx-wind-speed">--</span>
@@ -168,30 +188,30 @@
                         <span class="text-[9px] text-slate-500">km/h</span>
                     </div>
                     <div class="min-w-[100px] snap-center bg-slate-800/60 p-3 rounded-2xl border border-white/5 text-center flex flex-col justify-center">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Cuaca</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_weather">Cuaca</p>
                         <div class="text-sm font-bold text-blue-300 mt-1" id="wx-desc">Memuat...</div>
                     </div>
                     <div class="min-w-[100px] snap-center bg-slate-800/60 p-3 rounded-2xl border border-white/5 text-center flex flex-col justify-center">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Ombak (Max)</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_wave">Ombak (Max)</p>
                         <div class="text-xl font-black text-cyan-300 mt-1" id="wx-wave">-- m</div>
                     </div>
                     <div class="min-w-[100px] snap-center bg-slate-800/60 p-3 rounded-2xl border border-white/5 text-center flex flex-col justify-center">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Perjalanan</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_travel">Perjalanan</p>
                         <div class="text-sm font-black text-emerald-400 mt-1 leading-tight" id="panel-dist">-- km<br>-- mnt</div>
                     </div>
                     <div class="min-w-[100px] snap-center bg-slate-800/60 p-3 rounded-2xl border border-white/5 text-center flex flex-col justify-center">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Pasang Surut</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_tide">Pasang Surut</p>
                         <div class="text-xl font-black text-purple-300 mt-1" id="wx-tide">-- m</div>
                     </div>
                     <div class="min-w-[100px] snap-center bg-slate-800/60 p-3 rounded-2xl border border-white/5 text-center flex flex-col justify-center">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Matahari</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_sun">Matahari</p>
                         <div class="text-[10px] font-bold text-yellow-300 mt-1 leading-tight" id="wx-sun">--:--<br>--:--</div>
                     </div>
                 </div>
 
                 <!-- 7-Day Forecast & Fishing Rating (New Feature) -->
                 <div class="mb-6">
-                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2"><i data-lucide="calendar-days" class="w-3 h-3"></i> Prakiraan 7 Hari & Potensi Mancing</h4>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2"><i data-lucide="calendar-days" class="w-3 h-3"></i> <span data-i18n="forecast_title">Prakiraan 7 Hari & Potensi Mancing</span></h4>
                     <div id="forecast-list" class="space-y-2"></div>
                 </div>
 
@@ -201,32 +221,54 @@
                         <i data-lucide="eye" class="w-4 h-4"></i> Street View
                     </button>
                     <button onclick="openAddModal()" class="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/50 transition-all active:scale-95">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Simpan Spot
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> <span data-i18n="btn_savespot">Simpan Spot</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Float Action -->
-        <div class="fixed bottom-28 md:bottom-24 right-4 md:right-6 z-[900] flex flex-col gap-3 md:gap-4">
-            <button onclick="toggleMapLayer()" class="glass p-3 md:p-4 rounded-full text-white shadow-xl hover:scale-110 transition-transform active:scale-90" title="Ganti Peta"><i data-lucide="layers" class="w-5 h-5 md:w-6 md:h-6"></i></button>
-            <button onclick="toggleRadar()" id="radar-btn" class="glass p-3 md:p-4 rounded-full text-white shadow-xl hover:scale-110 transition-transform active:scale-90" title="Radar Hujan"><i data-lucide="cloud-rain" class="w-5 h-5 md:w-6 md:h-6"></i></button>
-            <button onclick="openFavorites()" class="glass p-3 md:p-4 rounded-full text-red-400 shadow-xl hover:scale-110 transition-transform active:scale-90" title="Favorit Saya"><i data-lucide="heart" class="w-5 h-5 md:w-6 md:h-6 fill-current"></i></button>
-            <button onclick="openLegend()" class="glass p-3 md:p-4 rounded-full text-yellow-400 shadow-xl hover:scale-110 transition-transform active:scale-90" title="Info Marker"><i data-lucide="info" class="w-5 h-5 md:w-6 md:h-6"></i></button>
-            <button onclick="locateUser()" class="glass p-3 md:p-4 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform active:scale-90"><i data-lucide="navigation" class="w-5 h-5 md:w-6 md:h-6"></i></button>
+        <!-- Floating Locate Button -->
+        <button onclick="locateUser()" class="fixed bottom-28 right-4 z-[900] glass p-3 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform active:scale-90"><i data-lucide="navigation" class="w-6 h-6"></i></button>
+
+        <!-- Bottom Navigation Bar (Instagram Style) -->
+        <div class="fixed bottom-0 left-0 right-0 z-[900] bg-slate-950/90 backdrop-blur-xl border-t border-white/10 pb-6 pt-2 px-6 flex justify-between items-end md:items-center">
+            <button onclick="toggleMapLayer()" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
+                <i data-lucide="layers" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Peta</span>
+            </button>
+            <button onclick="toggleRadar()" id="radar-btn" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
+                <i data-lucide="cloud-rain" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Radar</span>
+            </button>
+            
+            <!-- Center Add Button -->
+            <div class="relative -top-6">
+                <button onclick="openAddModal()" class="bg-gradient-to-r from-blue-600 to-blue-500 w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-600/40 border-[6px] border-slate-900 hover:scale-110 transition-transform active:scale-95">
+                    <i data-lucide="plus" class="w-8 h-8"></i>
+                </button>
+            </div>
+
+            <button onclick="openFavorites()" class="p-2 text-slate-400 hover:text-red-400 flex flex-col items-center gap-1 transition-colors">
+                <i data-lucide="heart" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Favorit</span>
+            </button>
+            <button onclick="openLegend()" class="p-2 text-slate-400 hover:text-yellow-400 flex flex-col items-center gap-1 transition-colors">
+                <i data-lucide="info" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Info</span>
+            </button>
         </div>
     </div>
 
     <!-- MODAL ADD SPOT -->
     <div id="addModal" class="fixed inset-0 z-[10000] bg-black/80 hidden flex items-center justify-center p-4">
         <div class="glass w-full max-w-sm p-6 rounded-[2rem] animate-in zoom-in duration-200 m-4 shadow-2xl border border-white/10">
-            <h3 id="addModalTitle" class="text-xl font-bold mb-4 flex items-center gap-2"><i data-lucide="map-pin" class="text-blue-500"></i> Tambah Spot</h3>
+            <h3 id="addModalTitle" class="text-xl font-bold mb-4 flex items-center gap-2"><i data-lucide="map-pin" class="text-blue-500"></i> <span data-i18n="modal_add_title">Tambah Spot</span></h3>
             <div class="space-y-4">
-                <input type="text" id="spotName" placeholder="Nama Spot/Ikan" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none">
+                <input type="text" id="spotName" data-i18n-placeholder="placeholder_spotname" placeholder="Nama Spot/Ikan" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none">
                 <div class="flex gap-2">
                     <input type="number" id="spotWeight" placeholder="Berat (Kg)" class="w-1/3 bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-emerald-400">
                     <input type="number" id="spotRating" min="1" max="5" placeholder="⭐ 1-5" class="w-1/3 bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-yellow-400">
-                    <input type="text" id="spotComment" placeholder="Komentar..." class="w-1/3 bg-slate-800 border-none rounded-xl p-4 outline-none">
+                    <input type="text" id="spotComment" data-i18n-placeholder="placeholder_comment" placeholder="Komentar..." class="w-1/3 bg-slate-800 border-none rounded-xl p-4 outline-none">
                 </div>
                 
                 <!-- Custom File Input (Optional) -->
@@ -234,7 +276,7 @@
                     <input type="file" id="spotPhoto" accept="image/*" class="hidden" onchange="previewImage(this)">
                     <label for="spotPhoto" class="flex flex-col items-center justify-center gap-2 w-full p-6 bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-600 text-slate-400 cursor-pointer hover:bg-slate-800 hover:border-blue-500 hover:text-blue-400 transition-all group-hover:shadow-lg group-hover:shadow-blue-900/20">
                         <i data-lucide="camera" class="w-8 h-8 mb-1"></i>
-                        <span id="photoLabel" class="text-xs font-bold uppercase tracking-wider">Tambah Foto (Opsional)</span>
+                        <span id="photoLabel" class="text-xs font-bold uppercase tracking-wider" data-i18n="label_add_photo">Tambah Foto (Opsional)</span>
                     </label>
                     <div id="imagePreviewContainer" class="hidden mt-3 relative rounded-2xl overflow-hidden border border-white/10 shadow-xl">
                         <img id="imagePreview" class="w-full h-48 object-cover">
@@ -250,8 +292,8 @@
                     <p class="text-[10px] text-slate-500">Koordinat akan dikunci ke lokasi Google Maps.</p>
                 </div>
 
-                <button id="btnSaveSpot" onclick="saveSpotCloud()" class="w-full bg-blue-600 py-4 rounded-xl font-bold hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/50">Simpan ke Cloud</button>
-                <button onclick="closeModal()" class="w-full text-slate-500 text-sm">Batal</button>
+                <button id="btnSaveSpot" onclick="saveSpotCloud()" class="w-full bg-blue-600 py-4 rounded-xl font-bold hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/50" data-i18n="btn_save_cloud">Simpan ke Cloud</button>
+                <button onclick="closeModal()" class="w-full text-slate-500 text-sm" data-i18n="btn_cancel">Batal</button>
             </div>
         </div>
     </div>
@@ -282,11 +324,11 @@
             <div class="px-6 pb-6 overflow-y-auto no-scrollbar flex-1 -mt-4 relative z-10">
                 <div class="flex items-center justify-between mb-8 bg-slate-900/80 backdrop-blur-md p-4 rounded-3xl border border-white/5 shadow-xl">
                     <div class="text-center">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">Kontributor</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="label_contributors">Kontributor</p>
                         <p class="text-2xl font-black text-white" id="detail-count">0</p>
                     </div>
                     <div class="text-center border-l border-white/10 pl-4">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">Rekor Ikan</p>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="label_record">Rekor Ikan</p>
                         <p class="text-2xl font-black text-emerald-400" id="detail-max-weight">-</p>
                     </div>
                     <button onclick="openStreetViewFromDetail()" class="bg-blue-600/20 border border-blue-500/50 p-3 rounded-xl text-blue-400 hover:bg-blue-600 hover:text-white transition-all"><i data-lucide="eye" class="w-5 h-5"></i></button>
@@ -299,7 +341,7 @@
             <!-- Footer Action -->
             <div class="absolute bottom-0 left-0 right-0 p-4 bg-slate-950/80 backdrop-blur-xl border-t border-white/5 z-20">
                 <button onclick="addContribution()" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 py-4 rounded-2xl font-bold shadow-lg hover:shadow-blue-500/25 transition-all flex items-center justify-center gap-2 text-white">
-                    <i data-lucide="camera" class="w-4 h-4"></i> Tambah Foto / Ulasan Disini
+                    <i data-lucide="camera" class="w-4 h-4"></i> <span data-i18n="btn_add_review">Tambah Foto / Ulasan Disini</span>
                 </button>
             </div>
         </div>
@@ -381,6 +423,98 @@
     <script>
         lucide.createIcons();
 
+        // --- MULTI-LANGUAGE SYSTEM ---
+        const translations = {
+            id: {
+                app_title: "FISHING CLOUD", login_subtitle: "Masuk untuk simpan spot memancing Anda",
+                btn_login: "Masuk Sekarang", btn_register: "Belum punya akun? Daftar gratis",
+                search_placeholder: "Cari lokasi (Desa, Kota, Laut)...",
+                wx_score: "AI Score", wx_temp: "Suhu", wx_wind: "Angin", wx_weather: "Cuaca",
+                wx_wave: "Ombak (Max)", wx_travel: "Perjalanan", wx_tide: "Pasang Surut", wx_sun: "Matahari",
+                forecast_title: "Prakiraan 7 Hari & Potensi Mancing",
+                btn_savespot: "Simpan Spot", modal_add_title: "Tambah Spot",
+                placeholder_spotname: "Nama Spot/Ikan", placeholder_comment: "Komentar...",
+                label_add_photo: "Tambah Foto (Opsional)", btn_save_cloud: "Simpan ke Cloud", btn_cancel: "Batal",
+                label_contributors: "Kontributor", label_record: "Rekor Ikan", btn_add_review: "Tambah Foto / Ulasan Disini"
+            },
+            en: {
+                app_title: "FISHING CLOUD", login_subtitle: "Login to save your fishing spots",
+                btn_login: "Login Now", btn_register: "No account? Sign up free",
+                search_placeholder: "Search location (City, Sea)...",
+                wx_score: "AI Score", wx_temp: "Temp", wx_wind: "Wind", wx_weather: "Weather",
+                wx_wave: "Wave (Max)", wx_travel: "Travel", wx_tide: "Tide", wx_sun: "Sun",
+                forecast_title: "7-Day Forecast & Fishing Potential",
+                btn_savespot: "Save Spot", modal_add_title: "Add Spot",
+                placeholder_spotname: "Spot Name/Fish", placeholder_comment: "Comment...",
+                label_add_photo: "Add Photo (Optional)", btn_save_cloud: "Save to Cloud", btn_cancel: "Cancel",
+                label_contributors: "Contributors", label_record: "Fish Record", btn_add_review: "Add Photo / Review Here"
+            },
+            jp: {
+                app_title: "フィッシング・クラウド", login_subtitle: "釣り場を保存するためにログインしてください",
+                btn_login: "ログイン", btn_register: "アカウントなし？ 無料登録",
+                search_placeholder: "場所を検索 (都市, 海)...",
+                wx_score: "AIスコア", wx_temp: "気温", wx_wind: "風", wx_weather: "天気",
+                wx_wave: "波 (最大)", wx_travel: "移動", wx_tide: "潮汐", wx_sun: "太陽",
+                forecast_title: "7日間の予報と釣りの可能性",
+                btn_savespot: "スポット保存", modal_add_title: "スポット追加",
+                placeholder_spotname: "スポット名/魚", placeholder_comment: "コメント...",
+                label_add_photo: "写真を追加 (任意)", btn_save_cloud: "クラウドに保存", btn_cancel: "キャンセル",
+                label_contributors: "投稿者", label_record: "最大記録", btn_add_review: "写真/レビューを追加"
+            }
+        };
+
+        // Dictionary untuk konten dinamis (Cuaca, Hari, dll)
+        const dynamicTranslations = {
+            id: {
+                days: ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
+                weather: { 0: "Cerah", 1: "Cerah Berawan", 2: "Berawan", 3: "Mendung", 45: "Kabut", 51: "Gerimis", 61: "Hujan", 80: "Hujan Deras", 95: "Badai", 71: "Salju" },
+                rating: { good: "Bagus", medium: "Sedang", bad: "Buruk" },
+                loading: "Memuat...", location: "Lokasi Anda"
+            },
+            en: {
+                days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                weather: { 0: "Clear", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast", 45: "Fog", 51: "Drizzle", 61: "Rain", 80: "Showers", 95: "Thunderstorm", 71: "Snow" },
+                rating: { good: "Good", medium: "Fair", bad: "Poor" },
+                loading: "Loading...", location: "Your Location"
+            },
+            jp: {
+                days: ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'],
+                weather: { 0: "快晴", 1: "晴れ", 2: "一部曇り", 3: "曇り", 45: "霧", 51: "霧雨", 61: "雨", 80: "にわか雨", 95: "雷雨", 71: "雪" },
+                rating: { good: "良い", medium: "普通", bad: "悪い" },
+                loading: "読み込み中...", location: "あなたの場所"
+            }
+        };
+
+        function changeLanguage(lang) {
+            const t = translations[lang];
+            if(!t) return;
+            
+            // Update Text Content
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(t[key]) el.innerText = t[key];
+            });
+            // Update Placeholders
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if(t[key]) el.placeholder = t[key];
+            });
+            
+            // Sync Selectors
+            document.querySelectorAll('select').forEach(s => {
+                if(s.options[0].value === 'id' && s.options[1].value === 'en') s.value = lang;
+            });
+            
+            localStorage.setItem('appLang', lang);
+            
+            // Refresh tampilan cuaca jika sedang terbuka atau ada data
+            if(currentWeatherData) updateWeatherUI(currentWeatherData);
+            if(currentUserWeatherCode !== null) getUserWeather(); // Refresh header
+        }
+        
+        // Init Language
+        setTimeout(() => changeLanguage(localStorage.getItem('appLang') || 'id'), 100);
+
         // 1. KONFIGURASI DATABASE (Google Sheets & ImgBB)
         // Silakan ganti dengan URL Web App Google Script dan API Key ImgBB Anda
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyuRtzzICS1qoBxWKdOJpHeqWCUN6Wt04xAIi_sYQHd0wSxjc89eumDWAYYcKPrT8jV/exec"; 
@@ -434,15 +568,15 @@
                 if(radarLayer) map.removeLayer(radarLayer);
                 if(radarInterval) clearInterval(radarInterval);
                 isRadarOn = false;
-                btn.classList.remove('text-blue-400', 'bg-blue-900/50');
-                btn.classList.add('text-white');
+                btn.classList.remove('text-blue-400');
+                btn.classList.add('text-slate-400');
                 
                 // Hapus bar progress jika ada
                 const bar = document.getElementById('radar-progress');
                 if(bar) bar.remove();
             } else {
                 // Tampilkan loading
-                const originalIcon = btn.innerHTML;
+                const originalContent = btn.innerHTML;
                 btn.innerHTML = '<div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>';
                 
                 // Ambil data timestamp terbaru dari RainViewer
@@ -469,9 +603,9 @@
                             }).addTo(map);
                             
                             isRadarOn = true;
-                            btn.innerHTML = originalIcon; // Kembalikan icon
-                            btn.classList.add('text-blue-400', 'bg-blue-900/50');
-                            btn.classList.remove('text-white');
+                            btn.innerHTML = originalContent; // Kembalikan icon
+                            btn.classList.add('text-blue-400');
+                            btn.classList.remove('text-slate-400');
                             
                             // Mulai Animasi
                             startRadarAnimation();
@@ -480,7 +614,7 @@
                     .catch(err => { 
                         console.error(err); 
                         alert("Gagal memuat Radar Hujan (Koneksi/API Error)"); 
-                        btn.innerHTML = originalIcon;
+                        btn.innerHTML = originalContent;
                     });
             }
         }
@@ -524,6 +658,7 @@
         let currentWeatherData = null; // Simpan data cuaca lengkap
         let currentDetailSpot = null; // Data spot yang sedang dibuka detailnya
         let groupedSpots = {}; // Global variable untuk menyimpan data spot yang dikelompokkan
+        let isContributionMode = false; // Flag untuk membedakan mode tambah spot vs ulasan
 
         // Custom Icon untuk Spot Ikan
         const fishIcon = L.divIcon({
@@ -726,7 +861,10 @@
                         if(data.current_weather) {
                             const temp = Math.round(data.current_weather.temperature);
                             currentUserWeatherCode = data.current_weather.weathercode;
-                            document.getElementById('user-weather-info').innerText = `Lokasi Anda: ${temp}°C`;
+                            
+                            const lang = localStorage.getItem('appLang') || 'id';
+                            const locText = dynamicTranslations[lang].location;
+                            document.getElementById('user-weather-info').innerText = `${locText}: ${temp}°C`;
                             // Update icon based on weather code could be added here
                             
                             // Cek Salju di lokasi user
@@ -782,6 +920,9 @@
         async function showLocationPanel(latlng) {
             const panel = document.getElementById('location-panel');
             
+            const lang = localStorage.getItem('appLang') || 'id';
+            const dt = dynamicTranslations[lang];
+
             // Reset UI
             document.getElementById('panel-address').innerText = "Mencari nama lokasi...";
             document.getElementById('wx-wave').innerText = "-- m";
@@ -791,9 +932,9 @@
             document.getElementById('panel-coords').innerText = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
             document.getElementById('wx-temp').innerText = "--°";
             document.getElementById('wx-wind-speed').innerText = "--";
-            document.getElementById('wx-desc').innerText = "Memuat...";
+            document.getElementById('wx-desc').innerText = dt.loading;
             document.getElementById('wx-score').innerText = "--%";
-            document.getElementById('forecast-list').innerHTML = '<div class="text-center text-xs text-slate-500 py-4">Memuat prakiraan...</div>';
+            document.getElementById('forecast-list').innerHTML = `<div class="text-center text-xs text-slate-500 py-4">${dt.loading}</div>`;
             
             // Tampilkan Panel
             panel.classList.remove('translate-y-full');
@@ -861,105 +1002,7 @@
                 const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode,wave_height&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset&timezone=auto`);
                 const data = await res.json();
                 currentWeatherData = data; // Simpan data untuk detail view
-                
-                if(data.current_weather) {
-                    const wx = data.current_weather;
-                    document.getElementById('wx-temp').innerText = `${Math.round(wx.temperature)}°`;
-                    document.getElementById('wx-wind-speed').innerText = wx.windspeed;
-                    
-                    // Rotasi panah angin
-                    const arrow = document.getElementById('wx-wind-dir');
-                    arrow.style.transform = `rotate(${wx.winddirection}deg)`;
-                    
-                    // Kode cuaca sederhana (WMO code)
-                    const code = wx.weathercode;
-                    let desc = "Cerah";
-                    if(code > 3) desc = "Berawan";
-                    if(code > 40) desc = "Kabut";
-                    if(code > 50) desc = "Gerimis";
-                    if(code > 60) desc = "Hujan";
-                    if(code > 80) desc = "Badai";
-                    
-                    // Cek khusus Salju (Override) agar teksnya benar
-                    if([71, 73, 75, 77, 85, 86].includes(code)) desc = "Turun Salju";
-
-                    document.getElementById('wx-desc').innerText = desc;
-
-                    // Cek Salju untuk lokasi yang dipilih
-                    checkWeatherForSnow(code);
-
-                    // Ambil data ombak jam sekarang
-                    if(data.hourly && data.hourly.wave_height) {
-                        const currentHour = new Date().getHours();
-                        const waveHeight = data.hourly.wave_height[currentHour] || 0;
-                        document.getElementById('wx-wave').innerText = `${waveHeight} m`;
-                    }
-                    
-                    // Data Matahari (Sunrise/Sunset)
-                    if(data.daily) {
-                        const sunrise = data.daily.sunrise[0].split('T')[1];
-                        const sunset = data.daily.sunset[0].split('T')[1];
-                        document.getElementById('wx-sun').innerHTML = `🌅 ${sunrise}<br>🌇 ${sunset}`;
-                    }
-
-                    // AI Score Calculation
-                    let score = 90; // Base score
-                    if(wx.windspeed > 15) score -= 10;
-                    if(wx.windspeed > 25) score -= 20;
-                    if(wx.temperature < 20 || wx.temperature > 32) score -= 10;
-                    if(wx.weathercode > 3) score -= 5;
-                    if(wx.weathercode > 50) score -= 20;
-                    if(wx.weathercode > 80) score -= 40;
-                    
-                    // Tampilkan Score
-                    document.getElementById('wx-score').innerText = `${Math.max(10, score)}%`;
-
-                    // --- FITUR BARU: 7-DAY FORECAST & FISHING RATING ---
-                    if(data.daily) {
-                        const list = document.getElementById('forecast-list');
-                        list.innerHTML = ''; // Clear
-                        
-                        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                        
-                        for(let i=0; i<7; i++) {
-                            const date = new Date(data.daily.time[i]);
-                            const dayName = i === 0 ? 'Hari Ini' : days[date.getDay()];
-                            const maxTemp = Math.round(data.daily.temperature_2m_max[i]);
-                            const minTemp = Math.round(data.daily.temperature_2m_min[i]);
-                            const rain = data.daily.precipitation_sum[i];
-                            const wind = data.daily.windspeed_10m_max[i];
-                            const code = data.daily.weathercode[i];
-
-                            // Logika Sederhana Rating Mancing
-                            let fishRating = "Bagus";
-                            let fishColor = "text-emerald-400";
-                            
-                            if(wind > 20 || rain > 5) { fishRating = "Sedang"; fishColor = "text-yellow-400"; }
-                            if(wind > 30 || rain > 10 || code > 60) { fishRating = "Buruk"; fishColor = "text-red-400"; }
-
-                            const item = document.createElement('div');
-                            item.className = "flex items-center justify-between bg-slate-800/30 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-slate-700/50 transition-colors";
-                            item.onclick = () => openDetailModal(i); // Tambahkan event klik
-                            item.innerHTML = `
-                                <div class="flex items-center gap-3 w-1/3">
-                                    <div class="text-xs font-bold text-slate-300">${dayName}</div>
-                                </div>
-                                <div class="flex items-center gap-2 w-1/3 justify-center">
-                                    <i data-lucide="${getWeatherIcon(code)}" class="w-4 h-4 text-blue-300"></i>
-                                    <span class="text-xs font-bold">${maxTemp}° / ${minTemp}°</span>
-                                </div>
-                                <div class="flex flex-col items-end w-1/3">
-                                    <span class="text-[10px] font-black uppercase ${fishColor}">${fishRating}</span>
-                                    <span class="text-[10px] text-slate-500 flex items-center gap-1">
-                                        <i data-lucide="wind" class="w-3 h-3"></i> ${wind} km/h
-                                    </span>
-                                </div>
-                            `;
-                            list.appendChild(item);
-                        }
-                        lucide.createIcons();
-                    }
-                }
+                updateWeatherUI(data);
             } catch(err) {
                 document.getElementById('wx-desc').innerText = "Offline";
                 document.getElementById('wx-temp').innerText = "-";
@@ -976,6 +1019,109 @@
                     document.getElementById('wx-tide').innerText = `${tide.toFixed(2)} m`;
                 }
             } catch(e) { console.log("Tide data unavailable"); }
+        }
+
+        // Fungsi Update UI Cuaca (Dipisah agar bisa dipanggil saat ganti bahasa)
+        function updateWeatherUI(data) {
+            if(!data || !data.current_weather) return;
+            
+            const lang = localStorage.getItem('appLang') || 'id';
+            const dt = dynamicTranslations[lang];
+            
+            const wx = data.current_weather;
+            document.getElementById('wx-temp').innerText = `${Math.round(wx.temperature)}°`;
+            document.getElementById('wx-wind-speed').innerText = wx.windspeed;
+            
+            // Rotasi panah angin
+            const arrow = document.getElementById('wx-wind-dir');
+            arrow.style.transform = `rotate(${wx.winddirection}deg)`;
+            
+            // Kode cuaca sederhana (WMO code)
+            const code = wx.weathercode;
+            
+            // Mapping Kode ke Deskripsi
+            let desc = dt.weather[code] || dt.weather[0]; // Default Cerah
+            // Mapping kasar jika kode tidak ada di list utama
+            if(!dt.weather[code]) {
+                if(code > 3) desc = dt.weather[2]; // Berawan
+                if(code > 50) desc = dt.weather[61]; // Hujan
+                if(code > 80) desc = dt.weather[95]; // Badai
+            }
+
+            document.getElementById('wx-desc').innerText = desc;
+
+            // Cek Salju untuk lokasi yang dipilih
+            checkWeatherForSnow(code);
+
+            // Ambil data ombak jam sekarang
+            if(data.hourly && data.hourly.wave_height) {
+                const currentHour = new Date().getHours();
+                const waveHeight = data.hourly.wave_height[currentHour] || 0;
+                document.getElementById('wx-wave').innerText = `${waveHeight} m`;
+            }
+            
+            // Data Matahari (Sunrise/Sunset)
+            if(data.daily) {
+                const sunrise = data.daily.sunrise[0].split('T')[1];
+                const sunset = data.daily.sunset[0].split('T')[1];
+                document.getElementById('wx-sun').innerHTML = `🌅 ${sunrise}<br>🌇 ${sunset}`;
+            }
+
+            // AI Score Calculation
+            let score = 90; // Base score
+            if(wx.windspeed > 15) score -= 10;
+            if(wx.windspeed > 25) score -= 20;
+            if(wx.temperature < 20 || wx.temperature > 32) score -= 10;
+            if(wx.weathercode > 3) score -= 5;
+            if(wx.weathercode > 50) score -= 20;
+            if(wx.weathercode > 80) score -= 40;
+            
+            // Tampilkan Score
+            document.getElementById('wx-score').innerText = `${Math.max(10, score)}%`;
+
+            // --- FITUR BARU: 7-DAY FORECAST & FISHING RATING ---
+            if(data.daily) {
+                const list = document.getElementById('forecast-list');
+                list.innerHTML = ''; // Clear
+                
+                for(let i=0; i<7; i++) {
+                    const date = new Date(data.daily.time[i]);
+                    const dayName = i === 0 ? (lang === 'en' ? 'Today' : (lang === 'jp' ? '今日' : 'Hari Ini')) : dt.days[date.getDay()];
+                    const maxTemp = Math.round(data.daily.temperature_2m_max[i]);
+                    const minTemp = Math.round(data.daily.temperature_2m_min[i]);
+                    const rain = data.daily.precipitation_sum[i];
+                    const wind = data.daily.windspeed_10m_max[i];
+                    const code = data.daily.weathercode[i];
+
+                    // Logika Sederhana Rating Mancing
+                    let fishRating = dt.rating.good;
+                    let fishColor = "text-emerald-400";
+                    
+                    if(wind > 20 || rain > 5) { fishRating = dt.rating.medium; fishColor = "text-yellow-400"; }
+                    if(wind > 30 || rain > 10 || code > 60) { fishRating = dt.rating.bad; fishColor = "text-red-400"; }
+
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between bg-slate-800/30 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-slate-700/50 transition-colors";
+                    item.onclick = () => openDetailModal(i); // Tambahkan event klik
+                    item.innerHTML = `
+                        <div class="flex items-center gap-3 w-1/3">
+                            <div class="text-xs font-bold text-slate-300">${dayName}</div>
+                        </div>
+                        <div class="flex items-center gap-2 w-1/3 justify-center">
+                            <i data-lucide="${getWeatherIcon(code)}" class="w-4 h-4 text-blue-300"></i>
+                            <span class="text-xs font-bold">${maxTemp}° / ${minTemp}°</span>
+                        </div>
+                        <div class="flex flex-col items-end w-1/3">
+                            <span class="text-[10px] font-black uppercase ${fishColor}">${fishRating}</span>
+                            <span class="text-[10px] text-slate-500 flex items-center gap-1">
+                                <i data-lucide="wind" class="w-3 h-3"></i> ${wind} km/h
+                            </span>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                }
+                lucide.createIcons();
+            }
         }
 
         function getWeatherIcon(code) {
@@ -1183,6 +1329,14 @@
             'crab': 'Hewan Air Asin', 'lobster': 'Hewan Air Asin'
         };
 
+        // Helper: Konversi Koordinat DMS (EXIF) ke Desimal
+        function convertDMSToDD(dms, ref) {
+            if(!dms || dms.length < 3) return null;
+            let dd = dms[0] + dms[1]/60 + dms[2]/3600;
+            if (ref === "S" || ref === "W") dd = dd * -1;
+            return dd;
+        }
+
         // --- IMAGE PREVIEW FUNCTIONS ---
         async function previewImage(input) {
             const file = input.files[0];
@@ -1196,6 +1350,55 @@
                         nameInput.value = detectedName; // Langsung isi kategori
                     }
                     nameInput.placeholder = "Nama Spot/Ikan";
+                }
+
+                // Auto Deteksi Lokasi dari Foto (EXIF GPS)
+                if(!isContributionMode) { // Hanya jalankan jika mode Spot Baru (bukan ulasan)
+                    const svPreview = document.getElementById('sv-preview');
+                    if(svPreview) svPreview.innerHTML = `<div class="flex items-center gap-2 text-yellow-400 animate-pulse"><i data-lucide="loader" class="w-4 h-4 animate-spin"></i> <span class="text-xs font-bold">Mencari lokasi di foto...</span></div>`;
+                    lucide.createIcons();
+
+                    EXIF.getData(file, function() {
+                        const lat = EXIF.getTag(this, "GPSLatitude");
+                        const lng = EXIF.getTag(this, "GPSLongitude");
+                        const latRef = EXIF.getTag(this, "GPSLatitudeRef");
+                        const lngRef = EXIF.getTag(this, "GPSLongitudeRef");
+                        
+                        if(lat && lng) {
+                            const latDec = convertDMSToDD(lat, latRef);
+                            const lngDec = convertDMSToDD(lng, lngRef);
+                            
+                            if(latDec && lngDec) {
+                                // Update Lokasi Global
+                                tempLatlng = { lat: latDec, lng: lngDec };
+                                
+                                // Pindahkan Peta & Marker
+                                map.flyTo([latDec, lngDec], 16);
+                                
+                                // Update Marker Visual
+                                if(selectionMarker) map.removeLayer(selectionMarker);
+                                const pinIcon = L.divIcon({ className: 'bg-transparent', html: `<div class="relative -mt-8 flex flex-col items-center animate-bounce"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#3b82f6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-lg"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="white"/></svg><div class="w-3 h-1 bg-black/30 blur-sm rounded-full mt-[-2px]"></div></div>`, iconSize: [32, 32], iconAnchor: [16, 32] });
+                                selectionMarker = L.marker([latDec, lngDec], {icon: pinIcon}).addTo(map);
+
+                                // Beri Info ke User
+                                // Reverse Geocode untuk menampilkan alamat
+                                fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latDec}&lon=${lngDec}`)
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        const addr = data.display_name ? data.display_name.split(',').slice(0, 2).join(',') : "Alamat tidak ditemukan";
+                                        if(svPreview) svPreview.innerHTML = `<p class="text-[10px] text-emerald-400 font-bold uppercase mb-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> Lokasi Foto Ditemukan!</p><p class="text-[10px] text-white font-bold">${addr}</p><p class="text-[9px] text-slate-500">Koordinat: ${latDec.toFixed(5)}, ${lngDec.toFixed(5)}</p>`;
+                                        lucide.createIcons();
+                                    })
+                                    .catch(() => {
+                                        if(svPreview) svPreview.innerHTML = `<p class="text-[10px] text-emerald-400 font-bold uppercase mb-1 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> Lokasi dari Foto!</p><p class="text-[10px] text-slate-500">Koordinat: ${latDec.toFixed(5)}, ${lngDec.toFixed(5)}</p>`;
+                                        lucide.createIcons();
+                                    });
+                            }
+                        } else {
+                            if(svPreview) svPreview.innerHTML = `<p class="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> Tidak ada GPS di foto</p><p class="text-[10px] text-slate-500">Menggunakan lokasi pin di peta.</p>`;
+                            lucide.createIcons();
+                        }
+                    });
                 }
 
                 const reader = new FileReader();
@@ -1217,6 +1420,7 @@
         function openAddModal(isContribution = false) {
             closeLocationPanel(); // Tutup panel bawah
             document.getElementById('addModal').classList.remove('hidden');
+            isContributionMode = isContribution; // Set flag mode
             
             if(!isContribution) {
                 // Reset form jika mode tambah baru
@@ -1227,6 +1431,7 @@
                 clearImage();
                 document.getElementById('addModalTitle').innerHTML = `<i data-lucide="map-pin" class="text-blue-500"></i> Tambah Spot`;
                 document.getElementById('btnSaveSpot').innerText = "Simpan ke Cloud";
+                document.getElementById('sv-preview').innerHTML = `<p class="text-[10px] text-emerald-400 font-bold uppercase mb-1 flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> Street View Tersedia</p><p class="text-[10px] text-slate-500">Koordinat akan dikunci ke lokasi Google Maps.</p>`;
             }
         }
 
@@ -1355,7 +1560,11 @@
                 }).then(() => {
                     loadSpots(); // Reload semua spot untuk update grouping
                     closeModal();
-                    alert("Berhasil disimpan ke Google Sheet!");
+                    
+                    // Tampilkan detail spot baru (ala Instagram)
+                    openSpotDetail([spotData]);
+                    map.flyTo([spotData.lat, spotData.lng], 16);
+                    
                     btn.innerText = "Simpan ke Cloud"; btn.disabled = false;
                 }).catch(err => {
                     console.error(err);
@@ -1369,7 +1578,11 @@
                 localStorage.setItem('spots', JSON.stringify(local));
                 loadSpots();
                 closeModal();
-                alert("Disimpan di Local (URL Sheet belum diisi)");
+                
+                // Tampilkan detail spot baru (ala Instagram)
+                openSpotDetail([spotData]);
+                map.flyTo([spotData.lat, spotData.lng], 16);
+                
                 btn.innerText = "Simpan ke Cloud"; btn.disabled = false;
             }
         }
