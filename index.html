@@ -73,6 +73,23 @@
                 font-size: 16px !important;
             }
         }
+
+        /* Zoomed Out Marker Effects (Wider Glow) */
+        .zoomed-out .custom-fish-icon > div {
+            box-shadow: 0 0 30px 8px rgba(59, 130, 246, 0.8) !important; /* Blue Glow Wider */
+        }
+        .zoomed-out .custom-fish-icon > div.bg-yellow-500 {
+            box-shadow: 0 0 35px 10px rgba(234, 179, 8, 0.8) !important; /* Yellow Glow Wider */
+        }
+        .zoomed-out .custom-fish-icon > div.bg-red-600 {
+            box-shadow: 0 0 80px 25px rgba(255, 0, 0, 1) !important; /* Red Glow Extreme */
+            transform: scale(1.8); /* Significantly larger */
+            animation: pulse 0.6s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; /* Fast alert pulse */
+            z-index: 1000;
+        }
+        
+        /* Hide marker class */
+        .hidden-marker { display: none !important; }
     </style>
 </head>
 <body class="overflow-hidden">
@@ -540,6 +557,58 @@
         const initLng = lastLng ? parseFloat(lastLng) : 106.8166;
         
         var map = L.map('map', { zoomControl: false, layers: [satLayer] }).setView([initLat, initLng], lastLat ? 15 : 13);
+
+        // Handle Zoom Effect: Glow & Clustering Logic
+        function handleZoomEffect() {
+            const zoom = map.getZoom();
+            const mapEl = document.getElementById('map');
+            
+            // 1. Efek Glow Lebar (CSS)
+            if(zoom < 14) mapEl.classList.add('zoomed-out');
+            else mapEl.classList.remove('zoomed-out');
+            
+            // 2. Logika Prioritas Marker (Hanya saat Zoom Jauh < 13)
+            // "Yang biru/kuning hilang KECUALI tidak ada yang merah di dekatnya"
+            if (zoom < 13) { 
+                // Cari semua marker merah (Monster)
+                const redMarkers = allMarkers.filter(m => m.options.maxWeight >= 10);
+                
+                allMarkers.forEach(m => {
+                    const el = m.getElement();
+                    if(!el) return;
+
+                    if (m.options.maxWeight >= 10) {
+                        // Marker Merah selalu muncul
+                        el.classList.remove('hidden-marker');
+                        return;
+                    }
+                    
+                    // Cek jarak pixel ke marker merah terdekat
+                    let nearRed = false;
+                    const p1 = map.latLngToLayerPoint(m.getLatLng());
+                    
+                    for (const r of redMarkers) {
+                        const p2 = map.latLngToLayerPoint(r.getLatLng());
+                        const dist = p1.distanceTo(p2);
+                        if (dist < 120) { // Jika dalam radius 120px dari Merah -> Sembunyikan
+                            nearRed = true;
+                            break;
+                        }
+                    }
+                    
+                    if (nearRed) el.classList.add('hidden-marker');
+                    else el.classList.remove('hidden-marker');
+                });
+            } else {
+                // Reset: Tampilkan semua saat zoom dekat
+                allMarkers.forEach(m => {
+                    const el = m.getElement();
+                    if(el) el.classList.remove('hidden-marker');
+                });
+            }
+        }
+        map.on('zoomend', handleZoomEffect);
+        // handleZoomEffect dipanggil setelah marker dimuat
         
         let isSat = true;
         function toggleMapLayer() {
@@ -659,11 +728,12 @@
         let currentDetailSpot = null; // Data spot yang sedang dibuka detailnya
         let groupedSpots = {}; // Global variable untuk menyimpan data spot yang dikelompokkan
         let isContributionMode = false; // Flag untuk membedakan mode tambah spot vs ulasan
+        let allMarkers = []; // Array untuk menyimpan semua marker spot
 
         // Custom Icon untuk Spot Ikan
         const fishIcon = L.divIcon({
             className: 'custom-fish-icon',
-            html: `<div class="w-8 h-8 bg-blue-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center"><i data-lucide="fish" class="text-white w-5 h-5"></i></div>`,
+            html: `<div class="w-8 h-8 bg-blue-600 rounded-full border-2 border-white shadow-[0_0_15px_rgba(59,130,246,0.6)] flex items-center justify-center"><i data-lucide="fish" class="text-white w-5 h-5"></i></div>`,
             iconSize: [32, 32],
             iconAnchor: [16, 32],
             popupAnchor: [0, -32]
@@ -1731,19 +1801,19 @@
         // Helper: Tentukan Warna & Icon berdasarkan Berat Terbesar
         function getSpotStyle(maxWeight) {
             let colorClass = 'bg-blue-600'; // Default / Kecil (< 3kg)
-            let ringClass = 'border-blue-400';
+            let glowClass = 'shadow-[0_0_15px_rgba(59,130,246,0.6)]'; // Blue Glow
             
             if (maxWeight >= 10) { // Besar (> 10kg) -> MERAH
                 colorClass = 'bg-red-600';
-                ringClass = 'border-red-400';
+                glowClass = 'shadow-[0_0_25px_rgba(220,38,38,0.8)] animate-pulse'; // Red Glow + Pulse
             } else if (maxWeight >= 3) { // Sedang (3kg - 10kg) -> KUNING/ORANGE
                 colorClass = 'bg-yellow-500';
-                ringClass = 'border-yellow-300';
+                glowClass = 'shadow-[0_0_20px_rgba(234,179,8,0.7)]'; // Yellow Glow
             }
 
             return L.divIcon({
                 className: 'custom-fish-icon',
-                html: `<div class="w-8 h-8 ${colorClass} rounded-full border-2 border-white shadow-lg flex items-center justify-center relative">
+                html: `<div class="w-8 h-8 ${colorClass} rounded-full border-2 border-white ${glowClass} flex items-center justify-center relative transition-transform duration-300 hover:scale-110">
                         <i data-lucide="fish" class="text-white w-5 h-5"></i>
                         ${maxWeight >= 10 ? '<div class="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center"><div class="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping"></div></div>' : ''}
                        </div>`,
@@ -1804,7 +1874,10 @@
                 </div>
             `;
             
-            L.marker([mainSpot.lat, mainSpot.lng], {icon: dynamicIcon}).addTo(map).bindPopup(popupHtml);
+            // Simpan maxWeight di options marker untuk filtering nanti
+            const marker = L.marker([mainSpot.lat, mainSpot.lng], {icon: dynamicIcon, maxWeight: maxWeight}).addTo(map).bindPopup(popupHtml);
+            allMarkers.push(marker);
+            
             lucide.createIcons(); // Refresh icon di dalam popup
         }
 
@@ -1899,14 +1972,8 @@
 
         async function loadSpots() {
             // Bersihkan marker lama (kecuali user & search)
-            map.eachLayer(layer => {
-                if(layer instanceof L.Marker && layer !== searchMarker) {
-                    // Cara kasar hapus marker spot ikan tanpa hapus marker lain
-                    if(layer.options.icon && layer.options.icon.options.className === 'custom-fish-icon') {
-                        map.removeLayer(layer);
-                    }
-                }
-            });
+            allMarkers.forEach(m => map.removeLayer(m));
+            allMarkers = [];
 
             // 1. Load dari Google Sheets
             if(GOOGLE_SCRIPT_URL.startsWith("http")) {
@@ -1925,6 +1992,7 @@
 
                     // Render setiap grup
                     Object.keys(groupedSpots).forEach(key => addMarker(key, groupedSpots[key]));
+                    handleZoomEffect(); // Update tampilan setelah load
                     
                 } catch(e) { console.log("Gagal load Sheet:", e); }
             }
@@ -1942,6 +2010,7 @@
                 // Untuk simplifikasi demo:
                 addMarker(key, [item]);
             });
+            handleZoomEffect(); // Update tampilan setelah load
         }
 
         function locateUser() {
