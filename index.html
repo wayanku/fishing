@@ -1910,37 +1910,53 @@
             document.getElementById('imagePreviewContainer').classList.remove('hidden');
             document.getElementById('photoLabel').innerText = "Ganti Foto";
 
-            // 2. Auto-detect fish name (AI) - with resize to prevent crash
+            // 2. AI Validation and Auto-detect name (Runs for both new spots and contributions)
             const nameInput = document.getElementById('spotName');
-            if (nameInput.value.trim() === '') {
-                nameInput.placeholder = "Memuat AI & Menganalisa...";
-                try {
-                    const aiResult = await detectFish(file);
-                    if (aiResult.valid && aiResult.name) {
-                        nameInput.value = aiResult.name;
-                    } else if (!aiResult.valid && aiResult.reason) {
-                        if(aiResult.reason.includes("senonoh") || aiResult.reason.includes("kekerasan")) {
-                            alert("Peringatan: " + aiResult.reason);
-                            clearImage();
-                        }
-                    }
-                } catch (e) {
-                    console.error("AI detection failed:", e);
-                } finally {
+            const saveBtn = document.getElementById('btnSaveSpot');
+            const originalBtnText = saveBtn.innerText; // Simpan teks tombol sebelum diubah
+
+            saveBtn.disabled = true;
+            saveBtn.innerText = "Menganalisa Gambar...";
+            nameInput.placeholder = "Memuat AI...";
+
+            try {
+                const aiResult = await detectFish(file);
+                if (!aiResult.valid) {
+                    // Jika AI mendeteksi gambar tidak valid (ilegal, bukan ikan, dll.)
+                    alert("Gambar Ditolak!\n" + aiResult.reason);
+                    clearImage();
+                    saveBtn.innerText = "Gambar Tidak Valid"; // Tombol tetap disabled
                     nameInput.placeholder = "Nama Spot/Ikan";
+                    return; // Hentikan eksekusi fungsi
                 }
+
+                // Jika gambar valid:
+                // - Isi nama ikan jika input kosong (hanya untuk spot baru)
+                if (aiResult.name && nameInput.value.trim() === '' && !isContributionMode) {
+                    nameInput.value = aiResult.name;
+                }
+
+                // - Jika ini mode kontribusi, AI valid sudah cukup untuk lanjut.
+                //   Tombol akan di-enable di akhir.
+                // - Jika ini mode spot baru, kita harus menunggu hasil cek GPS.
+
+            } catch (e) {
+                console.error("AI detection failed, allowing upload:", e);
+                // Jika AI error, anggap valid (fail-open) agar tidak memblokir user. Validasi final tetap ada di server.
+            } finally {
+                nameInput.placeholder = "Nama Spot/Ikan";
+                // Kembalikan teks tombol sementara, akan di-update oleh cek GPS jika perlu
+                saveBtn.innerText = originalBtnText; 
             }
 
-            // 3. Auto-detect location from photo (EXIF GPS) - ONLY for new spots
+            // 3. Auto-detect location from photo (EXIF GPS) - HANYA untuk spot baru
             if(!isContributionMode) { 
                 const svPreview = document.getElementById('sv-preview');
-                const saveBtn = document.getElementById('btnSaveSpot');
                 const lang = localStorage.getItem('appLang') || 'id';
 
                 if(svPreview) svPreview.innerHTML = `<div class="flex items-center gap-2 text-yellow-400 animate-pulse"><i data-lucide="loader" class="w-4 h-4 animate-spin"></i> <span class="text-xs font-bold">Mencari lokasi di foto...</span></div>`;
                 lucide.createIcons();
 
-                // Add a small delay for UI to render before heavy EXIF processing
                 setTimeout(() => {
                     EXIF.getData(file, function() {
                         const lat = EXIF.getTag(this, "GPSLatitude");
@@ -1953,22 +1969,19 @@
                             const lngDec = convertDMSToDD(lng, lngRef);
                             
                             if(latDec && lngDec) {
-                                // GPS Found & Valid
                                 tempLatlng = { lat: latDec, lng: lngDec };
                                 map.flyTo([latDec, lngDec], 16);
                                 
-                                // Update visual marker
                                 if(selectionMarker) map.removeLayer(selectionMarker);
                                 const pinIcon = L.divIcon({ className: 'bg-transparent', html: `<div class="relative -mt-8 flex flex-col items-center animate-bounce"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#3b82f6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-lg"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="white"/></svg><div class="w-3 h-1 bg-black/30 blur-sm rounded-full mt-[-2px]"></div></div>`, iconSize: [32, 32], iconAnchor: [16, 32] });
                                 selectionMarker = L.marker([latDec, lngDec], {icon: pinIcon}).addTo(map);
 
-                                // Enable save button
+                                // Enable save button karena AI & GPS valid
                                 saveBtn.disabled = false;
                                 saveBtn.classList.remove('bg-slate-600', 'hover:bg-slate-600', 'cursor-not-allowed');
                                 saveBtn.classList.add('bg-blue-600', 'hover:bg-blue-500');
                                 saveBtn.innerText = translations[lang].btn_save_cloud;
 
-                                // Reverse geocode to show address
                                 fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latDec}&lon=${lngDec}`)
                                     .then(res => res.json())
                                     .then(data => {
@@ -1988,6 +2001,10 @@
                         }
                     });
                 }, 200);
+            } else {
+                // Jika ini mode kontribusi, AI check sudah lolos, jadi enable tombol save.
+                saveBtn.disabled = false;
+                saveBtn.innerText = originalBtnText;
             }
         }
 
