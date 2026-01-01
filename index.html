@@ -5,14 +5,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>spot mancing by wayan&storybali</title>
+    <title>Fishing Spot by Wayan & StoryBali</title>
     <meta name="theme-color" content="#0f172a">
     
     <!-- PWA Manifest & Icons -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="spot mancing by wayan&storybali">
-    <meta name="application-name" content="spot mancing by wayan&storybali">
+    <meta name="apple-mobile-web-app-title" content="Fishing Spot by Wayan & StoryBali">
+    <meta name="application-name" content="Fishing Spot by Wayan & StoryBali">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2970/2970068.png">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2970/2970068.png">
     <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRmlzaGluZyBTcG90Iiwic2hvcnRfbmFtZSI6IkZpc2hpbmcgU3BvdCIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMDIwNjE3IiwidGhlbWVfY29sb3IiOiIjMDIwNjE3IiwiaWNvbnMiOlt7InNyYyI6Imh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzI5NzAvMjk3MDA2OC5wbmciLCJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2UvcG5nIn1dfQ==">
@@ -177,7 +177,7 @@
                 <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-900/40">
                     <i data-lucide="anchor" class="text-white w-8 h-8"></i>
                 </div>
-                <h2 class="text-2xl font-black tracking-tight" data-i18n="app_title">FISHING CLOUD</h2>
+                <h2 class="text-2xl font-black tracking-tight" data-i18n="app_title">Fishing Spot by Wayan & StoryBali</h2>
                 <p class="text-slate-400 text-sm" data-i18n="login_subtitle">Masuk untuk simpan spot memancing Anda</p>
             </div>
             
@@ -194,9 +194,6 @@
                 <button onclick="handleAuth('register')" class="w-full py-2 text-slate-400 text-sm hover:text-white" data-i18n="btn_register">Belum punya akun? Daftar gratis</button>
             </div>
             <p id="auth-error" class="text-red-400 text-xs mt-4 text-center hidden"></p>
-            <div class="mt-6 text-center border-t border-white/5 pt-4">
-                <p class="text-[10px] text-slate-500 font-bold tracking-widest uppercase opacity-70">Powered by Wayan & StoryBali</p>
-            </div>
         </div>
     </div>
 
@@ -627,9 +624,6 @@
                         <p class="text-xs text-slate-400">Ikan Raksasa / Rekor (> 10kg).</p>
                     </div>
                 </div>
-                <div class="mt-8 text-center pt-4 border-t border-white/5">
-                    <p class="text-[10px] text-slate-500 font-bold tracking-widest uppercase">Powered by Wayan & StoryBali</p>
-                </div>
             </div>
         </div>
     </div>
@@ -688,7 +682,7 @@
         // --- MULTI-LANGUAGE SYSTEM ---
         const translations = {
             id: {
-                app_title: "spot mancing by wayan&storybali", login_subtitle: "Masuk untuk simpan spot memancing Anda",
+                app_title: "Fishing Spot by Wayan & StoryBali", login_subtitle: "Masuk untuk simpan spot memancing Anda",
                 btn_login: "Masuk Sekarang", btn_register: "Belum punya akun? Daftar gratis",
                 search_placeholder: "Cari lokasi (Desa, Kota, Laut)...",
                 wx_score: "AI Score", wx_temp: "Suhu", wx_wind: "Angin", wx_weather: "Cuaca",
@@ -700,7 +694,7 @@
                 label_contributors: "Kontributor", label_record: "Rekor Ikan", btn_add_review: "Tambah Foto / Ulasan Disini"
             },
             en: {
-                app_title: "spot mancing by wayan&storybali", login_subtitle: "Login to save your fishing spots",
+                app_title: "Fishing Spot by Wayan & StoryBali", login_subtitle: "Login to save your fishing spots",
                 btn_login: "Login Now", btn_register: "No account? Sign up free",
                 search_placeholder: "Search location (City, Sea)...",
                 wx_score: "AI Score", wx_temp: "Temp", wx_wind: "Wind", wx_weather: "Weather",
@@ -712,7 +706,7 @@
                 label_contributors: "Contributors", label_record: "Fish Record", btn_add_review: "Add Photo / Review Here"
             },
             jp: {
-                app_title: "spot mancing by wayan&storybali", login_subtitle: "釣り場を保存するためにログインしてください",
+                app_title: "Fishing Spot by Wayan & StoryBali", login_subtitle: "釣り場を保存するためにログインしてください",
                 btn_login: "ログイン", btn_register: "アカウントなし？ 無料登録",
                 search_placeholder: "場所を検索 (都市, 海)...",
                 wx_score: "AIスコア", wx_temp: "気温", wx_wind: "風", wx_weather: "天気",
@@ -787,44 +781,32 @@
         function getAiWorker() {
             if (!aiWorker) {
                 const workerCode = `
-                    self.importScripts(
-                        'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest', 
-                        'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest',
-                        'https://cdn.jsdelivr.net/npm/nsfwjs@2.4.2/dist/nsfwjs.min.js'
-                    );
-                    let mobilenetModel = null;
-                    let nsfwModel = null;
+                    self.importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest', 'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest');
+                    let model = null;
 
-                    async function loadModels() {
-                        if (!mobilenetModel || !nsfwModel) {
+                    async function loadModel() {
+                        if (!model) {
                             self.postMessage({ type: 'status', message: 'Loading AI model...' });
                             try {
-                                const [mn, nsfw] = await Promise.all([mobilenet.load(), nsfwjs.load()]);
-                                mobilenetModel = mn;
-                                nsfwModel = nsfw;
+                                model = await mobilenet.load();
                                 self.postMessage({ type: 'status', message: 'AI model loaded.' });
                             } catch (e) {
-                                self.postMessage({ type: 'error', message: 'Failed to load AI models: ' + e.message });
+                                self.postMessage({ type: 'error', message: 'Failed to load AI model.' });
                             }
                         }
-                        return { mobilenet: mobilenetModel, nsfw: nsfwModel };
+                        return model;
                     }
 
                     self.onmessage = async (e) => {
                         const { imageData } = e.data;
                         try {
-                            const models = await loadModels();
-                            if (!models.mobilenet || !models.nsfw) { throw new Error("Models not available."); }
+                            const classifier = await loadModel();
+                            if (!classifier) { throw new Error("Model not available."); }
                             if (!imageData) { throw new Error("No image data received."); }
                             
                             const image = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
-                            
-                            const [predictions, nsfwPredictions] = await Promise.all([
-                                models.mobilenet.classify(image),
-                                models.nsfw.classify(image)
-                            ]);
-                            
-                            self.postMessage({ type: 'result', predictions: predictions, nsfw: nsfwPredictions });
+                            const predictions = await classifier.classify(image);
+                            self.postMessage({ type: 'result', predictions: predictions });
                         } catch (error) {
                             self.postMessage({ type: 'error', message: error.message });
                         }
@@ -1910,54 +1892,32 @@
             document.getElementById('imagePreviewContainer').classList.remove('hidden');
             document.getElementById('photoLabel').innerText = "Ganti Foto";
 
-            // 2. AI Validation and Auto-detect name (Runs for both new spots and contributions)
+            // 2. Auto-detect fish name (AI) - with resize to prevent crash
             const nameInput = document.getElementById('spotName');
-            const saveBtn = document.getElementById('btnSaveSpot');
-            const originalBtnText = saveBtn.innerText; // Simpan teks tombol sebelum diubah
-
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Menganalisa Gambar...";
-            nameInput.placeholder = "Memuat AI...";
-
-            try {
-                const aiResult = await detectFish(file, isContributionMode);
-                if (!aiResult.valid) {
-                    // Perbaikan: Tampilkan alasan penolakan dengan lebih jelas
-                    const reason = aiResult.reason || "Tidak ada detail spesifik.";
-                    alert("Gambar Ditolak!\n\nAlasan: " + reason);
-                    clearImage();
-                    saveBtn.innerText = "Gambar Tidak Valid"; // Tombol tetap disabled
+            if (nameInput.value.trim() === '') {
+                nameInput.placeholder = "Memuat AI & Menganalisa...";
+                try {
+                    const detectedName = await detectFish(file);
+                    if (detectedName) {
+                        nameInput.value = detectedName;
+                    }
+                } catch (e) {
+                    console.error("AI detection failed:", e);
+                } finally {
                     nameInput.placeholder = "Nama Spot/Ikan";
-                    return; // Hentikan eksekusi fungsi
                 }
-
-                // Jika gambar valid:
-                // - Isi nama ikan jika input kosong (hanya untuk spot baru)
-                if (aiResult.name && nameInput.value.trim() === '' && !isContributionMode) {
-                    nameInput.value = aiResult.name;
-                }
-
-                // - Jika ini mode kontribusi, AI valid sudah cukup untuk lanjut.
-                //   Tombol akan di-enable di akhir.
-                // - Jika ini mode spot baru, kita harus menunggu hasil cek GPS.
-
-            } catch (e) {
-                console.error("AI detection failed, allowing upload:", e);
-                // Jika AI error, anggap valid (fail-open) agar tidak memblokir user. Validasi final tetap ada di server.
-            } finally {
-                nameInput.placeholder = "Nama Spot/Ikan";
-                // Kembalikan teks tombol sementara, akan di-update oleh cek GPS jika perlu
-                saveBtn.innerText = originalBtnText; 
             }
 
-            // 3. Auto-detect location from photo (EXIF GPS) - HANYA untuk spot baru
+            // 3. Auto-detect location from photo (EXIF GPS) - ONLY for new spots
             if(!isContributionMode) { 
                 const svPreview = document.getElementById('sv-preview');
+                const saveBtn = document.getElementById('btnSaveSpot');
                 const lang = localStorage.getItem('appLang') || 'id';
 
                 if(svPreview) svPreview.innerHTML = `<div class="flex items-center gap-2 text-yellow-400 animate-pulse"><i data-lucide="loader" class="w-4 h-4 animate-spin"></i> <span class="text-xs font-bold">Mencari lokasi di foto...</span></div>`;
                 lucide.createIcons();
 
+                // Add a small delay for UI to render before heavy EXIF processing
                 setTimeout(() => {
                     EXIF.getData(file, function() {
                         const lat = EXIF.getTag(this, "GPSLatitude");
@@ -1970,19 +1930,22 @@
                             const lngDec = convertDMSToDD(lng, lngRef);
                             
                             if(latDec && lngDec) {
+                                // GPS Found & Valid
                                 tempLatlng = { lat: latDec, lng: lngDec };
                                 map.flyTo([latDec, lngDec], 16);
                                 
+                                // Update visual marker
                                 if(selectionMarker) map.removeLayer(selectionMarker);
                                 const pinIcon = L.divIcon({ className: 'bg-transparent', html: `<div class="relative -mt-8 flex flex-col items-center animate-bounce"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#3b82f6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-lg"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="white"/></svg><div class="w-3 h-1 bg-black/30 blur-sm rounded-full mt-[-2px]"></div></div>`, iconSize: [32, 32], iconAnchor: [16, 32] });
                                 selectionMarker = L.marker([latDec, lngDec], {icon: pinIcon}).addTo(map);
 
-                                // Enable save button karena AI & GPS valid
+                                // Enable save button
                                 saveBtn.disabled = false;
                                 saveBtn.classList.remove('bg-slate-600', 'hover:bg-slate-600', 'cursor-not-allowed');
                                 saveBtn.classList.add('bg-blue-600', 'hover:bg-blue-500');
                                 saveBtn.innerText = translations[lang].btn_save_cloud;
 
+                                // Reverse geocode to show address
                                 fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latDec}&lon=${lngDec}`)
                                     .then(res => res.json())
                                     .then(data => {
@@ -2002,10 +1965,6 @@
                         }
                     });
                 }, 200);
-            } else {
-                // Jika ini mode kontribusi, AI check sudah lolos, jadi enable tombol save.
-                saveBtn.disabled = false;
-                saveBtn.innerText = originalBtnText;
             }
         }
 
@@ -2144,11 +2103,6 @@
                 return;
             }
 
-            if (isContributionMode && !fileToUpload) {
-                alert("Wajib menyertakan foto ikan untuk ulasan!");
-                return;
-            }
-
             const btn = document.getElementById('btnSaveSpot');
             const oldText = btn.innerText;
             
@@ -2186,19 +2140,15 @@
                 btn.disabled = true;
 
                 try {
-                    const aiResult = await detectFish(fileToUpload, isContributionMode);
-                    if(!aiResult.valid) {
-                        // Perbaikan: Tampilkan alasan penolakan dengan lebih jelas
-                        const reason = aiResult.reason || "Tidak ada detail spesifik.";
-                        alert(`Gambar Ditolak!\n\nAlasan: ${reason}\n\nMohon unggah foto yang valid.`);
+                    const isFish = await detectFish(fileToUpload);
+                    if(!isFish) {
+                        alert("Gambar Ditolak!\nSistem AI mendeteksi gambar ini BUKAN IKAN.\n\nMohon unggah foto hasil pancingan yang valid.");
                         btn.innerText = oldText;
                         btn.disabled = false;
                         return; // Stop process
                     }
                 } catch(e) {
-                    console.error("AI Error:", e);
-                    alert("Gagal memverifikasi gambar (AI Error). Coba refresh halaman.");
-                    btn.innerText = oldText; btn.disabled = false; return;
+                    console.error("AI Error, skipping validation:", e);
                 }
                 btn.innerText = "Menyimpan...";
             }
@@ -2279,7 +2229,7 @@
             }
         }
 
-        function detectFish(file, isReview = false) {
+        function detectFish(file) {
             return new Promise((resolve) => {
                 const img = document.createElement('img');
                 const objectURL = URL.createObjectURL(file);
@@ -2307,86 +2257,27 @@
                     const worker = getAiWorker();
 
                     const handleMessage = (e) => {
-                        const { type, predictions, nsfw, message } = e.data;
-                        if (type === 'status') return;
-                        
+                        const { type, predictions, message } = e.data;
                         worker.removeEventListener('message', handleMessage);
 
                         if (type === 'result') {
                             console.log("AI Predictions:", predictions);
-                            console.log("NSFW Analysis:", nsfw);
-
-                            // 1. Cek NSFW (Pornography/Hentai)
-                            if (nsfw) {
-                                const porn = nsfw.find(p => p.className === 'Porn')?.probability || 0;
-                                const hentai = nsfw.find(p => p.className === 'Hentai')?.probability || 0;
-                                const sexy = nsfw.find(p => p.className === 'Sexy')?.probability || 0;
-                                if (porn > 0.25 || hentai > 0.25 || sexy > 0.85) {
-                                    resolve({ valid: false, reason: "Konten Ditolak: Terdeteksi unsur pornografi/dewasa." });
-                                    return;
-                                }
-                            }
-
-                            // 2. Cek Kekerasan & Barang Ilegal (Narkoba/Senjata)
-                            const illegalKeywords = [
-                                'gun', 'rifle', 'weapon', 'sword', 'knife', 'blood', 'wound', 'assault', 'pistol', 'revolver', 'shotgun', // Senjata
-                                'syringe', 'needle', 'pill bottle', 'drug', 'condom' // Narkoba/Medis/Lainnya
-                            ];
-                            const illegalMatch = predictions.find(p => illegalKeywords.some(k => p.className.toLowerCase().includes(k)));
-                            if (illegalMatch && illegalMatch.probability > 0.30) {
-                                resolve({ valid: false, reason: `Konten Ditolak: Terdeteksi objek berbahaya/ilegal (${illegalMatch.className.split(',')[0]}).` });
-                                return;
-                            }
-
-                            // 3. Cek Ikan dengan Logika Berbeda (Spot Baru vs Ulasan)
                             const fishKeywords = ['fish', 'shark', 'ray', 'eel', 'trout', 'salmon', 'bass', 'pike', 'carp', 'tench', 'barracouta', 'coho', 'gar', 'sturgeon', 'marlin', 'anemone', 'seahorse', 'goldfish', 'whaleshark', 'hammerhead', 'crab', 'lobster', 'lionfish'];
-                            if (!predictions || predictions.length === 0) {
-                                resolve({ valid: false, reason: "Analisa AI gagal, tidak ada hasil." });
-                                return;
-                            }
+                            const match = predictions.find(p => fishKeywords.some(k => p.className.toLowerCase().includes(k)));
 
-                            const topPrediction = predictions[0];
-                            const isTopPredictionFish = fishKeywords.some(k => topPrediction.className.toLowerCase().includes(k));
-
-                            // LOGIKA BARU: Aturan lebih ketat untuk Ulasan
-                            if (isReview) {
-                                // Untuk Ulasan: WAJIB prediksi #1 adalah ikan, dan confidence > 60%
-                                if (isTopPredictionFish && topPrediction.probability > 0.6) {
-                                    let name = topPrediction.className.split(',')[0].toLowerCase();
-                                    for (const [eng, id] of Object.entries(fishTranslations)) {
-                                        if (name.includes(eng)) { name = id; break; }
-                                    }
-                                    resolve({ valid: true, name: name.charAt(0).toUpperCase() + name.slice(1) });
-                                } else {
-                                    let reason = `Objek utama terdeteksi sebagai "${topPrediction.className.split(',')[0]}", bukan ikan.`;
-                                    if (isTopPredictionFish) { // It was a fish, but low confidence
-                                        reason = `Akurasi deteksi ikan terlalu rendah (${(topPrediction.probability*100).toFixed(0)}%) untuk ulasan. Harap gunakan foto yang lebih jelas.`;
-                                    }
-                                    resolve({ valid: false, reason: reason });
+                            if (match) {
+                                if (match.probability < 0.2) { resolve("Ikan (Jenis Tidak Pasti)"); return; }
+                                let name = match.className.split(',')[0].toLowerCase();
+                                for (const [eng, id] of Object.entries(fishTranslations)) {
+                                    if (name.includes(eng)) { name = id; break; }
                                 }
+                                resolve(name.charAt(0).toUpperCase() + name.slice(1));
                             } else {
-                                // Untuk Spot Baru (+): Logika yang lebih longgar
-                                // Cari ikan di top 3 prediksi, dengan confidence > 40%
-                                const match = predictions.slice(0, 3).find(p => fishKeywords.some(k => p.className.toLowerCase().includes(k)));
-                                if (match && match.probability > 0.40) {
-                                    let name = match.className.split(',')[0].toLowerCase();
-                                    for (const [eng, id] of Object.entries(fishTranslations)) {
-                                        if (name.includes(eng)) { name = id; break; }
-                                    }
-                                    resolve({ valid: true, name: name.charAt(0).toUpperCase() + name.slice(1) });
-                                } else {
-                                    resolve({ valid: false, reason: "Objek ikan tidak terdeteksi dengan jelas." });
-                                }
+                                resolve(null);
                             }
                         } else if (type === 'error') {
                             console.error("AI Worker Error:", message);
-                            if (isReview) {
-                                // Untuk ulasan, jika AI error, tolak gambar (fail-closed)
-                                resolve({ valid: false, reason: "Gagal menganalisa gambar (AI Error). Coba lagi." });
-                            } else {
-                                // Untuk spot baru, biarkan lolos jika AI error (fail-open)
-                                resolve({ valid: true, name: "Ikan (AI Error)" });
-                            }
+                            resolve(null);
                         }
                     };
 
@@ -2396,7 +2287,7 @@
                 
                 img.onerror = () => {
                     URL.revokeObjectURL(objectURL);
-                    resolve({ valid: false, reason: "Gagal memuat gambar." });
+                    resolve(null);
                 }
             });
         }
