@@ -60,10 +60,17 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Snow Animation */
-        .snowflake { position: fixed; top: -20px; color: white; pointer-events: none; z-index: 9999; text-shadow: 0 0 2px black; }
-        @keyframes fall { to { transform: translateY(110vh); } }
-        .snowflake.rain { color: #60a5fa; text-shadow: none; width: 2px; height: 15px; background: #60a5fa; font-size: 0; border-radius: 2px; }
+        /* Weather Animations */
+        .wx-particle { position: fixed; pointer-events: none; z-index: 9999; }
+        .wx-particle.snow { top: -20px; color: white; text-shadow: 0 0 2px black; animation: wxFall linear forwards; }
+        .wx-particle.rain { top: -20px; width: 2px; height: 15px; background: #60a5fa; border-radius: 2px; animation: wxFall 0.7s linear forwards; }
+        @keyframes wxFall { to { transform: translateY(110vh); } }
+        
+        .wx-particle.wind { left: -100px; width: 100px; height: 2px; background: rgba(255,255,255,0.1); border-radius: 50%; animation: wxWind 2s linear forwards; }
+        @keyframes wxWind { to { transform: translateX(120vw); } }
+
+        .storm-flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 9998; animation: wxFlash 5s infinite; }
+        @keyframes wxFlash { 0%, 90%, 100% { opacity: 0; } 92% { opacity: 0.3; } 93% { opacity: 0; } 94% { opacity: 0.1; } }
 
         /* Mobile Optimizations */
         input, button { touch-action: manipulation; }
@@ -299,7 +306,7 @@
         <button onclick="locateUser()" class="fixed bottom-28 right-4 md:bottom-32 md:right-8 z-[900] glass p-3 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform active:scale-90"><i data-lucide="navigation" class="w-6 h-6"></i></button>
 
         <!-- Bottom Navigation Bar (Instagram Style) -->
-        <div class="fixed bottom-0 left-0 right-0 md:bottom-6 md:w-[500px] md:left-1/2 md:-translate-x-1/2 z-[900] bg-[#020617]/95 md:bg-slate-900/80 backdrop-blur-2xl border-t md:border border-white/10 pb-6 pt-2 px-6 md:rounded-3xl md:pb-2 md:px-8 flex justify-between items-end md:items-center shadow-2xl transition-all duration-300 ring-1 ring-white/5">
+        <div class="fixed bottom-0 left-0 right-0 md:bottom-6 md:w-[500px] md:left-1/2 md:-translate-x-1/2 z-[900] bg-[#020617]/95 md:bg-slate-900/80 backdrop-blur-2xl border-t md:border border-white/10 pb-6 pt-2 px-2 md:rounded-3xl md:pb-2 md:px-8 grid grid-cols-5 justify-items-center items-end md:items-center shadow-2xl transition-all duration-300 ring-1 ring-white/5">
             <button onclick="toggleMapLayer()" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
                 <i data-lucide="layers" class="w-6 h-6"></i>
                 <span class="text-[10px] font-medium">Peta</span>
@@ -335,7 +342,7 @@
                 <input type="text" id="spotName" data-i18n-placeholder="placeholder_spotname" placeholder="Nama Spot/Ikan" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none">
                 <div class="grid grid-cols-3 gap-3">
                     <input type="number" id="spotWeight" placeholder="Berat (Kg)" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-emerald-400">
-                    <input type="number" id="spotRating" min="1" max="5" placeholder="⭐ 1-5" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-yellow-400">
+                    <input type="number" id="spotRating" min="1" max="5" placeholder="Rating 1-5" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-yellow-400">
                     <input type="text" id="spotComment" data-i18n-placeholder="placeholder_comment" placeholder="Komentar..." class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none">
                 </div>
                 
@@ -417,7 +424,7 @@
 
     <!-- MODAL WEATHER DETAIL (New Feature) -->
     <div id="weatherDetailModal" class="fixed inset-0 z-[10000] bg-black/80 hidden flex items-center justify-center p-4">
-        <div class="glass w-full max-w-lg p-6 rounded-[2rem] animate-in zoom-in duration-200 relative m-4 shadow-2xl border border-white/10">
+        <div class="glass w-full max-w-3xl p-6 rounded-[2rem] animate-in zoom-in duration-200 relative m-4 shadow-2xl border border-white/10 max-h-[90vh] overflow-y-auto no-scrollbar">
             <button onclick="closeDetailModal()" class="absolute top-4 right-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
             <h3 class="text-xl font-bold mb-1 flex items-center gap-2" id="detail-title">Detail Cuaca</h3>
             <p class="text-xs text-slate-400 mb-4" id="detail-date">...</p>
@@ -430,7 +437,7 @@
             </div>
 
             <!-- Chart Container -->
-            <div class="w-full h-56 bg-slate-900/50 rounded-xl border border-slate-700 p-4 relative mb-4 cursor-crosshair touch-none" id="chart-wrapper">
+            <div class="w-full h-64 md:h-80 rounded-xl p-4 relative mb-4 cursor-crosshair touch-none" id="chart-wrapper">
                 <!-- SVG Chart will be injected here -->
                 <div id="chart-container" class="w-full h-full"></div>
                 <div id="chart-tooltip"></div>
@@ -566,18 +573,19 @@
             
             if(theme === 'light') {
                 body.classList.add('light-mode');
-                if(btn) { btn.innerText = '☀️ Light'; btn.className = "bg-white text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 font-bold shadow-sm"; }
+                if(btn) { btn.innerHTML = '<i data-lucide="sun" class="w-3 h-3 inline mr-1"></i> Light'; btn.className = "bg-white text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 font-bold shadow-sm"; }
                 
                 // Auto-switch to Street View for better blending
                 if(isSat) toggleMapLayer();
             } else {
                 body.classList.remove('light-mode');
-                if(btn) { btn.innerText = '🌙 Dark'; btn.className = "bg-slate-900 text-white text-xs px-3 py-2 rounded-lg border border-white/10 font-bold"; }
+                if(btn) { btn.innerHTML = '<i data-lucide="moon" class="w-3 h-3 inline mr-1"></i> Dark'; btn.className = "bg-slate-900 text-white text-xs px-3 py-2 rounded-lg border border-white/10 font-bold"; }
                 
                 // Auto-switch to Satellite for Dark Mode
                 if(!isSat) toggleMapLayer();
             }
             localStorage.setItem('appTheme', theme);
+            lucide.createIcons();
         }
 
         function toggleTheme() {
@@ -774,6 +782,7 @@
         let searchMarker = null; // Variabel untuk menyimpan marker pencarian
         let selectionMarker = null; // Marker untuk lokasi yang diklik
         let currentUserWeatherCode = null; // Simpan kode cuaca user
+        let currentUserWindSpeed = 0; // Simpan kecepatan angin user
         let currentWeatherData = null; // Simpan data cuaca lengkap
         let currentDetailSpot = null; // Data spot yang sedang dibuka detailnya
         let groupedSpots = {}; // Global variable untuk menyimpan data spot yang dikelompokkan
@@ -871,32 +880,59 @@
             if(currentDetailSpot) openStreetView(currentDetailSpot.lat, currentDetailSpot.lng);
         }
 
-        // --- FITUR SALJU (Snow Effect) ---
-        let snowInterval = null;
-        let isRaining = false;
-        
-        function startSnow(isRain = false) {
-            if(snowInterval && isRaining !== isRain) stopSnow(); // Restart jika tipe berubah
-            if(snowInterval) return;
+        // --- FITUR ANIMASI CUACA (Snow, Rain, Wind, Storm) ---
+        let wxInterval = null;
+        let currentWxType = null;
+
+        function startWeatherEffect(type) {
+            if(currentWxType === type) return;
+            stopWeatherEffect();
+            currentWxType = type;
             
-            isRaining = isRain;
             const container = document.body;
-            snowInterval = setInterval(() => {
-                const flake = document.createElement('div');
-                flake.classList.add('snowflake');
-                if(isRain) flake.classList.add('rain'); else flake.innerHTML = '❄';
-                flake.style.left = Math.random() * 100 + 'vw';
-                flake.style.opacity = Math.random() * 0.7 + 0.3;
-                flake.style.fontSize = (Math.random() * 10 + 10) + 'px';
-                flake.style.animation = `fall ${Math.random() * 3 + 2}s linear forwards`;
-                container.appendChild(flake);
-                setTimeout(() => flake.remove(), 5000);
-            }, 200);
+            
+            if(type === 'storm') {
+                const flash = document.createElement('div');
+                flash.className = 'storm-flash';
+                container.appendChild(flash);
+                type = 'rain'; // Storm includes rain
+            }
+
+            if(type === 'snow' || type === 'rain') {
+                wxInterval = setInterval(() => {
+                    const p = document.createElement('div');
+                    p.classList.add('wx-particle', type);
+                    p.style.left = Math.random() * 100 + 'vw';
+                    
+                    if(type === 'snow') {
+                        p.innerHTML = '❄';
+                        p.style.opacity = Math.random() * 0.7 + 0.3;
+                        p.style.fontSize = (Math.random() * 10 + 10) + 'px';
+                        p.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                    } else {
+                        p.style.opacity = Math.random() * 0.5 + 0.3;
+                        p.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
+                    }
+                    
+                    container.appendChild(p);
+                    setTimeout(() => p.remove(), 5000);
+                }, type === 'rain' ? 50 : 200);
+            } else if (type === 'wind') {
+                wxInterval = setInterval(() => {
+                    const p = document.createElement('div');
+                    p.classList.add('wx-particle', 'wind');
+                    p.style.top = Math.random() * 100 + 'vh';
+                    p.style.animationDuration = (Math.random() * 1 + 0.5) + 's';
+                    container.appendChild(p);
+                    setTimeout(() => p.remove(), 2000);
+                }, 100);
+            }
         }
 
-        function stopSnow() {
-            if(snowInterval) { clearInterval(snowInterval); snowInterval = null; }
-            document.querySelectorAll('.snowflake').forEach(el => el.remove());
+        function stopWeatherEffect() {
+            if(wxInterval) { clearInterval(wxInterval); wxInterval = null; }
+            currentWxType = null;
+            document.querySelectorAll('.wx-particle, .storm-flash').forEach(el => el.remove());
         }
 
         // 3. Auth Logic
@@ -1018,6 +1054,7 @@
                 if(data.current_weather) {
                     const temp = Math.round(data.current_weather.temperature);
                     currentUserWeatherCode = data.current_weather.weathercode;
+                    currentUserWindSpeed = data.current_weather.windspeed;
                     
                     const infoEl = document.getElementById('user-weather-info');
                     if(infoEl) {
@@ -1026,8 +1063,8 @@
                         infoEl.innerText = `${locText}: ${temp}°C`;
                     }
                     
-                    // Cek Salju di lokasi user
-                    checkWeatherForSnow(currentUserWeatherCode);
+                    // Cek Animasi Cuaca di lokasi user
+                    checkWeatherAnimation(currentUserWeatherCode, currentUserWindSpeed);
                 }
             } catch(e) {
                 const infoEl = document.getElementById('user-weather-info');
@@ -1035,14 +1072,13 @@
             }
         }
 
-        function checkWeatherForSnow(code) {
-            // Kode WMO untuk Salju: 71, 73, 75 (Snow fall), 77 (Snow grains), 85, 86 (Snow showers)
-            const snowCodes = [71, 73, 75, 77, 85, 86];
-            const rainCodes = [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99];
-            
-            if(snowCodes.includes(code)) startSnow(false);
-            else if(rainCodes.includes(code)) startSnow(true);
-            else stopSnow();
+        function checkWeatherAnimation(code, windSpeed = 0) {
+            // Priority: Storm > Snow > Rain > Wind
+            if([95, 96, 99].includes(code)) { startWeatherEffect('storm'); return; }
+            if([71, 73, 75, 77, 85, 86].includes(code)) { startWeatherEffect('snow'); return; }
+            if([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) { startWeatherEffect('rain'); return; }
+            if(windSpeed > 20) { startWeatherEffect('wind'); return; }
+            stopWeatherEffect();
         }
 
         let currentRouteLine = null; // Menyimpan garis rute
@@ -1180,8 +1216,8 @@
 
             document.getElementById('wx-desc').innerText = desc;
 
-            // Cek Salju untuk lokasi yang dipilih
-            checkWeatherForSnow(code);
+            // Cek Animasi Cuaca untuk lokasi yang dipilih
+            checkWeatherAnimation(code, wx.windspeed);
 
             // Ambil data ombak jam sekarang
             if(data.hourly && data.hourly.wave_height) {
@@ -1194,7 +1230,7 @@
             if(data.daily) {
                 const sunrise = data.daily.sunrise[0].split('T')[1];
                 const sunset = data.daily.sunset[0].split('T')[1];
-                document.getElementById('wx-sun').innerHTML = `🌅 ${sunrise}<br>🌇 ${sunset}`;
+                document.getElementById('wx-sun').innerHTML = `<div class="flex items-center justify-center gap-1"><i data-lucide="sunrise" class="w-3 h-3 text-yellow-300"></i> ${sunrise}</div><div class="flex items-center justify-center gap-1"><i data-lucide="sunset" class="w-3 h-3 text-orange-400"></i> ${sunset}</div>`;
             }
 
             // AI Score Calculation
@@ -1273,9 +1309,9 @@
             
             // Kembalikan efek cuaca ke lokasi user saat panel ditutup
             if(currentUserWeatherCode !== null) {
-                checkWeatherForSnow(currentUserWeatherCode);
+                checkWeatherAnimation(currentUserWeatherCode, currentUserWindSpeed);
             } else {
-                stopSnow();
+                stopWeatherEffect();
             }
         }
 
@@ -1365,7 +1401,7 @@
             
             const w = container.clientWidth || 300;
             const h = container.clientHeight || 150;
-            const pad = 20;
+            const pad = 30;
             
             const minVal = Math.min(...data1);
             const maxVal = Math.max(...data1);
@@ -1377,7 +1413,6 @@
             let svgContent = '';
             // Grid Lines
             svgContent += `<line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="#475569" stroke-width="1" />`;
-            svgContent += `<line x1="${pad}" y1="${pad}" x2="${w-pad}" y2="${pad}" stroke="#475569" stroke-width="1" stroke-dasharray="4" opacity="0.5" />`;
             
             if(currentChartType === 'temp') {
                 // Rain Bars
@@ -1409,8 +1444,8 @@
                 svgContent += `<path d="${path}" fill="none" stroke="#60a5fa" stroke-width="2" />`;
             }
             
-            labels.forEach((t, i) => { if(i%4===0) svgContent += `<text x="${getX(i)}" y="${h+5}" font-size="9" fill="#94a3b8" text-anchor="middle">${t}:00</text>`; });
-            container.innerHTML = `<svg viewBox="0 0 ${w} ${h+10}" class="w-full h-full overflow-visible">${svgContent}</svg>`;
+            labels.forEach((t, i) => { if(i%4===0) svgContent += `<text x="${getX(i)}" y="${h-10}" font-size="11" fill="#94a3b8" text-anchor="middle">${t}:00</text>`; });
+            container.innerHTML = `<svg viewBox="0 0 ${w} ${h}" class="w-full h-full overflow-visible">${svgContent}</svg>`;
         }
 
         function initChartInteractivity() {
@@ -1422,7 +1457,7 @@
                 const rect = wrapper.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const w = rect.width;
-                const pad = 20;
+                const pad = 30;
                 
                 let idx = Math.round(((x - pad) / (w - 2 * pad)) * 23);
                 if(idx < 0) idx = 0; if(idx > 23) idx = 23;
@@ -1435,9 +1470,15 @@
                 const h = currentWeatherData.hourly;
                 
                 let html = `<strong>${idx}:00</strong><br>`;
-                if(currentChartType === 'temp') html += `🌡️ ${h.temperature_2m[realIdx]}°C<br>💧 ${h.precipitation_probability[realIdx]}%`;
-                else if(currentChartType === 'wind') html += `💨 ${h.windspeed_10m[realIdx]} km/h<br>🧭 ${h.winddirection_10m[realIdx]}°`;
-                else if(currentChartType === 'wave') html += `🌊 ${h.wave_height[realIdx] || 0} m`;
+                // Use SVG strings directly for performance in tooltip
+                const iconTemp = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline text-yellow-400"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>`;
+                const iconRain = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline text-blue-400"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>`;
+                const iconWind = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline text-slate-300"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>`;
+                const iconWave = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline text-cyan-400"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>`;
+
+                if(currentChartType === 'temp') html += `${iconTemp} ${h.temperature_2m[realIdx]}°C<br>${iconRain} ${h.precipitation_probability[realIdx]}%`;
+                else if(currentChartType === 'wind') html += `${iconWind} ${h.windspeed_10m[realIdx]} km/h<br>🧭 ${h.winddirection_10m[realIdx]}°`;
+                else if(currentChartType === 'wave') html += `${iconWave} ${h.wave_height[realIdx] || 0} m`;
                 
                 tooltip.innerHTML = html;
                 tooltip.style.display = 'block';
@@ -1592,7 +1633,7 @@
             // 2. Auto-detect fish name (AI) - with resize to prevent crash
             const nameInput = document.getElementById('spotName');
             if(classifier && nameInput.value.trim() === '') {
-                nameInput.placeholder = "🤖 Menganalisa jenis ikan...";
+                nameInput.placeholder = "Menganalisa jenis ikan...";
                 // Run async with a delay to prevent UI freeze
                 setTimeout(async () => {
                     try {
@@ -1802,7 +1843,8 @@
             const oldText = btn.innerText;
             
             // 0. Validasi Lokasi (Anti-Gunung/Darat)
-            btn.innerText = "🌏 Cek Lokasi...";
+            btn.innerHTML = '<i data-lucide="map-pin" class="w-3 h-3 inline mr-1 animate-bounce"></i> Cek Lokasi...';
+            lucide.createIcons();
             btn.disabled = true;
             
             const locCheck = await checkLocationValidity(tempLatlng.lat, tempLatlng.lng);
@@ -1817,7 +1859,7 @@
             
             // 0.5. Kompresi Gambar (PENTING: Mencegah Crash Memori iPhone)
             if (originalFile) {
-                btn.innerText = "Memproses Gambar...";
+                btn.innerText = "Memproses...";
                 btn.disabled = true;
                 try {
                     // Kompres ke max 1000px, kualitas 0.7 (Sangat ringan & aman untuk upload)
@@ -1829,13 +1871,14 @@
             
             // 1. Validasi AI (Jika ada file & Model siap)
             if(fileToUpload && classifier) {
-                btn.innerText = "🔍 Menganalisa Ikan...";
+                btn.innerHTML = '<i data-lucide="scan" class="w-3 h-3 inline mr-1 animate-pulse"></i> Menganalisa...';
+                lucide.createIcons();
                 btn.disabled = true;
 
                 try {
                     const isFish = await detectFish(fileToUpload);
                     if(!isFish) {
-                        alert("⛔️ Gambar Ditolak!\nSistem AI mendeteksi gambar ini BUKAN IKAN.\n\nMohon unggah foto hasil pancingan yang valid.");
+                        alert("Gambar Ditolak!\nSistem AI mendeteksi gambar ini BUKAN IKAN.\n\nMohon unggah foto hasil pancingan yang valid.");
                         btn.innerText = oldText;
                         btn.disabled = false;
                         return; // Stop process
@@ -2072,7 +2115,7 @@
                         
                         <div class="flex items-center justify-between mb-3">
                             <div class="flex items-center gap-1 text-xs text-yellow-400 font-bold"><i data-lucide="star" class="w-3 h-3 fill-current"></i> ${avgRating}</div>
-                            ${maxWeight > 0 ? `<div class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">🏆 ${maxWeight} kg</div>` : ''}
+                            ${maxWeight > 0 ? `<div class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1"><i data-lucide="trophy" class="w-3 h-3"></i> ${maxWeight} kg</div>` : ''}
                         </div>
                         
                         <button onclick="openSpotDetailByKey('${key}')" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-blue-300 hover:text-white text-xs py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
@@ -2202,7 +2245,7 @@
                 let grid = `<div class="grid grid-cols-2 gap-3">`;
                 withPhotos.forEach(g => {
                     const stars = g.rating ? `<div class="flex text-yellow-400 scale-75 origin-left mb-1">${Array(parseInt(g.rating)).fill('<i data-lucide="star" class="w-3 h-3 fill-current"></i>').join('')}</div>` : '';
-                    const weight = g.weight && g.weight > 0 ? `<div class="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-emerald-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-emerald-500/30">🐟 ${g.weight}kg</div>` : '';
+                    const weight = g.weight && g.weight > 0 ? `<div class="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-emerald-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-emerald-500/30 flex items-center gap-1"><i data-lucide="fish" class="w-3 h-3"></i> ${g.weight}kg</div>` : '';
                     
                     grid += `
                         <div class="bg-slate-900 rounded-xl border border-white/5 overflow-hidden flex flex-col shadow-lg">
