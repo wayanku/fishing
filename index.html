@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fishing Master Cloud - Street View & Auth</title>
+    
+    <!-- CSS & Frameworks -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+        
+        /* Modern Glassmorphism */
+        .glass { 
+            background: rgba(15, 23, 42, 0.85); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08); 
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        
+        #auth-overlay { z-index: 9999; background: #0f172a; }
+        .leaflet-popup-content-wrapper { background: rgba(30, 41, 59, 0.95) !important; color: white !important; border-radius: 16px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .leaflet-popup-tip { background: #1e293b !important; }
+
+        /* Animations */
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        .weather-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+        .wind-arrow { transition: transform 1s ease-out; }
+        .loading-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
+</head>
+<body class="overflow-hidden">
+
+    <!-- LOGIN / REGISTER OVERLAY -->
+    <div id="auth-overlay" class="fixed inset-0 flex items-center justify-center p-6 hidden">
+        <div class="glass w-full max-w-md p-8 rounded-[2rem] shadow-2xl border border-blue-500/20">
+            <div class="text-center mb-8">
+                <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-900/40">
+                    <i data-lucide="anchor" class="text-white w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-black tracking-tight">FISHING CLOUD</h2>
+                <p class="text-slate-400 text-sm">Masuk untuk simpan spot memancing Anda</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Email</label>
+                    <input type="email" id="auth-email" class="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-4 mt-1 outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
+                    <input type="password" id="auth-pass" class="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-4 mt-1 outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button onclick="handleAuth('login')" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold transition-all shadow-lg">Masuk Sekarang</button>
+                <button onclick="handleAuth('register')" class="w-full py-2 text-slate-400 text-sm hover:text-white">Belum punya akun? Daftar gratis</button>
+            </div>
+            <p id="auth-error" class="text-red-400 text-xs mt-4 text-center hidden"></p>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTENT (Hidden until login) -->
+    <div id="app-content" class="">
+        <!-- Header Info -->
+        <div class="fixed top-4 left-4 right-4 z-[1000] flex justify-between items-start pointer-events-none">
+            <div class="glass p-3 rounded-2xl flex items-center gap-3">
+                <div id="user-avatar" class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">U</div>
+                <div>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">Anggota Pro</p>
+                    <p id="user-display-email" class="text-xs font-medium">user@mail.com</p>
+                </div>
+                <button onclick="logout()" class="ml-2 p-2 text-red-400"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+            </div>
+            
+            <!-- Weather Badge (Global) -->
+            <div class="glass px-4 py-2 rounded-full flex items-center gap-3 pointer-events-auto min-w-[140px]">
+                <div id="user-weather-icon" class="text-yellow-400"><i data-lucide="sun" class="w-4 h-4"></i></div>
+                <span id="user-weather-info" class="text-xs font-bold text-white">Memuat cuaca...</span>
+            </div>
+        </div>
+
+        <!-- Search Bar (New Feature) -->
+        <div class="fixed top-20 left-4 right-4 z-[1000]">
+            <div class="glass rounded-xl flex items-center p-2 max-w-md mx-auto shadow-lg">
+                <input type="text" id="search-input" placeholder="Cari lokasi (Desa, Kota, Laut)..." 
+                       class="bg-transparent border-none text-sm text-white placeholder-slate-400 focus:outline-none w-full ml-3"
+                       onkeypress="handleSearch(event)">
+                <button onclick="searchLocation()" id="search-btn" class="p-2 bg-blue-600 rounded-lg text-white hover:bg-blue-500 transition-colors">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="map"></div>
+
+        <!-- WEATHER & ACTION PANEL (Bottom Sheet) -->
+        <div id="location-panel" class="fixed bottom-0 left-0 right-0 z-[1000] translate-y-full transition-transform duration-300 ease-out">
+            <div class="glass rounded-t-[2.5rem] p-6 pb-8 max-w-2xl mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                <!-- Drag Handle -->
+                <div class="w-12 h-1.5 bg-slate-600/50 rounded-full mx-auto mb-6"></div>
+                
+                <div class="flex items-start justify-between mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="map-pin" class="text-blue-400 w-5 h-5"></i> <span id="panel-address">Mengambil lokasi...</span>
+                        </h3>
+                        <p id="panel-coords" class="text-xs text-slate-400 font-mono mt-1">-</p>
+                    </div>
+                    <button onclick="closeLocationPanel()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+
+                <!-- Weather Grid (Updated to 3x2 for more info) -->
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 text-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Suhu</p>
+                        <div class="text-2xl font-black text-white" id="wx-temp">--°</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 text-center flex flex-col items-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Angin</p>
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="arrow-up" id="wx-wind-dir" class="w-4 h-4 text-blue-400 wind-arrow"></i>
+                            <span class="text-xl font-bold text-white" id="wx-wind-speed">--</span>
+                            <span class="text-[10px] text-slate-500">km/h</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 text-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Cuaca</p>
+                        <div class="text-sm font-bold text-blue-300 mt-1" id="wx-desc">Memuat...</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 text-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Ombak (Max)</p>
+                        <div class="text-xl font-black text-cyan-300 mt-1" id="wx-wave">-- m</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 text-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Perjalanan</p>
+                        <div class="text-sm font-black text-emerald-400 mt-1 leading-tight" id="panel-dist">-- km<br>-- mnt</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 text-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Pasang Surut</p>
+                        <div class="text-xl font-black text-purple-300 mt-1" id="wx-tide">-- m</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 text-center">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Matahari</p>
+                        <div class="text-[10px] font-bold text-yellow-300 mt-1 leading-tight" id="wx-sun">--:--<br>--:--</div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="openStreetViewFromPanel()" class="bg-slate-700 hover:bg-slate-600 py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                        <i data-lucide="eye" class="w-4 h-4"></i> Street View
+                    </button>
+                    <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/50 transition-all">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Simpan Spot
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Float Action -->
+        <div class="fixed bottom-10 right-6 z-[1000] flex flex-col gap-4">
+            <button onclick="toggleMapLayer()" class="glass p-4 rounded-full text-white shadow-xl hover:scale-110 transition-transform" title="Ganti Peta"><i data-lucide="layers"></i></button>
+            <button onclick="locateUser()" class="glass p-4 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform"><i data-lucide="navigation"></i></button>
+        </div>
+    </div>
+
+    <!-- MODAL ADD SPOT -->
+    <div id="addModal" class="fixed inset-0 z-[10000] bg-black/80 hidden flex items-center justify-center p-4">
+        <div class="glass w-full max-w-sm p-6 rounded-[2rem] animate-in zoom-in duration-200">
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i data-lucide="map-pin" class="text-blue-500"></i> Tambah Spot</h3>
+            <div class="space-y-4">
+                <input type="text" id="spotName" placeholder="Nama Spot/Ikan" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none">
+                <input type="file" id="spotPhoto" accept="image/*" class="text-xs text-slate-400">
+                
+                <!-- Street View Info -->
+                <div id="sv-preview" class="bg-slate-900 p-3 rounded-xl border border-slate-700">
+                    <p class="text-[10px] text-emerald-400 font-bold uppercase mb-1 flex items-center gap-1">
+                        <i data-lucide="eye" class="w-3 h-3"></i> Street View Tersedia
+                    </p>
+                    <p class="text-[10px] text-slate-500">Koordinat akan dikunci ke lokasi Google Maps.</p>
+                </div>
+
+                <button onclick="saveSpotCloud()" class="w-full bg-blue-600 py-4 rounded-xl font-bold">Simpan ke Cloud</button>
+                <button onclick="closeModal()" class="w-full text-slate-500 text-sm">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        lucide.createIcons();
+
+        // 1. KONFIGURASI FIREBASE (Ganti dengan API Key Anda agar bisa berfungsi)
+        const firebaseConfig = {
+            apiKey: "ISI_API_KEY_ANDA",
+            authDomain: "PROJECT_ID.firebaseapp.com",
+            projectId: "PROJECT_ID",
+            storageBucket: "PROJECT_ID.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+
+        // Inisialisasi Firebase (jika config valid)
+        let db;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+        } catch(e) {
+            console.log("Firebase belum di-setup, menggunakan mode demo (LocalStorage)");
+        }
+
+        // 2. Map & Street View Setup
+        const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+        const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+        
+        var map = L.map('map', { zoomControl: false, layers: [satLayer] }).setView([-6.2000, 106.8166], 13);
+        
+        let isSat = true;
+        function toggleMapLayer() {
+            if(isSat) {
+                map.removeLayer(satLayer);
+                map.addLayer(streetLayer);
+            } else {
+                map.removeLayer(streetLayer);
+                map.addLayer(satLayer);
+            }
+            isSat = !isSat;
+        }
+
+        let tempLatlng = null;
+        let currentUser = null;
+
+        // Custom Icon untuk Spot Ikan
+        const fishIcon = L.divIcon({
+            className: 'custom-fish-icon',
+            html: `<div class="w-8 h-8 bg-blue-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center"><i data-lucide="fish" class="text-white w-5 h-5"></i></div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        // Fungsi Pencarian Lokasi
+        function handleSearch(e) {
+            if(e.key === 'Enter') searchLocation();
+        }
+
+        function searchLocation() {
+            const query = document.getElementById('search-input').value;
+            if(!query) return;
+            
+            const btn = document.getElementById('search-btn');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>';
+
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+                .then(res => res.json())
+                .then(data => {
+                    if(data && data.length > 0) {
+                        const lat = parseFloat(data[0].lat);
+                        const lon = parseFloat(data[0].lon);
+                        map.flyTo([lat, lon], 13);
+                    } else {
+                        alert("Lokasi tidak ditemukan");
+                    }
+                })
+                .catch(() => alert("Gagal mencari lokasi"))
+                .finally(() => btn.innerHTML = originalContent);
+        }
+
+        // Fungsi Street View: Membuka koordinat di Google Street View
+        function openStreetView(lat, lng) {
+            const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+            window.open(url, '_blank');
+        }
+
+        function openStreetViewFromPanel() {
+            if(tempLatlng) openStreetView(tempLatlng.lat, tempLatlng.lng);
+        }
+
+        // 3. Auth Logic
+        function handleAuth(type) {
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            const errorEl = document.getElementById('auth-error');
+
+            if(!email || !pass) { alert("Isi email & pass!"); return; }
+
+            // Mode Simulasi jika Firebase belum dikonfigurasi
+            if(firebaseConfig.apiKey === "ISI_API_KEY_ANDA") {
+                alert("Mode Demo Aktif! (Firebase belum di-setup)");
+                loginSuccess({ email: email });
+                return;
+            }
+
+            if(type === 'register') {
+                firebase.auth().createUserWithEmailAndPassword(email, pass)
+                    .catch(err => errorEl.innerText = err.message);
+            } else {
+                firebase.auth().signInWithEmailAndPassword(email, pass)
+                    .catch(err => errorEl.innerText = err.message);
+            }
+        }
+
+        // BYPASS LOGIN (Mode Desain) - Langsung masuk otomatis
+        // firebase.auth().onAuthStateChanged(user => { if (user) loginSuccess(user); });
+        
+        setTimeout(() => loginSuccess({ email: 'designer@app.com', uid: 'dev_mode' }), 100);
+
+        function loginSuccess(user) {
+            currentUser = user;
+            document.getElementById('auth-overlay').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
+            document.getElementById('user-display-email').innerText = user.email;
+            document.getElementById('user-avatar').innerText = user.email[0].toUpperCase();
+            
+            // PERBAIKAN: Refresh ukuran peta agar tidak error/abu-abu saat muncul
+            setTimeout(() => { map.invalidateSize(); }, 100);
+            
+            getUserWeather(); // Ambil cuaca lokasi user saat ini
+            loadSpots();
+        }
+
+        function logout() {
+            firebase.auth().signOut().then(() => location.reload());
+        }
+
+        // 4. Spot Management
+        
+        // Ganti logika klik peta: Munculkan Panel Cuaca dulu
+        map.on('click', e => {
+            tempLatlng = e.latlng;
+            showLocationPanel(e.latlng);
+        });
+
+        let userLatlng = null;
+        // Fitur: Cuaca Realtime di Lokasi User (Header)
+        function getUserWeather() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async position => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    userLatlng = L.latLng(lat, lng);
+                    
+                    try {
+                        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+                        const data = await res.json();
+                        if(data.current_weather) {
+                            const temp = Math.round(data.current_weather.temperature);
+                            document.getElementById('user-weather-info').innerText = `Lokasi Anda: ${temp}°C`;
+                            // Update icon based on weather code could be added here
+                        }
+                    } catch(e) {
+                        document.getElementById('user-weather-info').innerText = "Cuaca Offline";
+                    }
+                });
+            }
+        }
+
+        let currentRouteLine = null; // Menyimpan garis rute
+
+        async function showLocationPanel(latlng) {
+            const panel = document.getElementById('location-panel');
+            
+            // Reset UI
+            document.getElementById('panel-address').innerText = "Mencari nama lokasi...";
+            document.getElementById('wx-wave').innerText = "-- m";
+            document.getElementById('wx-tide').innerText = "-- m";
+            document.getElementById('panel-dist').innerHTML = '<span class="animate-pulse">Menghitung...</span>';
+            document.getElementById('wx-sun').innerHTML = "--:--<br>--:--";
+            document.getElementById('panel-coords').innerText = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
+            document.getElementById('wx-temp').innerText = "--°";
+            document.getElementById('wx-wind-speed').innerText = "--";
+            document.getElementById('wx-desc').innerText = "Memuat...";
+            
+            // Tampilkan Panel
+            panel.classList.remove('translate-y-full');
+
+            // 1. HITUNG RUTE & WAKTU (OSRM Routing)
+            if(userLatlng) {
+                // Hapus garis rute lama jika ada
+                if(currentRouteLine) map.removeLayer(currentRouteLine);
+
+                // Fetch data rute dari OSRM (Gratis)
+                fetch(`https://router.project-osrm.org/route/v1/driving/${userLatlng.lng},${userLatlng.lat};${latlng.lng},${latlng.lat}?overview=full&geometries=geojson`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.routes && data.routes.length > 0) {
+                            const route = data.routes[0];
+                            const distKm = (route.distance / 1000).toFixed(1);
+                            const durationSec = route.duration;
+                            
+                            // Format Waktu (Jam & Menit)
+                            const hours = Math.floor(durationSec / 3600);
+                            const minutes = Math.floor((durationSec % 3600) / 60);
+                            let timeStr = `${minutes} mnt`;
+                            if(hours > 0) timeStr = `${hours} jam ${minutes} mnt`;
+
+                            document.getElementById('panel-dist').innerHTML = `${distKm} km<br><span class="text-xs text-slate-300">${timeStr}</span>`;
+
+                            // Gambar Garis Rute di Peta
+                            const routeCoords = route.geometry.coordinates.map(c => [c[1], c[0]]); // GeoJSON [lng,lat] -> Leaflet [lat,lng]
+                            currentRouteLine = L.polyline(routeCoords, {color: '#3b82f6', weight: 5, opacity: 0.8, lineCap: 'round'}).addTo(map);
+                        } else {
+                            document.getElementById('panel-dist').innerText = "Tidak ada jalan";
+                        }
+                    })
+                    .catch(() => document.getElementById('panel-dist').innerText = "Gagal hitung");
+            }
+
+            // 2. Reverse Geocoding Detail (Nominatim)
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}`)
+                .then(res => res.json())
+                .then(data => {
+                    const addr = data.address;
+                    
+                    // Susun alamat lengkap (Jalan, Desa, Kecamatan, Kota)
+                    let parts = [];
+                    if(addr.road) parts.push(addr.road);
+                    if(addr.village) parts.push(addr.village);
+                    else if(addr.hamlet) parts.push(addr.hamlet);
+                    if(addr.suburb) parts.push(addr.suburb); // Kecamatan biasanya di sini
+                    if(addr.city_district) parts.push(addr.city_district);
+                    if(addr.town) parts.push(addr.town);
+                    else if(addr.city) parts.push(addr.city);
+                    else if(addr.county) parts.push(addr.county); // Kabupaten
+
+                    // Gabungkan dan potong jika terlalu panjang
+                    let fullAddr = parts.join(', ');
+                    if(fullAddr.length > 45) fullAddr = fullAddr.substring(0, 45) + "...";
+                    
+                    document.getElementById('panel-address').innerText = fullAddr || "Lokasi Terpilih";
+                })
+                .catch(() => document.getElementById('panel-address').innerText = "Lokasi Tidak Dikenal");
+
+            // 3. Fetch Weather & Marine Data (Open-Meteo API)
+            try {
+                // Mengambil Weather + Marine (Wave Height) + Sun (Sunrise/Sunset)
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=wave_height&daily=sunrise,sunset&timezone=auto`);
+                const data = await res.json();
+                
+                if(data.current_weather) {
+                    const wx = data.current_weather;
+                    document.getElementById('wx-temp').innerText = `${Math.round(wx.temperature)}°`;
+                    document.getElementById('wx-wind-speed').innerText = wx.windspeed;
+                    
+                    // Rotasi panah angin
+                    const arrow = document.getElementById('wx-wind-dir');
+                    arrow.style.transform = `rotate(${wx.winddirection}deg)`;
+                    
+                    // Kode cuaca sederhana (WMO code)
+                    const code = wx.weathercode;
+                    let desc = "Cerah";
+                    if(code > 3) desc = "Berawan";
+                    if(code > 40) desc = "Kabut";
+                    if(code > 50) desc = "Gerimis";
+                    if(code > 60) desc = "Hujan";
+                    if(code > 80) desc = "Badai";
+                    document.getElementById('wx-desc').innerText = desc;
+
+                    // Ambil data ombak jam sekarang
+                    if(data.hourly && data.hourly.wave_height) {
+                        const currentHour = new Date().getHours();
+                        const waveHeight = data.hourly.wave_height[currentHour] || 0;
+                        document.getElementById('wx-wave').innerText = `${waveHeight} m`;
+                    }
+                    
+                    // Data Matahari (Sunrise/Sunset)
+                    if(data.daily) {
+                        const sunrise = data.daily.sunrise[0].split('T')[1];
+                        const sunset = data.daily.sunset[0].split('T')[1];
+                        document.getElementById('wx-sun').innerHTML = `🌅 ${sunrise}<br>🌇 ${sunset}`;
+                    }
+                }
+            } catch(err) {
+                document.getElementById('wx-desc').innerText = "Offline";
+            }
+
+            // 4. Fetch Tide Data (Marine API)
+            try {
+                const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${latlng.lat}&longitude=${latlng.lng}&hourly=tide_height&timezone=auto`);
+                const data = await res.json();
+                if(data.hourly && data.hourly.tide_height) {
+                    const currentHour = new Date().getHours();
+                    const tide = data.hourly.tide_height[currentHour] || 0;
+                    document.getElementById('wx-tide').innerText = `${tide.toFixed(2)} m`;
+                }
+            } catch(e) { console.log("Tide data unavailable"); }
+        }
+
+        function closeLocationPanel() {
+            document.getElementById('location-panel').classList.add('translate-y-full');
+        }
+
+        function openAddModal() {
+            closeLocationPanel(); // Tutup panel bawah
+            document.getElementById('addModal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('addModal').classList.add('hidden'); }
+
+        function saveSpotCloud() {
+            const name = document.getElementById('spotName').value;
+            const file = document.getElementById('spotPhoto').files[0];
+            if(!name) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const spotData = {
+                    name: name,
+                    lat: tempLatlng.lat,
+                    lng: tempLatlng.lng,
+                    photo: e.target.result,
+                    uid: currentUser.uid || 'demo',
+                    createdAt: Date.now()
+                };
+
+                if(db) {
+                    db.collection("fishing_spots").add(spotData).then(() => {
+                        addMarker(spotData);
+                        closeModal();
+                    });
+                } else {
+                    // Demo Mode (LocalStorage)
+                    let local = JSON.parse(localStorage.getItem('spots') || '[]');
+                    local.push(spotData);
+                    localStorage.setItem('spots', JSON.stringify(local));
+                    addMarker(spotData);
+                    closeModal();
+                }
+            };
+            if(file) reader.readAsDataURL(file); else reader.onload({target:{result:''}});
+        }
+
+        function addMarker(spot) {
+            const popupHtml = `
+                <div class="w-48 overflow-hidden">
+                    ${spot.photo ? `<img src="${spot.photo}" class="w-full h-24 object-cover rounded-lg mb-2">` : ''}
+                    <h4 class="font-bold text-sm mb-1">${spot.name}</h4>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="openStreetView(${spot.lat}, ${spot.lng})" 
+                            class="bg-blue-600 text-[10px] py-2 rounded-lg font-bold flex items-center justify-center gap-1 hover:bg-blue-500">
+                            <i data-lucide="eye" class="w-3 h-3"></i> BUKA STREET VIEW
+                        </button>
+                    </div>
+                </div>
+            `;
+            // Gunakan fishIcon custom
+            const marker = L.marker([spot.lat, spot.lng], {icon: fishIcon}).addTo(map).bindPopup(popupHtml);
+            lucide.createIcons(); // Refresh icon di dalam popup
+        }
+
+        function loadSpots() {
+            if(db) {
+                db.collection("fishing_spots").where("uid", "==", currentUser.uid)
+                  .onSnapshot(snap => {
+                      snap.forEach(doc => addMarker(doc.data()));
+                  });
+            } else {
+                let local = JSON.parse(localStorage.getItem('spots') || '[]');
+                local.forEach(addMarker);
+            }
+        }
+
+        function locateUser() {
+            map.locate({setView: true, maxZoom: 15});
+        }
+        
+        map.on('locationfound', e => {
+            L.circleMarker(e.latlng, {radius:8, color:'#3b82f6', fillOpacity:0.8}).addTo(map);
+        });
+
+    </script>
+</body>
+</html>
