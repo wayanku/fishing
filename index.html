@@ -2311,8 +2311,8 @@
                                 const porn = nsfw.find(p => p.className === 'Porn')?.probability || 0;
                                 const hentai = nsfw.find(p => p.className === 'Hentai')?.probability || 0;
                                 const sexy = nsfw.find(p => p.className === 'Sexy')?.probability || 0;
-                                if (porn > 0.4 || hentai > 0.4 || sexy > 0.85) {
-                                    resolve({ valid: false, reason: "Konten mengandung unsur dewasa/tidak senonoh." });
+                                if (porn > 0.25 || hentai > 0.25 || sexy > 0.85) {
+                                    resolve({ valid: false, reason: "Konten Ditolak: Terdeteksi unsur pornografi/dewasa." });
                                     return;
                                 }
                             }
@@ -2320,7 +2320,7 @@
                             // 2. Cek Kekerasan & Barang Ilegal (Narkoba/Senjata)
                             const illegalKeywords = [
                                 'gun', 'rifle', 'weapon', 'sword', 'knife', 'blood', 'wound', 'assault', 'pistol', 'revolver', 'shotgun', // Senjata
-                                'syringe', 'needle', 'pill bottle', 'drug' // Narkoba/Medis
+                                'syringe', 'needle', 'pill bottle', 'drug', 'condom' // Narkoba/Medis/Lainnya
                             ];
                             const illegalMatch = predictions.find(p => illegalKeywords.some(k => p.className.toLowerCase().includes(k)));
                             if (illegalMatch && illegalMatch.probability > 0.30) {
