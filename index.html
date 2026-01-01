@@ -1486,6 +1486,11 @@
             
             if(!name) { alert("Nama spot wajib diisi!"); return; }
 
+            if(!tempLatlng) {
+                alert("Lokasi belum dipilih! Silakan klik peta atau upload foto dengan GPS.");
+                return;
+            }
+
             const btn = document.getElementById('btnSaveSpot');
             const oldText = btn.innerText;
             
