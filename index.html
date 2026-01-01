@@ -2317,11 +2317,14 @@
                                 }
                             }
 
-                            // 2. Cek Kekerasan (Heuristik via MobileNet)
-                            const violenceKeywords = ['gun', 'rifle', 'weapon', 'sword', 'knife', 'blood', 'wound', 'assault'];
-                            const violenceMatch = predictions.find(p => violenceKeywords.some(k => p.className.toLowerCase().includes(k)));
-                            if (violenceMatch && violenceMatch.probability > 0.35) {
-                                resolve({ valid: false, reason: "Konten terdeteksi mengandung kekerasan/senjata." });
+                            // 2. Cek Kekerasan & Barang Ilegal (Narkoba/Senjata)
+                            const illegalKeywords = [
+                                'gun', 'rifle', 'weapon', 'sword', 'knife', 'blood', 'wound', 'assault', 'pistol', 'revolver', 'shotgun', // Senjata
+                                'syringe', 'needle', 'pill bottle', 'drug' // Narkoba/Medis
+                            ];
+                            const illegalMatch = predictions.find(p => illegalKeywords.some(k => p.className.toLowerCase().includes(k)));
+                            if (illegalMatch && illegalMatch.probability > 0.30) {
+                                resolve({ valid: false, reason: `Konten Ditolak: Terdeteksi objek berbahaya/ilegal (${illegalMatch.className.split(',')[0]}).` });
                                 return;
                             }
 
