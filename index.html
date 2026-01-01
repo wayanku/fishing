@@ -1524,6 +1524,7 @@
             isContributionMode = isContribution; // Set flag mode
             
             const saveBtn = document.getElementById('btnSaveSpot');
+            const svPreview = document.getElementById('sv-preview');
 
             if(!isContribution) {
                 // Mode: ADD NEW SPOT
@@ -1541,7 +1542,8 @@
                 saveBtn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
                 saveBtn.innerText = "Pilih Foto Dengan Lokasi";
 
-                document.getElementById('sv-preview').innerHTML = `<p class="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> Wajib Foto dengan GPS</p><p class="text-[10px] text-slate-500">Hanya foto yang memiliki data lokasi GPS yang bisa diunggah.</p>`;
+                svPreview.classList.remove('hidden');
+                svPreview.innerHTML = `<p class="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> Wajib Foto dengan GPS</p><p class="text-[10px] text-slate-500">Hanya foto yang memiliki data lokasi GPS yang bisa diunggah.</p>`;
                 lucide.createIcons();
             } else {
                 // Mode: ADD REVIEW (spot already exists)
@@ -1550,6 +1552,9 @@
                 saveBtn.classList.remove('bg-slate-600', 'hover:bg-slate-600', 'cursor-not-allowed');
                 saveBtn.classList.add('bg-blue-600', 'hover:bg-blue-500');
                 document.getElementById('btnSaveSpot').innerText = "Kirim Ulasan";
+                
+                // Sembunyikan info GPS karena tidak wajib untuk ulasan
+                svPreview.classList.add('hidden');
             }
             // Re-apply translation to ensure button text is correct
             changeLanguage(localStorage.getItem('appLang') || 'id');
@@ -2003,31 +2008,65 @@
             // Urutkan dari yang terbaru
             group.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-            group.forEach(g => {
-                const hasPhoto = g.photo ? `<div class="mt-3 rounded-xl overflow-hidden border border-slate-700"><img src="${g.photo}" class="w-full h-auto max-h-64 object-cover" onclick="window.open('${g.photo}')"></div>` : '';
-                const stars = g.rating ? `<div class="flex text-yellow-400 my-1">${Array(parseInt(g.rating)).fill('<i data-lucide="star" class="w-3 h-3 fill-current"></i>').join('')}</div>` : '';
-                const weightBadge = g.weight && g.weight > 0 ? `<span class="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-1 rounded-full border border-emerald-500/30 font-bold ml-2">🐟 ${g.weight} kg</span>` : '';
-                
+            // Pisahkan data: Ada Foto vs Hanya Teks
+            const withPhotos = group.filter(g => g.photo);
+            const textOnly = group.filter(g => !g.photo);
+
+            // 1. BAGIAN KOMENTAR TEKS (Accordion / Bisa dibuka-tutup)
+            if(textOnly.length > 0) {
+                const accId = 'acc-' + Math.random().toString(36).substr(2,5);
                 list.innerHTML += `
-                    <div class="bg-slate-900/50 p-4 rounded-2xl border border-white/5 shadow-sm mb-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center text-xs font-bold text-white shadow-inner border border-white/10">
-                                    ${g.uid.charAt(0).toUpperCase()}
+                    <div class="mb-6 bg-slate-900/50 rounded-2xl border border-white/5 overflow-hidden">
+                        <button onclick="document.getElementById('${accId}').classList.toggle('hidden')" class="w-full p-4 flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 transition-colors">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                                <i data-lucide="message-square" class="w-4 h-4 text-blue-400"></i> 
+                                Komentar Tanpa Foto (${textOnly.length})
+                            </span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500"></i>
+                        </button>
+                        <div id="${accId}" class="hidden divide-y divide-white/5">
+                            ${textOnly.map(g => `
+                                <div class="p-3">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="text-[10px] font-bold text-slate-400">${g.uid.split('@')[0]}</span>
+                                        <span class="text-[9px] text-slate-600">${new Date(g.createdAt).toLocaleDateString()}</span>
+                                    </div>
+                                    ${g.rating ? `<div class="flex text-yellow-400 scale-75 origin-left mb-1">${Array(parseInt(g.rating)).fill('<i data-lucide="star" class="w-3 h-3 fill-current"></i>').join('')}</div>` : ''}
+                                    <p class="text-xs text-slate-300 mt-1">${g.comment || '-'}</p>
                                 </div>
-                                <div>
-                                    <p class="text-xs font-bold text-slate-200">${g.uid.split('@')[0]}</p>
-                                    <p class="text-[10px] text-slate-400">${new Date(g.createdAt).toLocaleDateString()}</p>
-                                </div>
-                            </div>
-                            ${weightBadge}
+                            `).join('')}
                         </div>
-                        ${stars}
-                        <p class="text-sm text-slate-300 leading-relaxed">${g.comment || ''}</p>
-                        ${hasPhoto}
                     </div>
                 `;
-            });
+            }
+
+            // 2. BAGIAN FOTO (Grid Katalog 2 Kolom)
+            if(withPhotos.length > 0) {
+                let grid = `<div class="grid grid-cols-2 gap-3">`;
+                withPhotos.forEach(g => {
+                    const stars = g.rating ? `<div class="flex text-yellow-400 scale-75 origin-left mb-1">${Array(parseInt(g.rating)).fill('<i data-lucide="star" class="w-3 h-3 fill-current"></i>').join('')}</div>` : '';
+                    const weight = g.weight && g.weight > 0 ? `<div class="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-emerald-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-emerald-500/30">🐟 ${g.weight}kg</div>` : '';
+                    
+                    grid += `
+                        <div class="bg-slate-900 rounded-xl border border-white/5 overflow-hidden flex flex-col shadow-lg">
+                            <div class="relative aspect-[4/5] bg-slate-800 group cursor-pointer" onclick="window.open('${g.photo}')">
+                                <img src="${g.photo}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60"></div>
+                                ${weight}
+                                <div class="absolute bottom-2 left-2">
+                                    <p class="text-[9px] font-bold text-white shadow-black drop-shadow-md">${g.uid.split('@')[0]}</p>
+                                </div>
+                            </div>
+                            <div class="p-3 flex-1 flex flex-col">
+                                ${stars}
+                                <p class="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">${g.comment || 'Tanpa keterangan'}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                grid += `</div>`;
+                list.innerHTML += grid;
+            }
 
             document.getElementById('spotDetailModal').classList.remove('hidden');
             lucide.createIcons();
