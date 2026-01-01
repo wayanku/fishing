@@ -22,6 +22,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
     <!-- AI Image Recognition -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
@@ -440,10 +441,37 @@
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('pressure')" id="toggle-pressure"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
+
+                        <!-- Fish Heatmap Toggle -->
+                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-pink-500/20 p-2 rounded-lg text-pink-400"><i data-lucide="scan-line" class="w-5 h-5"></i></div>
+                                <div><p class="font-bold text-sm text-white">Heatmap Ikan</p><p class="text-[10px] text-slate-400">Area tangkapan terbanyak (Komunitas)</p></div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('fish_heat')" id="toggle-fish_heat"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                        </div>
+
+                        <!-- Sea Temp (SST) Toggle -->
+                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-indigo-500/20 p-2 rounded-lg text-indigo-400"><i data-lucide="thermometer-sun" class="w-5 h-5"></i></div>
+                                <div><p class="font-bold text-sm text-white">Suhu Laut (SST)</p><p class="text-[10px] text-slate-400">NASA GHRSST (Gratis)</p></div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('sst')" id="toggle-sst"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                        </div>
+
+                        <!-- Chlorophyll Toggle -->
+                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-emerald-500/20 p-2 rounded-lg text-emerald-400"><i data-lucide="sprout" class="w-5 h-5"></i></div>
+                                <div><p class="font-bold text-sm text-white">Klorofil-a</p><p class="text-[10px] text-slate-400">Plankton/PPDPI (NASA)</p></div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('chlorophyll')" id="toggle-chlorophyll"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                        </div>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-4 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-white/5">
                         <i data-lucide="info" class="w-3 h-3 inline mr-1"></i> 
-                        <b>Hujan & Awan</b> (Gratis). <b>Angin</b> memerlukan API Key OpenWeatherMap.
+                        <b>Hujan, Awan, Suhu & Klorofil</b> (Gratis). <b>Angin</b> memerlukan API Key.
                     </p>
                 </div>
 
@@ -1049,6 +1077,11 @@
         
         // Inisialisasi peta dengan menonaktifkan attribution default
         var map = L.map('map', { zoomControl: false, attributionControl: false, layers: [satLayer] }).setView([initLat, initLng], lastLat ? 15 : 13);
+
+        // BUAT PANE KHUSUS: Agar layer NASA (SST, Klorofil) selalu di atas peta dasar
+        map.createPane('gibsPane');
+        map.getPane('gibsPane').style.zIndex = 250; // Di atas base map (200), di bawah marker (600)
+        map.getPane('gibsPane').style.pointerEvents = 'none'; // Biarkan klik menembus layer
 
         // Tambahkan attribution control baru tanpa prefix "Leaflet"
         L.control.attribution({ prefix: false }).addTo(map);
@@ -3234,6 +3267,12 @@
             });
         }
 
+        function getGibsDate(daysAgo = 1) {
+            const d = new Date();
+            d.setDate(d.getDate() - daysAgo);
+            return d.toISOString().split('T')[0];
+        }
+
         async function toggleLayer(type) {
             const toggle = document.getElementById(`toggle-${type}`);
             if(!toggle) return;
@@ -3351,6 +3390,67 @@
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
                 lucide.createIcons();
                 return;
+            }
+
+            // FISH HEATMAP LAYER
+            if(type === 'fish_heat') {
+                if(!L.heatLayer) {
+                    alert("Plugin Heatmap belum dimuat.");
+                    toggle.checked = false;
+                    return;
+                }
+                
+                let heatPoints = [];
+                Object.values(groupedSpots).forEach(group => {
+                    group.forEach(spot => {
+                        let intensity = 0.5;
+                        if(spot.weight && parseFloat(spot.weight) > 0) {
+                            intensity = Math.min(parseFloat(spot.weight) / 20, 1.0);
+                        }
+                        heatPoints.push([spot.lat, spot.lng, intensity]);
+                    });
+                });
+
+                if(heatPoints.length === 0) {
+                    alert("Belum ada data spot untuk membuat heatmap.");
+                    toggle.checked = false;
+                    return;
+                }
+
+                activeLayers[type] = L.heatLayer(heatPoints, { radius: 25, blur: 15, maxZoom: 17, gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'} }).addTo(map);
+                
+                const toast = document.createElement('div');
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.innerHTML = `<i data-lucide="scan-line" class="w-4 h-4 text-pink-400"></i> Heatmap Ikan Aktif`;
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
+                lucide.createIcons();
+                return;
+            }
+
+            // SST (Sea Surface Temperature) LAYER - NASA GIBS (Free)
+            if(type === 'sst') {
+                const dateStr = getGibsDate(2); // Data 2 hari lalu (lebih aman & pasti tersedia)
+                activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
+                    pane: 'gibsPane', // Gunakan pane khusus
+                    opacity: 0.7, 
+                    maxZoom: 9,
+                    attribution: 'NASA GIBS'
+                }).addTo(map);
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu (NASA) <span class="text-slate-400 font-normal">(Zoom out jika tidak muncul)</span>`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+            }
+
+            // CHLOROPHYLL LAYER - NASA GIBS (Free)
+            if(type === 'chlorophyll') {
+                const dateStr = getGibsDate(2); // Data 2 hari lalu
+                // Menggunakan data rata-rata 8 hari (8d) agar tutupan awan berkurang dan data lebih jelas
+                activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_L3_Chlorophyll_a_4km_8d/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
+                    pane: 'gibsPane', // Gunakan pane khusus
+                    opacity: 0.7, 
+                    maxZoom: 9,
+                    attribution: 'NASA GIBS'
+                }).addTo(map);
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil <span class="text-slate-400 font-normal">(Zoom out jika tidak muncul)</span>`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             try {
