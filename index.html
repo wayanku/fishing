@@ -162,7 +162,7 @@
 <body class="overflow-hidden">
 
     <!-- LOGIN / REGISTER OVERLAY -->
-    <canvas id="weather-canvas" class="fixed inset-0 z-[900] pointer-events-none"></canvas>
+    <canvas id="weather-canvas" class="fixed inset-0 z-[9990] pointer-events-none"></canvas>
 
     <div id="auth-overlay" class="fixed inset-0 flex items-center justify-center p-6 hidden">
         <div class="glass w-full max-w-md p-6 md:p-8 rounded-[2rem] shadow-2xl border border-blue-500/20 m-4 relative">
@@ -678,19 +678,52 @@
         // Init Language
         setTimeout(() => changeLanguage(localStorage.getItem('appLang') || 'id'), 100);
 
-        // 1. KONFIGURASI DATABASE (Google Sheets & ImgBB)
-        // Silakan ganti dengan URL Web App Google Script dan API Key ImgBB Anda
+        // --- CONFIGURATION ---
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyuRtzzICS1qoBxWKdOJpHeqWCUN6Wt04xAIi_sYQHd0wSxjc89eumDWAYYcKPrT8jV/exec"; 
         const IMGBB_API_KEY = "7e6f3ce63649d305ccaceea00c28266d"; // Daftar gratis di api.imgbb.com
 
-        // --- AI SETUP (MobileNet) ---
-        let classifier = null;
-        (async () => {
-            try {
-                classifier = await mobilenet.load();
-                console.log("AI Fish Detector Ready");
-            } catch (e) { console.log("AI Offline"); }
-        })();
+        // --- AI SETUP (Web Worker & Lazy Loading) ---
+        let aiWorker = null;
+
+        function getAiWorker() {
+            if (!aiWorker) {
+                const workerCode = `
+                    self.importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest', 'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest');
+                    let model = null;
+
+                    async function loadModel() {
+                        if (!model) {
+                            self.postMessage({ type: 'status', message: 'Loading AI model...' });
+                            try {
+                                model = await mobilenet.load();
+                                self.postMessage({ type: 'status', message: 'AI model loaded.' });
+                            } catch (e) {
+                                self.postMessage({ type: 'error', message: 'Failed to load AI model.' });
+                            }
+                        }
+                        return model;
+                    }
+
+                    self.onmessage = async (e) => {
+                        const { imageData } = e.data;
+                        try {
+                            const classifier = await loadModel();
+                            if (!classifier) { throw new Error("Model not available."); }
+                            if (!imageData) { throw new Error("No image data received."); }
+                            
+                            const image = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+                            const predictions = await classifier.classify(image);
+                            self.postMessage({ type: 'result', predictions: predictions });
+                        } catch (error) {
+                            self.postMessage({ type: 'error', message: error.message });
+                        }
+                    };
+                `;
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                aiWorker = new Worker(URL.createObjectURL(blob));
+            }
+            return aiWorker;
+        }
 
         // 2. Map & Street View Setup
         const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
@@ -1693,16 +1726,18 @@
 
             // 2. Auto-detect fish name (AI) - with resize to prevent crash
             const nameInput = document.getElementById('spotName');
-            if(classifier && nameInput.value.trim() === '') {
-                nameInput.placeholder = "Menganalisa jenis ikan...";
-                // Run async with a delay to prevent UI freeze
-                setTimeout(async () => {
-                    try {
-                        const detectedName = await detectFish(file);
-                        if(detectedName) nameInput.value = detectedName;
-                    } catch(e) { console.log("AI Error", e); }
+            if (nameInput.value.trim() === '') {
+                nameInput.placeholder = "Memuat AI & Menganalisa...";
+                try {
+                    const detectedName = await detectFish(file);
+                    if (detectedName) {
+                        nameInput.value = detectedName;
+                    }
+                } catch (e) {
+                    console.error("AI detection failed:", e);
+                } finally {
                     nameInput.placeholder = "Nama Spot/Ikan";
-                }, 100);
+                }
             }
 
             // 3. Auto-detect location from photo (EXIF GPS) - ONLY for new spots
@@ -1930,8 +1965,8 @@
                 }
             }
             
-            // 1. Validasi AI (Jika ada file & Model siap)
-            if(fileToUpload && classifier) {
+            // 1. Validasi AI (Jika ada file)
+            if(fileToUpload) {
                 btn.innerHTML = '<i data-lucide="scan" class="w-3 h-3 inline mr-1 animate-pulse"></i> Menganalisa...';
                 lucide.createIcons();
                 btn.disabled = true;
@@ -1945,7 +1980,7 @@
                         return; // Stop process
                     }
                 } catch(e) {
-                    console.error("AI Error:", e);
+                    console.error("AI Error, skipping validation:", e);
                 }
                 btn.innerText = "Menyimpan...";
             }
@@ -2029,75 +2064,61 @@
         function detectFish(file) {
             return new Promise((resolve) => {
                 const img = document.createElement('img');
-                const url = URL.createObjectURL(file);
-                img.src = url;
+                const objectURL = URL.createObjectURL(file);
+                img.src = objectURL;
                 
                 img.onload = async () => {
-                    // OPTIMASI: Resize gambar ke Canvas kecil sebelum masuk AI
-                    // Ini mencegah Crash memori di iPhone untuk foto resolusi tinggi
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    const MAX_SIZE = 224; // Ukuran standar input MobileNet
+                    const MAX_SIZE = 224;
                     
                     let width = img.width;
                     let height = img.height;
 
-                    // Hitung aspek rasio
                     if (width > height) {
                         if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
                     } else {
                         if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
                     }
-                    
                     canvas.width = width;
                     canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
-                    
-                    try {
-                        // Classify dari canvas kecil, bukan gambar asli yang besar
-                        const predictions = await classifier.classify(canvas);
-                        console.log("AI Predictions:", predictions);
-                    
-                        // Daftar kata kunci ikan/laut dalam bahasa Inggris (MobileNet classes)
-                        const fishKeywords = [
-                            'fish', 'shark', 'ray', 'eel', 'trout', 'salmon', 'bass', 'pike', 
-                            'carp', 'tench', 'barracouta', 'coho', 'gar', 'sturgeon', 'marlin', 'anemone',
-                            'seahorse', 'goldfish', 'whaleshark', 'hammerhead', 'crab', 'lobster', 'lionfish'
-                        ];
-                    
-                        // Cek apakah salah satu prediksi mengandung kata kunci
-                        const match = predictions.find(p => 
-                            fishKeywords.some(k => p.className.toLowerCase().includes(k))
-                        );
-                        
-                        URL.revokeObjectURL(url); // Bersihkan memori
-                    
-                        if(match) {
-                            // Jika probabilitas rendah (< 20%), kembalikan generic "Ikan" saja
-                            if(match.probability < 0.2) {
-                                resolve("Ikan (Jenis Tidak Pasti)");
-                                return;
-                            }
+                    const imageData = ctx.getImageData(0, 0, width, height);
+                    URL.revokeObjectURL(objectURL);
 
-                            let name = match.className.split(',')[0].toLowerCase();
-                            // Terjemahkan jika ada di kamus
-                            for(const [eng, id] of Object.entries(fishTranslations)) {
-                                if(name.includes(eng)) { name = id; break; }
+                    const worker = getAiWorker();
+
+                    const handleMessage = (e) => {
+                        const { type, predictions, message } = e.data;
+                        worker.removeEventListener('message', handleMessage);
+
+                        if (type === 'result') {
+                            console.log("AI Predictions:", predictions);
+                            const fishKeywords = ['fish', 'shark', 'ray', 'eel', 'trout', 'salmon', 'bass', 'pike', 'carp', 'tench', 'barracouta', 'coho', 'gar', 'sturgeon', 'marlin', 'anemone', 'seahorse', 'goldfish', 'whaleshark', 'hammerhead', 'crab', 'lobster', 'lionfish'];
+                            const match = predictions.find(p => fishKeywords.some(k => p.className.toLowerCase().includes(k)));
+
+                            if (match) {
+                                if (match.probability < 0.2) { resolve("Ikan (Jenis Tidak Pasti)"); return; }
+                                let name = match.className.split(',')[0].toLowerCase();
+                                for (const [eng, id] of Object.entries(fishTranslations)) {
+                                    if (name.includes(eng)) { name = id; break; }
+                                }
+                                resolve(name.charAt(0).toUpperCase() + name.slice(1));
+                            } else {
+                                resolve(null);
                             }
-                            // Format Title Case
-                            resolve(name.charAt(0).toUpperCase() + name.slice(1));
-                        } else {
+                        } else if (type === 'error') {
+                            console.error("AI Worker Error:", message);
                             resolve(null);
                         }
-                    } catch (e) {
-                        console.error(e);
-                        URL.revokeObjectURL(url);
-                        resolve(null);
-                    }
+                    };
+
+                    worker.addEventListener('message', handleMessage);
+                    worker.postMessage({ imageData: { data: imageData.data, width: imageData.width, height: imageData.height } });
                 };
                 
                 img.onerror = () => {
-                    URL.revokeObjectURL(url);
+                    URL.revokeObjectURL(objectURL);
                     resolve(null);
                 }
             });
