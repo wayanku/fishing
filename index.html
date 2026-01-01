@@ -429,31 +429,79 @@
         </div>
         <!-- Content -->
         <div class="p-6 overflow-y-auto flex-1">
-            <div class="space-y-5 max-w-2xl mx-auto">
-                <input type="text" id="spotName" data-i18n-placeholder="placeholder_spotname" placeholder="Nama Spot/Ikan" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none">
-                <div class="grid grid-cols-3 gap-3">
-                    <input type="number" id="spotWeight" placeholder="Berat (Kg)" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-emerald-400">
-                    <input type="number" id="spotRating" min="1" max="5" placeholder="Rating 1-5" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-yellow-400">
-                    <input type="text" id="spotComment" data-i18n-placeholder="placeholder_comment" placeholder="Komentar..." class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none">
-                </div>
-                <!-- Custom File Input (Optional) -->
+            <div class="space-y-6 max-w-2xl mx-auto">
+                
+                <!-- Photo Upload Area -->
                 <div class="relative group">
                     <input type="file" id="spotPhoto" accept="image/*" class="hidden" onchange="previewImage(this)">
-                    <label for="spotPhoto" class="flex flex-col items-center justify-center gap-2 w-full p-6 bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-600 text-slate-400 cursor-pointer hover:bg-slate-800 hover:border-blue-500 hover:text-blue-400 transition-all group-hover:shadow-lg group-hover:shadow-blue-900/20">
-                        <i data-lucide="camera" class="w-8 h-8 mb-1"></i>
-                        <span id="photoLabel" class="text-xs font-bold uppercase tracking-wider" data-i18n="label_add_photo">Tambah Foto (Opsional)</span>
-                    </label>
-                    <div id="imagePreviewContainer" class="hidden mt-4 relative rounded-2xl overflow-hidden border border-white/10 shadow-xl">
-                        <img id="imagePreview" class="w-full h-48 object-cover">
-                        <button onclick="clearImage()" class="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-500 transition-colors" aria-label="Hapus foto"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    
+                    <!-- Placeholder State -->
+                    <div id="upload-placeholder" class="w-full aspect-video bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-600 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-800 hover:border-blue-500 hover:text-blue-400 transition-all group-hover:shadow-lg group-hover:shadow-blue-900/20" onclick="document.getElementById('spotPhoto').click()">
+                        <div class="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="camera" class="w-8 h-8 text-slate-400 group-hover:text-blue-400"></i>
+                        </div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400" data-i18n="label_add_photo">Tambah Foto (Opsional)</span>
+                        <p class="text-[10px] text-slate-500 mt-1">Ketuk untuk ambil gambar</p>
+                    </div>
+                    
+                    <!-- Preview State -->
+                    <div id="imagePreviewContainer" class="hidden relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-xl">
+                        <img id="imagePreview" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/20"></div>
+                        <button onclick="clearImage()" class="absolute top-3 right-3 bg-black/60 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-500 transition-colors z-10" aria-label="Hapus foto"><i data-lucide="x" class="w-4 h-4"></i></button>
+                        <button onclick="document.getElementById('spotPhoto').click()" class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-xs font-bold hover:bg-blue-600 transition-colors flex items-center gap-2"><i data-lucide="refresh-cw" class="w-3 h-3"></i> Ganti</button>
                     </div>
                 </div>
+
+                <!-- Form Inputs -->
+                <div class="space-y-4">
+                    <!-- Name -->
+                    <div class="bg-slate-800/50 border border-white/5 rounded-xl p-1 focus-within:border-blue-500/50 focus-within:bg-slate-800 transition-all">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase px-3 pt-2">Nama Spot / Ikan</label>
+                        <input type="text" id="spotName" data-i18n-placeholder="placeholder_spotname" placeholder="Contoh: Ikan Kakap Merah" class="w-full bg-transparent border-none text-white p-3 pt-1 outline-none font-bold text-lg placeholder-slate-600">
+                    </div>
+
+                    <!-- Grid -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Weight -->
+                        <div class="bg-slate-800/50 border border-white/5 rounded-xl p-1 focus-within:border-emerald-500/50 focus-within:bg-slate-800 transition-all">
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase px-3 pt-2">Berat (Kg)</label>
+                            <div class="flex items-center px-3 pb-1">
+                                <input type="number" id="spotWeight" placeholder="0.0" step="0.1" class="w-full bg-transparent border-none text-emerald-400 p-0 outline-none font-black text-2xl placeholder-slate-700">
+                                <span class="text-xs font-bold text-slate-500">KG</span>
+                            </div>
+                        </div>
+
+                        <!-- Rating -->
+                        <div class="bg-slate-800/50 border border-white/5 rounded-xl p-1 flex flex-col items-center justify-center">
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rating Spot</label>
+                            <div class="flex gap-1" id="star-rating-container">
+                                <button type="button" onclick="setRating(1)" class="star-btn p-1 text-slate-600 hover:text-yellow-400 transition-colors"><i data-lucide="star" class="w-5 h-5 fill-current"></i></button>
+                                <button type="button" onclick="setRating(2)" class="star-btn p-1 text-slate-600 hover:text-yellow-400 transition-colors"><i data-lucide="star" class="w-5 h-5 fill-current"></i></button>
+                                <button type="button" onclick="setRating(3)" class="star-btn p-1 text-slate-600 hover:text-yellow-400 transition-colors"><i data-lucide="star" class="w-5 h-5 fill-current"></i></button>
+                                <button type="button" onclick="setRating(4)" class="star-btn p-1 text-slate-600 hover:text-yellow-400 transition-colors"><i data-lucide="star" class="w-5 h-5 fill-current"></i></button>
+                                <button type="button" onclick="setRating(5)" class="star-btn p-1 text-slate-600 hover:text-yellow-400 transition-colors"><i data-lucide="star" class="w-5 h-5 fill-current"></i></button>
+                            </div>
+                            <input type="hidden" id="spotRating" value="">
+                        </div>
+                    </div>
+
+                    <!-- Comment -->
+                    <div class="bg-slate-800/50 border border-white/5 rounded-xl p-1 focus-within:border-blue-500/50 focus-within:bg-slate-800 transition-all">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase px-3 pt-2">Catatan / Cerita</label>
+                        <textarea id="spotComment" rows="3" data-i18n-placeholder="placeholder_comment" placeholder="Ceritakan pengalaman memancing di sini..." class="w-full bg-transparent border-none text-slate-300 p-3 pt-1 outline-none text-sm placeholder-slate-600 resize-none"></textarea>
+                    </div>
+                </div>
+
                 <!-- Street View Info -->
-                <div id="sv-preview" class="bg-slate-900 p-3 rounded-xl border border-slate-700">
-                    <p class="text-[10px] text-emerald-400 font-bold uppercase mb-1 flex items-center gap-1">
-                        <i data-lucide="eye" class="w-3 h-3"></i> Street View Tersedia
-                    </p>
-                    <p class="text-[10px] text-slate-500">Koordinat akan dikunci ke lokasi Google Maps.</p>
+                <div id="sv-preview" class="bg-slate-900/80 p-4 rounded-xl border border-dashed border-slate-700 flex items-start gap-3">
+                    <div class="bg-slate-800 p-2 rounded-lg shrink-0">
+                        <i data-lucide="map-pin" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-white uppercase mb-0.5">Lokasi GPS</p>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">Koordinat akan diambil otomatis dari foto atau lokasi yang dipilih di peta.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -639,6 +687,18 @@
     <div id="lightboxModal" class="fixed inset-0 z-[11000] bg-black/95 hidden flex items-center justify-center p-2 backdrop-blur-sm transition-opacity duration-300" onclick="closeImageLightbox()">
         <button onclick="closeImageLightbox()" class="absolute top-6 right-6 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors z-50" aria-label="Tutup gambar"><i data-lucide="x" class="w-8 h-8"></i></button>
         <img id="lightbox-img" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in duration-300" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- MODAL CUSTOM ALERT (New Feature) -->
+    <div id="customAlertModal" class="fixed inset-0 z-[12000] bg-black/80 hidden items-center justify-center p-4 backdrop-blur-sm" onclick="closeCustomAlert()">
+        <div class="glass w-full max-w-sm p-8 rounded-[2rem] animate-in zoom-in-90 duration-300 relative m-4 shadow-2xl text-center" onclick="event.stopPropagation()">
+            <div id="alert-icon-container" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-4">
+                <i id="alert-icon" data-lucide="alert-triangle" class="w-8 h-8"></i>
+            </div>
+            <h3 id="alert-title" class="text-xl font-bold text-white mb-2">Judul Peringatan</h3>
+            <p id="alert-message" class="text-sm text-slate-300 mb-6 leading-relaxed">Pesan peringatan akan muncul di sini.</p>
+            <button onclick="closeCustomAlert()" id="alert-button" class="w-full py-3 rounded-xl font-bold transition-all shadow-lg text-white">Mengerti</button>
+        </div>
     </div>
 
     <script>
@@ -1881,6 +1941,20 @@
             'crab': 'Hewan Air Asin', 'lobster': 'Hewan Air Asin'
         };
 
+        function setRating(n) {
+            document.getElementById('spotRating').value = n;
+            const stars = document.querySelectorAll('.star-btn');
+            stars.forEach((btn, index) => {
+                if(index < n) {
+                    btn.classList.add('text-yellow-400');
+                    btn.classList.remove('text-slate-600');
+                } else {
+                    btn.classList.remove('text-yellow-400');
+                    btn.classList.add('text-slate-600');
+                }
+            });
+        }
+
         // Helper: Konversi Koordinat DMS (EXIF) ke Desimal
         function convertDMSToDD(dms, ref) {
             if(!dms || dms.length < 3) return null;
@@ -1890,9 +1964,12 @@
         }
 
         function handleNoGPS(svPreview, saveBtn) {
-            if(svPreview) svPreview.innerHTML = `<p class="text-[10px] text-red-400 font-bold uppercase mb-1 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3 h-3"></i> LOKASI GPS TIDAK DITEMUKAN</p><p class="text-[10px] text-slate-500">Foto ini tidak memiliki data lokasi. Silakan pilih foto lain.</p>`;
-            lucide.createIcons();
-            
+            showCustomAlert(
+                "Lokasi GPS Tidak Ditemukan",
+                "Foto ini tidak memiliki data lokasi (GPS).<br>Untuk <b>menambah spot baru</b>, foto wajib memiliki informasi lokasi.",
+                "map-pin-off",
+                "red"
+            );
             saveBtn.innerText = "Foto Tidak Valid";
             saveBtn.disabled = true;
             saveBtn.classList.add('bg-slate-600', 'hover:bg-slate-600', 'cursor-not-allowed');
@@ -1916,7 +1993,7 @@
             const imgPreview = document.getElementById('imagePreview');
             imgPreview.src = currentObjectUrl;
             document.getElementById('imagePreviewContainer').classList.remove('hidden');
-            document.getElementById('photoLabel').innerText = "Ganti Foto";
+            document.getElementById('upload-placeholder').classList.add('hidden');
 
             // 2. Auto-detect fish name (AI) - with resize to prevent crash
             const nameInput = document.getElementById('spotName');
@@ -1997,7 +2074,7 @@
         function clearImage() {
             document.getElementById('spotPhoto').value = ''; // Reset input file
             document.getElementById('imagePreviewContainer').classList.add('hidden');
-            document.getElementById('photoLabel').innerText = "Tambah Foto (Opsional)";
+            document.getElementById('upload-placeholder').classList.remove('hidden');
             if(currentObjectUrl) {
                 URL.revokeObjectURL(currentObjectUrl);
                 currentObjectUrl = null;
@@ -2020,6 +2097,7 @@
                 document.getElementById('spotRating').value = '';
                 document.getElementById('spotWeight').value = '';
                 document.getElementById('spotComment').value = '';
+                setRating(0); // Reset stars
                 clearImage();
                 document.getElementById('addModalTitle').innerHTML = `<i data-lucide="map-pin" class="text-blue-500"></i> <span data-i18n="modal_add_title">Tambah Spot</span>`;
                 
@@ -2030,7 +2108,7 @@
                 saveBtn.innerText = "Pilih Foto Dengan Lokasi";
 
                 svPreview.classList.remove('hidden');
-                svPreview.innerHTML = `<p class="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> Wajib Foto dengan GPS</p><p class="text-[10px] text-slate-500">Hanya foto yang memiliki data lokasi GPS yang bisa diunggah.</p>`;
+                svPreview.innerHTML = `<div class="bg-slate-800 p-2 rounded-lg shrink-0"><i data-lucide="alert-circle" class="w-5 h-5 text-yellow-400"></i></div><div><p class="text-xs font-bold text-white uppercase mb-0.5">Wajib Foto dengan GPS</p><p class="text-[10px] text-slate-400 leading-relaxed">Hanya foto yang memiliki data lokasi GPS yang bisa diunggah.</p></div>`;
                 lucide.createIcons();
             } else {
                 // Mode: ADD REVIEW (spot already exists)
@@ -2046,6 +2124,7 @@
             }
             // Re-apply translation to ensure button text is correct
             changeLanguage(localStorage.getItem('appLang') || 'id');
+            lucide.createIcons();
         }
 
         function closeModal() { document.getElementById('addModal').classList.add('translate-y-full'); }
@@ -2121,14 +2200,22 @@
             const fileInput = document.getElementById('spotPhoto');
             const originalFile = fileInput.files[0];
             let fileToUpload = originalFile;
-            
-            if(!name) { alert("Nama spot wajib diisi!"); return; }
 
-            if(!tempLatlng) {
-                alert("Lokasi belum dipilih! Silakan klik peta atau upload foto dengan GPS.");
+            if(!name && !isContributionMode) { 
+                showCustomAlert("Form Belum Lengkap", "<b>Nama Spot / Ikan</b> wajib diisi.", "pencil", "yellow");
                 return;
             }
 
+            if(!tempLatlng) {
+                showCustomAlert("Lokasi Belum Dipilih", "Silakan pilih lokasi di peta atau unggah foto dengan data GPS.", "map-pin", "yellow");
+                return;
+            }
+
+            // For contributions, a comment or a photo is required.
+            if(isContributionMode && !comment && !originalFile) {
+                showCustomAlert("Ulasan Kosong", "Mohon tambahkan <b>foto atau komentar</b> untuk memberikan ulasan pada spot ini.", "message-square", "yellow");
+                return;
+            }
             const btn = document.getElementById('btnSaveSpot');
             const oldText = btn.innerText;
             
@@ -2168,7 +2255,12 @@
                 try {
                     const isFish = await detectFish(fileToUpload);
                     if(!isFish) {
-                        alert("Gambar Ditolak!\nSistem AI mendeteksi gambar ini BUKAN IKAN.\n\nMohon unggah foto hasil pancingan yang valid.");
+                        showCustomAlert(
+                            "Gambar Ditolak", 
+                            "Sistem AI mendeteksi gambar ini <b>bukan ikan</b>.<br>Mohon unggah foto hasil pancingan yang valid.",
+                            "shield-x",
+                            "red"
+                        );
                         btn.innerText = oldText;
                         btn.disabled = false;
                         return; // Stop process
@@ -2711,6 +2803,48 @@
         function closeImageLightbox() {
             document.getElementById('lightboxModal').classList.add('hidden');
             setTimeout(() => { document.getElementById('lightbox-img').src = ''; }, 300);
+        }
+
+        // --- CUSTOM ALERT MODAL ---
+        function showCustomAlert(title, message, icon = 'alert-triangle', color = 'red') {
+            const modal = document.getElementById('customAlertModal');
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-message').innerHTML = message; // Use innerHTML to allow for <b> tags
+
+            const iconEl = document.getElementById('alert-icon');
+            iconEl.setAttribute('data-lucide', icon);
+
+            const iconContainer = document.getElementById('alert-icon-container');
+            const closeBtn = document.getElementById('alert-button');
+            const modalContent = modal.querySelector('.glass');
+            
+            // Reset classes
+            iconContainer.className = 'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-4';
+            iconEl.className = 'w-8 h-8';
+            closeBtn.className = 'w-full py-3 rounded-xl font-bold transition-all shadow-lg text-white';
+            modalContent.className = 'glass w-full max-w-sm p-8 rounded-[2rem] animate-in zoom-in-90 duration-300 relative m-4 shadow-2xl text-center';
+
+            if (color === 'red') {
+                modalContent.classList.add('border-red-500/30');
+                iconContainer.classList.add('bg-red-500/20', 'border-red-500/30');
+                iconEl.classList.add('text-red-400');
+                closeBtn.classList.add('bg-red-600', 'hover:bg-red-500');
+            } else if (color === 'yellow') {
+                modalContent.classList.add('border-yellow-500/30');
+                iconContainer.classList.add('bg-yellow-500/20', 'border-yellow-500/30');
+                iconEl.classList.add('text-yellow-400');
+                closeBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-500');
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeCustomAlert() {
+            const modal = document.getElementById('customAlertModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
 
         // --- SCROLL DOTS INDICATOR ---
