@@ -213,8 +213,9 @@
             <div class="space-y-4">
                 <input type="text" id="spotName" placeholder="Nama Spot/Ikan" class="w-full bg-slate-800 border-none rounded-xl p-4 outline-none">
                 <div class="flex gap-2">
+                    <input type="number" id="spotWeight" placeholder="Berat (Kg)" class="w-1/3 bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-emerald-400">
                     <input type="number" id="spotRating" min="1" max="5" placeholder="⭐ 1-5" class="w-1/3 bg-slate-800 border-none rounded-xl p-4 outline-none text-center font-bold text-yellow-400">
-                    <input type="text" id="spotComment" placeholder="Komentar singkat..." class="w-2/3 bg-slate-800 border-none rounded-xl p-4 outline-none">
+                    <input type="text" id="spotComment" placeholder="Komentar..." class="w-1/3 bg-slate-800 border-none rounded-xl p-4 outline-none">
                 </div>
                 
                 <!-- Custom File Input (Optional) -->
@@ -314,7 +315,7 @@
 
         // 1. KONFIGURASI DATABASE (Google Sheets & ImgBB)
         // Silakan ganti dengan URL Web App Google Script dan API Key ImgBB Anda
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw8UchhR_wiISUZTc5c_IgsrvFDRlAVmZJMw70CfYbi3yBJnNVwkdBKGeoruQyqA0ax/exec"; 
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyuRtzzICS1qoBxWKdOJpHeqWCUN6Wt04xAIi_sYQHd0wSxjc89eumDWAYYcKPrT8jV/exec"; 
         const IMGBB_API_KEY = "7e6f3ce63649d305ccaceea00c28266d"; // Daftar gratis di api.imgbb.com
 
         // --- AI SETUP (MobileNet) ---
@@ -984,6 +985,7 @@
                 // Reset form jika mode tambah baru
                 document.getElementById('spotName').value = '';
                 document.getElementById('spotRating').value = '';
+                document.getElementById('spotWeight').value = '';
                 document.getElementById('spotComment').value = '';
                 clearImage();
                 document.getElementById('addModalTitle').innerHTML = `<i data-lucide="map-pin" class="text-blue-500"></i> Tambah Spot`;
@@ -996,6 +998,7 @@
         async function saveSpotCloud() {
             const name = document.getElementById('spotName').value;
             const rating = document.getElementById('spotRating').value;
+            const weight = document.getElementById('spotWeight').value;
             const comment = document.getElementById('spotComment').value;
             const fileInput = document.getElementById('spotPhoto');
             const file = fileInput.files[0];
@@ -1003,6 +1006,7 @@
             if(!name) { alert("Nama spot wajib diisi!"); return; }
 
             const btn = document.getElementById('btnSaveSpot');
+            
             // 1. Validasi AI (Jika ada file & Model siap)
             if(file && classifier) {
                 const btn = document.querySelector('#addModal button.bg-blue-600');
@@ -1061,7 +1065,8 @@
                 uid: currentUser.email,
                 createdAt: new Date().toISOString(),
                 rating: rating,
-                comment: comment
+                comment: comment,
+                weight: weight || 0
             };
 
             // Kirim data ke Google Apps Script
@@ -1115,6 +1120,31 @@
             });
         }
 
+        // Helper: Tentukan Warna & Icon berdasarkan Berat Terbesar
+        function getSpotStyle(maxWeight) {
+            let colorClass = 'bg-blue-600'; // Default / Kecil (< 3kg)
+            let ringClass = 'border-blue-400';
+            
+            if (maxWeight >= 10) { // Besar (> 10kg) -> MERAH
+                colorClass = 'bg-red-600';
+                ringClass = 'border-red-400';
+            } else if (maxWeight >= 3) { // Sedang (3kg - 10kg) -> KUNING/ORANGE
+                colorClass = 'bg-yellow-500';
+                ringClass = 'border-yellow-300';
+            }
+
+            return L.divIcon({
+                className: 'custom-fish-icon',
+                html: `<div class="w-8 h-8 ${colorClass} rounded-full border-2 border-white shadow-lg flex items-center justify-center relative">
+                        <i data-lucide="fish" class="text-white w-5 h-5"></i>
+                        ${maxWeight >= 10 ? '<div class="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center"><div class="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping"></div></div>' : ''}
+                       </div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+                popupAnchor: [0, -32]
+            });
+        }
+
         // Fungsi Render Marker (Updated untuk Grouping)
         function addMarker(group) {
             // Ambil data utama dari entri pertama atau yang paling baru
@@ -1124,18 +1154,30 @@
             // Hitung rata-rata rating
             let totalRating = 0;
             let ratingCount = 0;
+            
+            // Cari Berat Terbesar di Spot Ini
+            let maxWeight = 0;
+
             group.forEach(g => {
                 if(g.rating) { totalRating += parseInt(g.rating); ratingCount++; }
+                if(g.weight) { 
+                    const w = parseFloat(g.weight);
+                    if(w > maxWeight) maxWeight = w;
+                }
             });
             const avgRating = ratingCount > 0 ? (totalRating / ratingCount).toFixed(1) : "Baru";
 
             // Cari foto terbaik (yang ada fotonya)
             const coverPhoto = group.find(g => g.photo)?.photo || '';
 
+            // Tentukan Icon berdasarkan Max Weight
+            const dynamicIcon = getSpotStyle(maxWeight);
+
             const popupHtml = `
                 <div class="w-48 overflow-hidden">
                     ${coverPhoto ? `<img src="${coverPhoto}" class="w-full h-28 object-cover rounded-xl mb-2 shadow-md">` : ''}
                     <h4 class="font-bold text-sm mb-1 leading-tight">${mainSpot.name}</h4>
+                    ${maxWeight > 0 ? `<div class="text-[10px] font-bold text-emerald-400 mb-1">🏆 Rekor: ${maxWeight} kg</div>` : ''}
                     <div class="flex items-center gap-1 text-xs text-yellow-500 mb-2 font-bold">
                         <i data-lucide="star" class="w-3 h-3 fill-current"></i> ${avgRating} <span class="text-slate-400 font-normal">(${count} ulasan)</span>
                     </div>
@@ -1147,7 +1189,7 @@
                 </div>
             `;
             
-            const marker = L.marker([mainSpot.lat, mainSpot.lng], {icon: fishIcon}).addTo(map).bindPopup(popupHtml);
+            const marker = L.marker([mainSpot.lat, mainSpot.lng], {icon: dynamicIcon}).addTo(map).bindPopup(popupHtml);
             
             // Event listener untuk tombol detail di dalam popup
             marker.on('popupopen', () => {
@@ -1185,27 +1227,32 @@
             // Render Comments List
             const list = document.getElementById('detail-comments');
             list.innerHTML = '';
+            
+            // Urutkan dari yang terbaru
+            group.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
             group.forEach(g => {
-                const hasPhoto = g.photo ? `<div class="mt-3"><img src="${g.photo}" class="w-full h-48 object-cover rounded-xl border border-white/10 shadow-lg cursor-pointer hover:scale-[1.02] transition-transform" onclick="window.open('${g.photo}')"></div>` : '';
-                const stars = g.rating ? `<div class="flex text-yellow-400 mb-1">${Array(parseInt(g.rating)).fill('<i data-lucide="star" class="w-3 h-3 fill-current"></i>').join('')}</div>` : '';
+                const hasPhoto = g.photo ? `<div class="mt-3 rounded-xl overflow-hidden border border-slate-700"><img src="${g.photo}" class="w-full h-auto max-h-64 object-cover" onclick="window.open('${g.photo}')"></div>` : '';
+                const stars = g.rating ? `<div class="flex text-yellow-400 my-1">${Array(parseInt(g.rating)).fill('<i data-lucide="star" class="w-3 h-3 fill-current"></i>').join('')}</div>` : '';
+                const weightBadge = g.weight && g.weight > 0 ? `<span class="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-1 rounded-full border border-emerald-500/30 font-bold ml-2">🐟 ${g.weight} kg</span>` : '';
                 
                 list.innerHTML += `
-                    <div class="relative pl-4 border-l-2 border-slate-700 pb-8 last:pb-0 last:border-0">
-                        <div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-900 border-2 border-blue-500"></div>
-                        <div class="bg-slate-800 p-4 rounded-2xl rounded-tl-none border border-white/5 shadow-sm">
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-[10px] font-bold text-white">
-                                        ${g.uid.charAt(0).toUpperCase()}
-                                    </div>
-                                    <span class="text-xs font-bold text-blue-400">${g.uid.split('@')[0]}</span>
+                    <div class="bg-slate-800 p-4 rounded-2xl border border-white/5 shadow-lg mb-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
+                                    ${g.uid.charAt(0).toUpperCase()}
                                 </div>
-                                <span class="text-[10px] text-slate-500">${new Date(g.createdAt).toLocaleDateString()}</span>
+                                <div>
+                                    <p class="text-xs font-bold text-white">${g.uid.split('@')[0]}</p>
+                                    <p class="text-[10px] text-slate-400">${new Date(g.createdAt).toLocaleDateString()}</p>
+                                </div>
                             </div>
-                            ${stars}
-                            <p class="text-sm text-slate-200 mt-1 leading-relaxed">${g.comment || ''}</p>
-                            ${hasPhoto}
+                            ${weightBadge}
                         </div>
+                        ${stars}
+                        <p class="text-sm text-slate-300 leading-relaxed">${g.comment || ''}</p>
+                        ${hasPhoto}
                     </div>
                 `;
             });
@@ -1220,6 +1267,7 @@
             if(currentDetailSpot) {
                 tempLatlng = { lat: parseFloat(currentDetailSpot.lat), lng: parseFloat(currentDetailSpot.lng) };
                 document.getElementById('spotName').value = currentDetailSpot.name;
+                document.getElementById('spotWeight').value = ''; // Reset berat untuk kontribusi baru
                 
                 // Update UI Modal untuk Mode Kontribusi
                 document.getElementById('addModalTitle').innerHTML = `<i data-lucide="message-circle" class="text-blue-500"></i> Tambah Ulasan`;
