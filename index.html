@@ -297,7 +297,7 @@
 
         <!-- Bottom Navigation Bar (Instagram Style) -->
         <div class="fixed bottom-0 left-0 right-0 md:bottom-6 md:w-[500px] md:left-1/2 md:-translate-x-1/2 z-[900] bg-[#020617]/95 md:bg-slate-900/80 backdrop-blur-2xl border-t md:border border-white/10 pb-6 pt-2 px-2 md:rounded-3xl md:pb-2 md:px-8 grid grid-cols-5 justify-items-center items-end md:items-center shadow-2xl transition-all duration-300 ring-1 ring-white/5">
-            <button onclick="toggleMapLayer()" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
+            <button onclick="openMapSettings()" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
                 <i data-lucide="layers" class="w-6 h-6"></i>
                 <span class="text-[10px] font-medium">Peta</span>
             </button>
@@ -321,6 +321,55 @@
                 <i data-lucide="settings" class="w-6 h-6"></i>
                 <span class="text-[10px] font-medium">Pengaturan</span>
             </button>
+        </div>
+    </div>
+
+    <!-- MODAL MAP SETTINGS (New Feature: iPhone Style Layers) -->
+    <div id="mapSettingsModal" class="fixed inset-0 z-[10000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="layers" class="text-blue-400"></i> Tampilan Peta</h3>
+            <button onclick="closeMapSettings()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+            <div class="space-y-6 max-w-2xl mx-auto">
+                <!-- Base Map Section -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Jenis Peta Dasar</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="setBaseMap('satellite')" id="btn-map-sat" class="relative h-24 rounded-xl overflow-hidden border-2 border-blue-500 group transition-all">
+                            <img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/4/6/10" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity">
+                            <div class="absolute inset-0 bg-black/30 flex items-center justify-center font-bold text-white text-sm">Satelit</div>
+                        </button>
+                        <button onclick="setBaseMap('street')" id="btn-map-street" class="relative h-24 rounded-xl overflow-hidden border-2 border-transparent group transition-all">
+                            <img src="https://a.tile.openstreetmap.org/4/6/10.png" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity">
+                            <div class="absolute inset-0 bg-black/30 flex items-center justify-center font-bold text-white text-sm">Jalan</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Weather Overlay Section -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Lapisan Cuaca (Gratis)</h4>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button onclick="setOverlay('none')" id="btn-ov-none" class="p-3 rounded-xl bg-blue-600 text-white border border-white/10 flex flex-col items-center gap-2 transition-all shadow-lg shadow-blue-900/20">
+                            <i data-lucide="ban" class="w-6 h-6"></i>
+                            <span class="text-[10px] font-bold">Normal</span>
+                        </button>
+                        <button onclick="setOverlay('rain')" id="btn-ov-rain" class="p-3 rounded-xl bg-slate-800 text-slate-400 border border-white/5 flex flex-col items-center gap-2 hover:bg-slate-700 transition-all">
+                            <i data-lucide="cloud-rain" class="w-6 h-6 text-blue-400"></i>
+                            <span class="text-[10px] font-bold">Hujan</span>
+                        </button>
+                        <button onclick="setOverlay('clouds')" id="btn-ov-clouds" class="p-3 rounded-xl bg-slate-800 text-slate-400 border border-white/5 flex flex-col items-center gap-2 hover:bg-slate-700 transition-all">
+                            <i data-lucide="cloud" class="w-6 h-6 text-slate-200"></i>
+                            <span class="text-[10px] font-bold">Awan</span>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-4 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-white/5">
+                        <i data-lucide="info" class="w-3 h-3 inline mr-1"></i> 
+                        Menggunakan data <b>RainViewer</b> (Gratis & Tanpa API Key). Lapisan Suhu & Angin tidak tersedia dalam mode gratis.
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -544,20 +593,9 @@
     <script>
         lucide.createIcons();
         let isSat = true; // Hoisted to top to fix initialization error
-
-        function toggleMapLayer() {
-            // This function needs map, satLayer, streetLayer to be initialized
-            if (typeof map === 'undefined') return;
-            
-            if(isSat) {
-                map.removeLayer(satLayer);
-                map.addLayer(streetLayer);
-            } else {
-                map.removeLayer(streetLayer);
-                map.addLayer(satLayer);
-            }
-            isSat = !isSat;
-        }
+        
+        // --- MAP LAYERS CONFIGURATION ---
+        let activeOverlay = null;
 
         // --- THEME SYSTEM (Default Dark) ---
         function initTheme() {
@@ -576,13 +614,13 @@
                 if(btn) { btn.innerHTML = '<i data-lucide="sun" class="w-3 h-3 inline mr-1"></i> Light'; btn.className = "bg-white text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 font-bold shadow-sm"; }
                 
                 // Auto-switch to Street View for better blending
-                if(isSat) toggleMapLayer();
+                if(isSat) setBaseMap('street');
             } else {
                 body.classList.remove('light-mode');
                 if(btn) { btn.innerHTML = '<i data-lucide="moon" class="w-3 h-3 inline mr-1"></i> Dark'; btn.className = "bg-slate-900 text-white text-xs px-3 py-2 rounded-lg border border-white/10 font-bold"; }
                 
                 // Auto-switch to Satellite for Dark Mode
-                if(!isSat) toggleMapLayer();
+                if(!isSat) setBaseMap('satellite');
             }
             localStorage.setItem('appTheme', theme);
             lucide.createIcons();
@@ -2516,6 +2554,133 @@
             }
         }
         
+        // --- NEW MAP SETTINGS & LAYERS FUNCTIONS ---
+        function openMapSettings() {
+            document.getElementById('mapSettingsModal').classList.remove('translate-y-full');
+            lucide.createIcons();
+        }
+
+        function closeMapSettings() {
+            document.getElementById('mapSettingsModal').classList.add('translate-y-full');
+        }
+
+        function setBaseMap(type) {
+            if (typeof map === 'undefined') return;
+            
+            // Update UI Buttons
+            const btnSat = document.getElementById('btn-map-sat');
+            const btnStreet = document.getElementById('btn-map-street');
+            
+            if(type === 'satellite') {
+                map.removeLayer(streetLayer);
+                map.addLayer(satLayer);
+                isSat = true;
+                btnSat.classList.add('border-blue-500'); btnSat.classList.remove('border-transparent');
+                btnStreet.classList.remove('border-blue-500'); btnStreet.classList.add('border-transparent');
+            } else {
+                map.removeLayer(satLayer);
+                map.addLayer(streetLayer);
+                isSat = false;
+                btnStreet.classList.add('border-blue-500'); btnStreet.classList.remove('border-transparent');
+                btnSat.classList.remove('border-blue-500'); btnSat.classList.add('border-transparent');
+            }
+            
+            // Re-add overlay if exists (because base layer change might hide it)
+            if(activeOverlay) {
+                activeOverlay.bringToFront();
+            }
+        }
+
+        async function setOverlay(type) {
+            // Reset UI Buttons
+            document.querySelectorAll('[id^="btn-ov-"]').forEach(btn => {
+                btn.className = "p-3 rounded-xl bg-slate-800 text-slate-400 border border-white/5 flex flex-col items-center gap-2 hover:bg-slate-700 transition-all";
+            });
+            const activeBtn = document.getElementById(`btn-ov-${type}`);
+            if(activeBtn) {
+                activeBtn.className = "p-3 rounded-xl bg-blue-600 text-white border border-white/10 flex flex-col items-center gap-2 transition-all shadow-lg shadow-blue-900/20";
+            }
+
+            // Remove existing overlay
+            if(activeOverlay) {
+                map.removeLayer(activeOverlay);
+                activeOverlay = null;
+            }
+
+            if(type === 'none') return;
+
+            try {
+                // Feedback Loading
+                const activeBtn = document.getElementById(`btn-ov-${type}`);
+                let originalText = "";
+                if(activeBtn) {
+                    const span = activeBtn.querySelector('span');
+                    if(span) { originalText = span.innerText; span.innerText = "Memuat..."; }
+                }
+
+                const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+                const data = await res.json();
+                
+                // Normalisasi Host
+                let host = data.host || 'https://tilecache.rainviewer.com';
+                if(host.endsWith('/')) host = host.slice(0, -1);
+                
+                let tileUrl = '';
+
+                if(type === 'rain') {
+                    // Radar: Gunakan frame ke-2 terakhir agar lebih stabil (jika ada)
+                    if(data.radar && data.radar.past && data.radar.past.length > 0) {
+                        const idx = data.radar.past.length > 1 ? data.radar.past.length - 2 : 0;
+                        const item = data.radar.past[idx];
+                        tileUrl = `${host}${item.path}/256/{z}/{x}/{y}/2/1_1.png`;
+                    }
+                } else if(type === 'clouds') {
+                    // Satellite: Gunakan frame terakhir
+                    if(data.satellite && data.satellite.infrared && data.satellite.infrared.length > 0) {
+                        const item = data.satellite.infrared[data.satellite.infrared.length - 1];
+                        tileUrl = `${host}${item.path}/256/{z}/{x}/{y}/0/1_1.png`;
+                    }
+                }
+
+                if(tileUrl) {
+                    // FIX: Gunakan Pane khusus agar layer cuaca pasti di atas peta dasar tapi di bawah marker
+                    if(!map.getPane('weatherPane')) {
+                        map.createPane('weatherPane');
+                        map.getPane('weatherPane').style.zIndex = 300; // BaseMap=200, Marker=600
+                        map.getPane('weatherPane').style.pointerEvents = 'none'; // Klik tembus ke peta
+                    }
+
+                    activeOverlay = L.tileLayer(tileUrl, { 
+                        pane: 'weatherPane',
+                        opacity: 0.7 
+                    }).addTo(map);
+
+                    // Feedback Visual (Toast)
+                    const toast = document.createElement('div');
+                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                    toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Layer ${type === 'rain' ? 'Hujan' : 'Awan'} Ditampilkan`;
+                    document.body.appendChild(toast);
+                    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
+                    lucide.createIcons();
+                } else {
+                    alert("Data cuaca tidak tersedia saat ini.");
+                }
+                
+                // Restore Text
+                if(activeBtn && originalText) activeBtn.querySelector('span').innerText = originalText;
+
+            } catch(e) {
+                console.error(e);
+                alert("Gagal memuat peta cuaca. Cek koneksi internet.");
+                // Restore Text on Error
+                const activeBtn = document.getElementById(`btn-ov-${type}`);
+                if(activeBtn) {
+                    const span = activeBtn.querySelector('span');
+                    if(span) span.innerText = type === 'rain' ? 'Hujan' : 'Awan';
+                }
+            }
+        }
+
         // Init dots saat load & resize
         window.addEventListener('resize', initScrollDots);
 
