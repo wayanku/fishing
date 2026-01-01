@@ -110,12 +110,15 @@
         
         /* Background Mappings */
         .light-mode .bg-slate-950, .light-mode .bg-slate-900, .light-mode .bg-[#020617] { background-color: #ffffff !important; }
-        .light-mode .bg-slate-950\/90, .light-mode .bg-[#020617]\/95 { background-color: rgba(255,255,255,0.95) !important; }
+        .light-mode .bg-slate-950\/90 { background-color: rgba(255,255,255,0.95) !important; }
         
         .light-mode .bg-slate-800, .light-mode .bg-slate-800\/30, .light-mode .bg-slate-800\/40, .light-mode .bg-slate-800\/50, .light-mode .bg-slate-800\/60, .light-mode .bg-slate-800\/80 { 
             background-color: #f1f5f9 !important; 
             border-color: #e2e8f0 !important; 
         }
+
+        /* Navbar Specific (Mobile & Desktop) - Fix Background Color in Light Mode */
+        .light-mode .bg-\[\#020617\]\/95, .light-mode .md\:bg-slate-900\/80 { background-color: rgba(255,255,255,0.9) !important; border-top: 1px solid #e2e8f0 !important; backdrop-filter: blur(20px); }
 
         /* Borders */
         .light-mode .border-white\/5, .light-mode .border-white\/10, .light-mode .border-white\/20 { border-color: #e2e8f0 !important; }
@@ -128,7 +131,11 @@
         /* EXCEPTIONS: Keep text white on colored backgrounds (Buttons, Cards) */
         .light-mode .bg-blue-600 .text-white, .light-mode .bg-gradient-to-br .text-white, .light-mode .bg-gradient-to-r .text-white, .light-mode .bg-red-600 .text-white, .light-mode .bg-emerald-500 .text-white { color: #ffffff !important; }
         .light-mode .bg-gradient-to-br .text-blue-100 { color: #dbeafe !important; }
-        .light-mode .border-\[\#020617\] { border-color: #ffffff !important; }
+        .light-mode .border-\[\#020617\] { border-color: #ffffff !important; } /* Add Button Border blends with Navbar */
+        
+        /* Fix Search Bar in Light Mode */
+        .light-mode #search-input { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+        .light-mode .bg-slate-900\/60 { background-color: transparent !important; }
     </style>
 </head>
 <body class="overflow-hidden">
