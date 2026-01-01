@@ -299,6 +299,10 @@
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_tide">Pasang Surut</p>
                         <div class="text-xl font-black text-purple-300 mt-1" id="wx-tide">-- m</div>
                     </div>
+                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-indigo-500/10 to-blue-500/5 border border-indigo-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Suhu Air</p>
+                        <div class="text-xl font-black text-indigo-300 mt-1" id="wx-sst">--°C</div>
+                    </div>
                     <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border border-yellow-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_sun">Matahari</p>
                         <div class="text-[10px] font-bold text-yellow-300 mt-1 leading-tight" id="wx-sun">--:--<br>--:--</div>
@@ -1536,6 +1540,7 @@
             document.getElementById('panel-address').innerText = "Mencari nama lokasi...";
             document.getElementById('wx-wave').innerText = "-- m";
             document.getElementById('wx-tide').innerText = "-- m";
+            document.getElementById('wx-sst').innerText = "--°C";
             document.getElementById('panel-dist').innerHTML = '<span class="animate-pulse">Menghitung...</span>';
             document.getElementById('wx-sun').innerHTML = "--:--<br>--:--";
             document.getElementById('panel-coords').innerText = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
@@ -1625,14 +1630,31 @@
 
             // 4. Fetch Tide Data (Marine API)
             try {
-                const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${latlng.lat}&longitude=${latlng.lng}&hourly=tide_height&timezone=auto`);
+                // Added sea_surface_temperature
+                const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${latlng.lat}&longitude=${latlng.lng}&hourly=tide_height,sea_surface_temperature&timezone=auto`);
                 const data = await res.json();
-                if(data.hourly && data.hourly.tide_height) {
+
+                // Perbaikan: Cek jika API mengembalikan error (misal: lokasi di darat) atau tidak ada data 'hourly'
+                if (data.error || !data.hourly) {
+                    if(data.reason) console.warn("Marine API:", data.reason); // Log alasan error jika ada
+                    document.getElementById('wx-tide').innerText = "-- m";
+                    document.getElementById('wx-sst').innerText = "--°C";
+                } else {
                     const currentHour = new Date().getHours();
-                    const tide = data.hourly.tide_height[currentHour] || 0;
-                    document.getElementById('wx-tide').innerText = `${tide.toFixed(2)} m`;
+
+                    // Handle Tide Data
+                    const tide = data.hourly.tide_height ? data.hourly.tide_height[currentHour] : null;
+                    document.getElementById('wx-tide').innerText = (tide !== null && typeof tide === 'number') ? `${tide.toFixed(2)} m` : '-- m';
+
+                    // Handle Sea Surface Temperature (SST) Data
+                    const sst = data.hourly.sea_surface_temperature ? data.hourly.sea_surface_temperature[currentHour] : null;
+                    document.getElementById('wx-sst').innerText = (sst !== null && typeof sst === 'number') ? `${sst.toFixed(1)}°C` : '--°C';
                 }
-            } catch(e) { console.log("Tide data unavailable"); }
+            } catch(e) { 
+                console.log("Marine API data unavailable for this location.", e);
+                document.getElementById('wx-tide').innerText = "-- m";
+                document.getElementById('wx-sst').innerText = "--°C";
+            }
         }
 
         // Fungsi Update UI Cuaca (Dipisah agar bisa dipanggil saat ganti bahasa)
@@ -3199,7 +3221,7 @@
             // Hitung estimasi halaman berdasarkan lebar container dan item
             const itemWidth = 112; // min-w-[100px] + gap (approx)
             const containerWidth = container.clientWidth || window.innerWidth;
-            const totalItems = 8; // Jumlah kartu cuaca
+            const totalItems = 9; // Jumlah kartu cuaca (Added SST)
             const totalWidth = totalItems * itemWidth;
             const pages = Math.ceil(totalWidth / containerWidth);
             
@@ -3434,10 +3456,11 @@
                 activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
                     pane: 'gibsPane', // Gunakan pane khusus
                     opacity: 0.7, 
-                    maxZoom: 9,
+                    maxNativeZoom: 9, // Batas zoom asli tiles NASA
+                    maxZoom: 20,      // Izinkan zoom lebih dalam (stretch)
                     attribution: 'NASA GIBS'
                 }).addTo(map);
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu (NASA) <span class="text-slate-400 font-normal">(Zoom out jika tidak muncul)</span>`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // CHLOROPHYLL LAYER - NASA GIBS (Free)
@@ -3447,10 +3470,11 @@
                 activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_L3_Chlorophyll_a_4km_8d/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
                     pane: 'gibsPane', // Gunakan pane khusus
                     opacity: 0.7, 
-                    maxZoom: 9,
+                    maxNativeZoom: 9,
+                    maxZoom: 20,
                     attribution: 'NASA GIBS'
                 }).addTo(map);
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil <span class="text-slate-400 font-normal">(Zoom out jika tidak muncul)</span>`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             try {
