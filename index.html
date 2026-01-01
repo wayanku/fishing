@@ -299,6 +299,9 @@
         <!-- Floating Locate Button -->
         <button onclick="locateUser()" class="fixed bottom-28 right-4 md:bottom-32 md:right-8 z-[900] glass p-3 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform active:scale-90" aria-label="Lokasi saya"><i data-lucide="navigation" class="w-6 h-6"></i></button>
 
+        <!-- Floating Find Nearest Button -->
+        <button onclick="findNearestSpot()" class="fixed bottom-44 right-4 md:bottom-48 md:right-8 z-[900] glass p-3 rounded-full text-emerald-400 shadow-xl hover:scale-110 transition-transform active:scale-90" aria-label="Cari spot terdekat"><i data-lucide="locate-fixed" class="w-6 h-6"></i></button>
+
         <!-- Bottom Navigation Bar (Instagram Style) -->
         <div class="fixed bottom-0 left-0 right-0 md:bottom-6 md:w-[500px] md:left-1/2 md:-translate-x-1/2 z-[900] bg-[#020617]/95 md:bg-slate-900/80 backdrop-blur-2xl border-t md:border border-white/10 pb-6 pt-2 px-2 md:rounded-3xl md:pb-2 md:px-8 grid grid-cols-5 justify-items-center items-end md:items-center shadow-2xl transition-all duration-300 ring-1 ring-white/5">
             <button onclick="openMapSettings()" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
@@ -2655,6 +2658,49 @@
                 alert("⚠️ Lokasi Tidak Ditemukan\n\nPastikan GPS aktif dan sinyal stabil.");
             }
         });
+
+        // --- FITUR BARU: CARI SPOT TERDEKAT ---
+        function findNearestSpot() {
+            // 1. Cek apakah lokasi user sudah ada
+            if (!userLatlng) {
+                alert("Lokasi Anda belum ditemukan. Aktifkan GPS dan coba lagi.");
+                locateUser(); // Coba aktifkan pencarian lokasi
+                return;
+            }
+
+            // 2. Cek apakah sudah ada spot di peta
+            if (allMarkers.length === 0) {
+                alert("Belum ada spot yang dimuat di peta. Mohon tunggu sebentar.");
+                return;
+            }
+
+            let nearestMarker = null;
+            let minDistance = Infinity;
+
+            // 3. Hitung jarak ke setiap spot
+            allMarkers.forEach(marker => {
+                const spotLatLng = marker.getLatLng();
+                const distance = userLatlng.distanceTo(spotLatLng);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestMarker = marker;
+                }
+            });
+
+            // 4. Arahkan ke spot terdekat
+            if (nearestMarker) {
+                const spotLatLng = nearestMarker.getLatLng();
+                map.flyTo(spotLatLng, 16); // Zoom lebih dekat
+                nearestMarker.openPopup();
+
+                // Gambar garis lurus dari user ke spot
+                if(currentRouteLine) map.removeLayer(currentRouteLine);
+                currentRouteLine = L.polyline([userLatlng, spotLatLng], { color: '#10b981', weight: 5, opacity: 0.8, dashArray: '10, 5' }).addTo(map);
+            } else {
+                alert("Tidak dapat menemukan spot terdekat.");
+            }
+        }
 
         // --- LIGHTBOX FUNCTIONS ---
         function openImageLightbox(url) {
