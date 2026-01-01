@@ -65,7 +65,43 @@
             position: fixed; inset: 0; background: #000; opacity: 0;
             pointer-events: none; z-index: 9990; transition: opacity 1.5s ease;
         }
-        .wx-overlay.active { opacity: 0.5; } /* Gelapkan background 50% saat hujan */
+        .wx-overlay.active { opacity: 0; } /* Latar tidak digelapkan sesuai permintaan */
+
+        /* Wet Glass Effect (New) */
+        #wet-glass-overlay {
+            position: fixed;
+            inset: 0;
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCI+PGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMiIgZmlsbD0icmdiYSgyNTUsIDI1NSwgMjU1LCAwLjEpIi8+PGNpcmNsZSBjeD0iNSIgY3k9IjUiIHI9IjEiIGZpbGw9InJnYmEoMjU1LCAyNTUsIDI1NSwgMC4wNSkiLz48Y2lyY2xlIGN4PSIyNSIgY3k9IjI1IiByPSIxLjUiIGZpbGw9InJnYmEoMjU1LCAyNTUsIDI1NSwgMC4wOCkiLz48L3N2Zz4=');
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: 9992;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1.5s ease;
+            animation: slideDown 10s linear infinite;
+        }
+        #wet-glass-overlay.active { opacity: 1; }
+        @keyframes slideDown {
+            from { background-position: 0 0; }
+            to { background-position: 0 400px; }
+        }
+
+        /* Splash Effect (New) */
+        #splash-container {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            height: 50px; pointer-events: none; z-index: 10000;
+        }
+        .wx-particle.splash {
+            position: absolute; bottom: 0; width: 50px; height: 20px;
+            background: transparent; border-top: 2px solid rgba(147, 197, 253, 0.8);
+            border-radius: 50%; animation: splashAnim 0.5s ease-out forwards;
+            transform-origin: bottom;
+        }
+        @keyframes splashAnim {
+            0% { transform: scale(0, 0); opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { transform: scale(1.5, 0.5); opacity: 0; }
+        }
 
         .wx-particle { position: fixed; pointer-events: none; z-index: 9999; top: -50px; }
         
@@ -118,15 +154,6 @@
             94% { opacity: 0; } 
         }
         
-        /* Screen Shake */
-        .shake-effect { animation: wxShake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
-        @keyframes wxShake {
-            10%, 90% { transform: translate3d(-1px, 0, 0); }
-            20%, 80% { transform: translate3d(2px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
-        }
-
         /* Mobile Optimizations */
         input, button { touch-action: manipulation; }
         
@@ -229,6 +256,10 @@
 <body class="overflow-hidden">
 
     <!-- LOGIN / REGISTER OVERLAY -->
+    <!-- Splash & Wet Glass Containers (New) -->
+    <div id="splash-container"></div>
+    <div id="wet-glass-overlay"></div>
+
     <div id="auth-overlay" class="fixed inset-0 flex items-center justify-center p-6 hidden">
         <div class="glass w-full max-w-md p-6 md:p-8 rounded-[2rem] shadow-2xl border border-blue-500/20 m-4 relative">
             <!-- Language Selector (Auth) -->
@@ -614,11 +645,11 @@
             isSat = !isSat;
         }
 
-        // --- THEME SYSTEM (Default Light) ---
+        // --- THEME SYSTEM (Default Dark) ---
         function initTheme() {
             const saved = localStorage.getItem('appTheme');
-            // Default ke 'light' jika belum ada settingan
-            const theme = saved || 'light';
+            // Default ke 'dark' jika belum ada settingan
+            const theme = saved || 'dark';
             applyTheme(theme);
         }
 
@@ -938,7 +969,7 @@
         // --- FITUR ANIMASI CUACA CANGGIH (3D Rain, Dimming, Shake) ---
         let wxInterval = null;
         let currentWxType = null;
-        let wxOverlay = null;
+        let wxOverlay, wxWetGlass, wxSplashContainer;
 
         function startWeatherEffect(type) {
             if(currentWxType === type) return;
@@ -953,10 +984,24 @@
                 wxOverlay.className = 'wx-overlay';
                 container.appendChild(wxOverlay);
             }
+
+            // Buat Wet Glass & Splash Container jika belum ada
+            if(!wxWetGlass) {
+                wxWetGlass = document.getElementById('wet-glass-overlay');
+            }
+            if(!wxSplashContainer) {
+                wxSplashContainer = document.getElementById('splash-container');
+            }
             
             // Aktifkan overlay jika Hujan/Badai/Salju (agar partikel terlihat)
             if(['rain', 'storm', 'snow'].includes(type)) {
-                setTimeout(() => wxOverlay.classList.add('active'), 10);
+                setTimeout(() => {
+                    wxOverlay.classList.add('active');
+                    // Efek kaca basah hanya untuk hujan/badai
+                    if (type !== 'snow') {
+                        wxWetGlass.classList.add('active');
+                    }
+                }, 10);
             }
 
             // 2. Setup Badai (Flash + Shake)
@@ -964,12 +1009,7 @@
                 const flash = document.createElement('div');
                 flash.className = 'storm-flash';
                 container.appendChild(flash);
-                
-                // Efek Guncangan Layar saat kilat (sinkron dengan animasi CSS flash)
-                setInterval(() => {
-                    document.body.classList.add('shake-effect');
-                    setTimeout(() => document.body.classList.remove('shake-effect'), 500);
-                }, 6000);
+                // Efek getar dihilangkan sesuai permintaan
                 
                 type = 'rain'; // Storm includes rain
             }
@@ -1010,6 +1050,15 @@
                             duration = 1.2 + Math.random() * 0.5; // 1.2s - 1.7s
                         }
                         p.style.animationDuration = duration + 's';
+
+                        // Buat cipratan untuk tetesan hujan depan & tengah
+                        if (layerRand < 0.3 && wxSplashContainer) {
+                            const splash = document.createElement('div');
+                            splash.className = 'wx-particle splash';
+                            splash.style.left = p.style.left; // Cipratan di posisi x yang sama
+                            wxSplashContainer.appendChild(splash);
+                            setTimeout(() => splash.remove(), 500);
+                        }
                     }
                     
                     container.appendChild(p);
@@ -1038,11 +1087,18 @@
             // Hapus Overlay
             if(wxOverlay) {
                 wxOverlay.classList.remove('active');
-                setTimeout(() => { if(wxOverlay) wxOverlay.remove(); wxOverlay = null; }, 1500);
+                // Jangan hapus elemennya, cukup sembunyikan agar bisa dipakai lagi
             }
             
+            // Hapus Efek Kaca Basah & Cipratan
+            if(wxWetGlass) {
+                wxWetGlass.classList.remove('active');
+            }
+            if(wxSplashContainer) {
+                wxSplashContainer.innerHTML = ''; // Hapus sisa cipratan
+            }
+
             document.querySelectorAll('.wx-particle, .storm-flash').forEach(el => el.remove());
-            document.body.classList.remove('shake-effect');
         }
 
         // 3. Auth Logic
