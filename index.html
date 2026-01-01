@@ -284,9 +284,12 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="grid grid-cols-1 gap-4">
+                <div class="grid grid-cols-2 gap-3">
                     <button onclick="openStreetViewFromPanel()" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-600 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95">
                         <i data-lucide="eye" class="w-4 h-4"></i> Street View
+                    </button>
+                    <button onclick="openRouteModal()" class="bg-blue-600 hover:bg-blue-500 border border-blue-500 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/50 text-white">
+                        <i data-lucide="map" class="w-4 h-4"></i> Lihat Rute
                     </button>
                 </div>
             </div>
@@ -349,8 +352,8 @@
 
                 <!-- Weather Overlay Section -->
                 <div>
-                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Lapisan Cuaca (Gratis)</h4>
-                    <div class="grid grid-cols-3 gap-3">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Lapisan Cuaca</h4>
+                    <div class="grid grid-cols-4 gap-2">
                         <button onclick="setOverlay('none')" id="btn-ov-none" class="p-3 rounded-xl bg-blue-600 text-white border border-white/10 flex flex-col items-center gap-2 transition-all shadow-lg shadow-blue-900/20">
                             <i data-lucide="ban" class="w-6 h-6"></i>
                             <span class="text-[10px] font-bold">Normal</span>
@@ -363,13 +366,53 @@
                             <i data-lucide="cloud" class="w-6 h-6 text-slate-200"></i>
                             <span class="text-[10px] font-bold">Awan</span>
                         </button>
+                        <button onclick="setOverlay('wind')" id="btn-ov-wind" class="p-3 rounded-xl bg-slate-800 text-slate-400 border border-white/5 flex flex-col items-center gap-2 hover:bg-slate-700 transition-all">
+                            <i data-lucide="wind" class="w-6 h-6 text-emerald-400"></i>
+                            <span class="text-[10px] font-bold">Angin</span>
+                        </button>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-4 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-white/5">
                         <i data-lucide="info" class="w-3 h-3 inline mr-1"></i> 
-                        Menggunakan data <b>RainViewer</b> (Gratis & Tanpa API Key). Lapisan Suhu & Angin tidak tersedia dalam mode gratis.
+                        <b>Hujan & Awan</b> (Gratis). <b>Angin</b> memerlukan API Key OpenWeatherMap.
                     </p>
                 </div>
+
+                <!-- Windy Embed Section -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Peta Cuaca Lengkap (Windy)</h4>
+                    <button onclick="openWindy()" class="w-full h-24 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 relative overflow-hidden group shadow-lg border border-white/10 transition-transform active:scale-95">
+                        <div class="absolute inset-0 flex flex-col items-center justify-center z-10">
+                            <i data-lucide="wind" class="w-8 h-8 text-white mb-1"></i>
+                            <span class="font-black text-white text-lg uppercase tracking-wider">Buka Windy.com</span>
+                            <span class="text-[10px] text-white/90 font-bold bg-black/20 px-2 py-1 rounded-full mt-1 backdrop-blur-sm">Angin • Ombak • Badai • Suhu</span>
+                        </div>
+                    </button>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL ROUTE STEPS (New Feature: Internal Navigation) -->
+    <div id="routeModal" class="fixed inset-0 z-[10000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="navigation" class="text-blue-400"></i> Rute Perjalanan</h3>
+            <button onclick="closeRouteModal()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-0 overflow-y-auto flex-1 bg-slate-900/50">
+            <div id="route-steps-list" class="divide-y divide-white/5">
+                <!-- Steps injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL WINDY (New Feature: Full Windy Embed) -->
+    <div id="windyModal" class="fixed inset-0 z-[11000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0 bg-slate-900">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="wind" class="text-red-400"></i> Windy Map</h3>
+            <button onclick="closeWindy()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="flex-1 relative bg-slate-900">
+            <iframe id="windy-frame" class="absolute inset-0 w-full h-full border-none" src=""></iframe>
         </div>
     </div>
 
@@ -595,6 +638,7 @@
         let isSat = true; // Hoisted to top to fix initialization error
         
         // --- MAP LAYERS CONFIGURATION ---
+        const OWM_API_KEY = "YOUR_OWM_API_KEY"; // Ganti dengan API Key OpenWeatherMap Anda untuk layer Angin
         let activeOverlay = null;
 
         // --- THEME SYSTEM (Default Dark) ---
@@ -791,8 +835,11 @@
         const initLat = lastLat ? parseFloat(lastLat) : -6.2000;
         const initLng = lastLng ? parseFloat(lastLng) : 106.8166;
         
-        var map = L.map('map', { zoomControl: false, layers: [satLayer] }).setView([initLat, initLng], lastLat ? 15 : 13);
+        // Inisialisasi peta dengan menonaktifkan attribution default
+        var map = L.map('map', { zoomControl: false, attributionControl: false, layers: [satLayer] }).setView([initLat, initLng], lastLat ? 15 : 13);
 
+        // Tambahkan attribution control baru tanpa prefix "Leaflet"
+        L.control.attribution({ prefix: false }).addTo(map);
         // Handle Zoom Effect: Glow & Clustering Logic
         function handleZoomEffect() {
             const zoom = map.getZoom();
@@ -1242,6 +1289,7 @@
         }
 
         let currentRouteLine = null; // Menyimpan garis rute
+        let currentRouteSteps = []; // Menyimpan langkah-langkah rute
 
         async function showLocationPanel(latlng) {
             const panel = document.getElementById('location-panel');
@@ -1271,7 +1319,7 @@
                 if(currentRouteLine) map.removeLayer(currentRouteLine);
 
                 // Fetch data rute dari OSRM (Gratis)
-                fetch(`https://router.project-osrm.org/route/v1/driving/${userLatlng.lng},${userLatlng.lat};${latlng.lng},${latlng.lat}?overview=full&geometries=geojson`)
+                fetch(`https://router.project-osrm.org/route/v1/driving/${userLatlng.lng},${userLatlng.lat};${latlng.lng},${latlng.lat}?overview=full&geometries=geojson&steps=true`)
                     .then(res => res.json())
                     .then(data => {
                         if(data.routes && data.routes.length > 0) {
@@ -1290,6 +1338,11 @@
                             // Gambar Garis Rute di Peta
                             const routeCoords = route.geometry.coordinates.map(c => [c[1], c[0]]); // GeoJSON [lng,lat] -> Leaflet [lat,lng]
                             currentRouteLine = L.polyline(routeCoords, {color: '#3b82f6', weight: 5, opacity: 0.8, lineCap: 'round'}).addTo(map);
+                            
+                            // Simpan Steps
+                            if(route.legs && route.legs.length > 0) {
+                                currentRouteSteps = route.legs[0].steps;
+                            }
                         } else {
                             document.getElementById('panel-dist').innerText = "Tidak ada jalan";
                         }
@@ -1450,6 +1503,60 @@
             }
         }
 
+        // --- INTERNAL ROUTE MODAL FUNCTIONS ---
+        function openRouteModal() {
+            if(!currentRouteSteps || currentRouteSteps.length === 0) {
+                // Jika rute belum ada (misal belum klik peta), coba hitung atau alert
+                if(tempLatlng && userLatlng) {
+                    alert("Sedang menghitung rute... Silakan tunggu sebentar.");
+                    return;
+                }
+                alert("Rute tidak tersedia. Pastikan lokasi Anda terdeteksi.");
+                return;
+            }
+            
+            const list = document.getElementById('route-steps-list');
+            list.innerHTML = '';
+            
+            currentRouteSteps.forEach((step, index) => {
+                const dist = step.distance < 1000 ? `${Math.round(step.distance)} m` : `${(step.distance/1000).toFixed(1)} km`;
+                const instr = step.maneuver.type; 
+                const mod = step.maneuver.modifier; 
+                const name = step.name || "Jalan";
+                
+                // Mapping Icon & Text Sederhana
+                let icon = "arrow-up";
+                let actionText = "Lurus";
+                
+                if(mod && mod.includes('left')) { icon = "corner-up-left"; actionText = "Belok Kiri"; }
+                else if(mod && mod.includes('right')) { icon = "corner-up-right"; actionText = "Belok Kanan"; }
+                else if(mod === 'uturn') { icon = "refresh-ccw"; actionText = "Putar Balik"; }
+                else if(instr === 'arrive') { icon = "map-pin"; actionText = "Tiba di Tujuan"; }
+                else if(instr === 'depart') { icon = "navigation"; actionText = "Mulai Perjalanan"; }
+                
+                const item = document.createElement('div');
+                item.className = "p-4 flex items-start gap-4 hover:bg-slate-800/50 transition-colors";
+                item.innerHTML = `
+                    <div class="mt-1 bg-slate-800 p-2 rounded-full border border-white/5 shrink-0">
+                        <i data-lucide="${icon}" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-white text-sm">${actionText}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">${name}</p>
+                        <p class="text-[10px] text-slate-500 mt-1 font-mono bg-slate-900/50 inline-block px-1.5 py-0.5 rounded">${dist}</p>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            
+            document.getElementById('routeModal').classList.remove('translate-y-full');
+            lucide.createIcons();
+        }
+
+        function closeRouteModal() {
+            document.getElementById('routeModal').classList.add('translate-y-full');
+        }
+
         function getWeatherIcon(code) {
             if(code <= 3) return 'sun';
             if(code <= 48) return 'cloud';
@@ -1460,12 +1567,6 @@
 
         function closeLocationPanel() {
             document.getElementById('location-panel').classList.add('translate-y-full');
-            
-            // Hapus rute saat panel ditutup (Pin tetap dibiarkan di peta)
-            if (currentRouteLine) {
-                map.removeLayer(currentRouteLine);
-                currentRouteLine = null;
-            }
             
             // Kembalikan efek cuaca ke lokasi user saat panel ditutup
             if(currentUserWeatherCode !== null) {
@@ -2617,6 +2718,34 @@
 
             if(type === 'none') return;
 
+            // OPENWEATHERMAP LAYERS (Wind) - Butuh API Key
+            if(type === 'wind') {
+                if(OWM_API_KEY === "YOUR_OWM_API_KEY" || !OWM_API_KEY) {
+                    alert("⚠️ Fitur Peta Angin Memerlukan API Key\n\nKarena RainViewer tidak menyediakan data angin, fitur ini menggunakan OpenWeatherMap yang mewajibkan API Key.\n\nSilakan daftar gratis di openweathermap.org, lalu masukkan key ke variabel OWM_API_KEY di kode.");
+                    setOverlay('none');
+                    return;
+                }
+                
+                if(!map.getPane('weatherPane')) {
+                    map.createPane('weatherPane');
+                    map.getPane('weatherPane').style.zIndex = 300;
+                    map.getPane('weatherPane').style.pointerEvents = 'none';
+                }
+
+                activeOverlay = L.tileLayer(`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${OWM_API_KEY}`, {
+                    pane: 'weatherPane',
+                    opacity: 0.7
+                }).addTo(map);
+                
+                const toast = document.createElement('div');
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Layer Angin Ditampilkan`;
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
+                lucide.createIcons();
+                return;
+            }
+
             try {
                 // Feedback Loading
                 const activeBtn = document.getElementById(`btn-ov-${type}`);
@@ -2687,6 +2816,21 @@
                     if(span) span.innerText = type === 'rain' ? 'Hujan' : 'Awan';
                 }
             }
+        }
+
+        // --- WINDY EMBED FUNCTIONS ---
+        function openWindy() {
+            const center = map.getCenter();
+            const url = `https://embed.windy.com/embed2.html?lat=${center.lat}&lon=${center.lng}&detailLat=${center.lat}&detailLon=${center.lng}&width=650&height=450&zoom=${Math.max(3, map.getZoom())}&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1`;
+            
+            document.getElementById('windy-frame').src = url;
+            document.getElementById('windyModal').classList.remove('translate-y-full');
+            closeMapSettings(); // Tutup menu setting
+        }
+
+        function closeWindy() {
+            document.getElementById('windyModal').classList.add('translate-y-full');
+            setTimeout(() => { document.getElementById('windy-frame').src = ''; }, 300); // Reset iframe agar tidak berat
         }
 
         // Init dots saat load & resize
