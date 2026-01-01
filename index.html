@@ -998,6 +998,16 @@
                     storm.flashOpacity -= 0.05;
                 }
             }
+
+            // Add a gradient mask at the top to create a "hidden screen" effect
+            const isLight = document.body.classList.contains('light-mode');
+            const maskColor = isLight ? '248, 250, 252' : '2, 6, 23';
+            const topMask = ctx.createLinearGradient(0, 0, 0, 80); // 80px fade area
+            topMask.addColorStop(0, `rgba(${maskColor}, 1)`);
+            topMask.addColorStop(0.5, `rgba(${maskColor}, 0.8)`);
+            topMask.addColorStop(1, `rgba(${maskColor}, 0)`);
+            ctx.fillStyle = topMask;
+            ctx.fillRect(0, 0, canvas.width, 80);
         }
 
         function startWeatherEffect(type) {
