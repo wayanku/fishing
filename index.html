@@ -72,15 +72,15 @@
         }
 
         /* Zoomed Out Marker Effects (Wider Glow) */
-        .zoomed-out .custom-fish-icon > div {
-            box-shadow: 0 0 30px 8px rgba(59, 130, 246, 0.8) !important; /* Blue Glow Wider */
+        .zoomed-out .fish-marker-body {
+            box-shadow: 0 0 60px 25px rgba(59, 130, 246, 0.9) !important; /* Blue Glow Thicker & Brighter */
         }
-        .zoomed-out .custom-fish-icon > div.bg-yellow-500 {
-            box-shadow: 0 0 35px 10px rgba(234, 179, 8, 0.8) !important; /* Yellow Glow Wider */
+        .zoomed-out .fish-marker-body.marker-yellow {
+            box-shadow: 0 0 70px 30px rgba(234, 179, 8, 0.9) !important; /* Yellow Glow Thicker & Brighter */
         }
-        .zoomed-out .custom-fish-icon > div.bg-red-600 {
-            box-shadow: 0 0 80px 25px rgba(255, 0, 0, 1) !important; /* Red Glow Extreme */
-            transform: scale(1.8); /* Significantly larger */
+        .zoomed-out .fish-marker-body.marker-red {
+            box-shadow: 0 0 100px 40px rgba(225, 29, 72, 1) !important; /* Red Glow Extreme */
+            transform: scale(1.5); /* Significantly larger */
             animation: pulse 0.6s cubic-bezier(0.4, 0, 0.6, 1) infinite !important; /* Fast alert pulse */
             z-index: 1000;
         }
@@ -2317,26 +2317,46 @@
 
         // Helper: Tentukan Warna & Icon berdasarkan Berat Terbesar
         function getSpotStyle(maxWeight) {
-            let colorClass = 'bg-blue-600'; // Default / Kecil (< 3kg)
-            let glowClass = 'shadow-[0_0_15px_rgba(59,130,246,0.6)]'; // Blue Glow
+            // Base classes (Solid Colors)
+            let solidColor = 'bg-blue-600';
+            let ringColor = 'ring-blue-400/80'; // Ring lebih tebal/terang
+            let typeClass = 'marker-blue'; // For CSS targeting
+            let pulse = '';
+            let shadowClass = 'shadow-[0_0_30px_rgba(59,130,246,0.8)]'; // Default Blue Glow Strong
             
             if (maxWeight >= 10) { // Besar (> 10kg) -> MERAH
-                colorClass = 'bg-red-600';
-                glowClass = 'shadow-[0_0_25px_rgba(220,38,38,0.8)] animate-pulse'; // Red Glow + Pulse
+                solidColor = 'bg-red-600';
+                ringColor = 'ring-red-500/80';
+                typeClass = 'marker-red';
+                pulse = 'animate-pulse';
+                shadowClass = 'shadow-[0_0_40px_rgba(225,29,72,0.9)]'; // Red Glow Strong
             } else if (maxWeight >= 3) { // Sedang (3kg - 10kg) -> KUNING/ORANGE
-                colorClass = 'bg-yellow-500';
-                glowClass = 'shadow-[0_0_20px_rgba(234,179,8,0.7)]'; // Yellow Glow
+                solidColor = 'bg-yellow-500';
+                ringColor = 'ring-yellow-400/80';
+                typeClass = 'marker-yellow';
+                shadowClass = 'shadow-[0_0_35px_rgba(234,179,8,0.8)]'; // Yellow Glow Strong
             }
 
             return L.divIcon({
                 className: 'custom-fish-icon',
-                html: `<div class="w-8 h-8 ${colorClass} rounded-full border-2 border-white ${glowClass} flex items-center justify-center relative transition-transform duration-300 hover:scale-110">
-                        <i data-lucide="fish" class="text-white w-5 h-5"></i>
-                        ${maxWeight >= 10 ? '<div class="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center"><div class="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping"></div></div>' : ''}
-                       </div>`,
-                iconSize: [32, 32],
-                iconAnchor: [16, 32],
-                popupAnchor: [0, -32]
+                html: `
+                    <div class="relative group flex flex-col items-center">
+                        <div class="fish-marker-body ${typeClass} w-11 h-11 ${solidColor} rounded-full border-[3px] border-white ring-4 ${ringColor} ${shadowClass} flex items-center justify-center relative z-10 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1 ${pulse}">
+                            <!-- Glossy Effect -->
+                            <div class="absolute inset-0 rounded-full bg-gradient-to-b from-white/50 to-transparent opacity-100 pointer-events-none"></div>
+                            <!-- Icon -->
+                            <i data-lucide="fish" class="text-white w-6 h-6 drop-shadow-md relative z-20"></i>
+                            <!-- Notification Dot for Monster -->
+                            ${maxWeight >= 10 ? '<div class="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm z-30"><div class="w-2.5 h-2.5 bg-red-600 rounded-full animate-ping"></div></div>' : ''}
+                        </div>
+                        <!-- Pin Point / Shadow -->
+                        <div class="w-1 h-3 bg-gradient-to-b from-gray-400 to-transparent opacity-50 -mt-1"></div>
+                        <div class="w-8 h-2 bg-black/30 blur-sm rounded-[100%] absolute bottom-[-4px] group-hover:scale-75 transition-transform duration-300"></div>
+                    </div>
+                `,
+                iconSize: [44, 56],
+                iconAnchor: [22, 56],
+                popupAnchor: [0, -50]
             });
         }
 
