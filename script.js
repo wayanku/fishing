@@ -2972,5 +2972,96 @@
             lucide.createIcons();
         }
 
+        // --- OFFLINE MAP SYSTEM (Service Worker & Downloader) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Ready'))
+                    .catch(err => console.log('SW Fail:', err));
+            });
+        }
+
+        // Helper: Konversi LatLng ke Tile Coordinate
+        function latLngToTile(lat, lng, zoom) {
+            const x = Math.floor((lng + 180) / 360 * Math.pow(2, zoom));
+            const y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+            return { x, y };
+        }
+
+        async function downloadOfflineMap() {
+            const btn = document.getElementById('btn-download-map');
+            
+            // 1. Input Nama Area
+            const name = prompt("Beri nama untuk area ini (misal: Bali Selatan):", "Area " + new Date().toLocaleDateString());
+            if (name === null) return; // Batal jika user tekan Cancel
+            const mapName = name || "Area Tanpa Nama";
+
+            const originalText = btn.innerHTML;
+            
+            // 1. Cek Batas Map & Zoom
+            const bounds = map.getBounds();
+            const minZoom = map.getZoom();
+            const maxZoom = Math.min(minZoom + 2, 17); // Download sampai 2 level lebih detail (Max 17)
+            
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Menghitung...`;
+            lucide.createIcons();
+
+            const tiles = [];
+            
+            // 2. Tentukan URL Layer Aktif (Satelit / Laut / Jalan)
+            let urlTemplate = "";
+            if(isSat) {
+                urlTemplate = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}";
+            } else if (map.hasLayer(oceanLayer)) {
+                urlTemplate = "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}";
+            } else {
+                urlTemplate = "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
+            }
+
+            // 3. Generate Daftar URL Tile
+            for (let z = minZoom; z <= maxZoom; z++) {
+                const minTile = latLngToTile(bounds.getNorth(), bounds.getWest(), z);
+                const maxTile = latLngToTile(bounds.getSouth(), bounds.getEast(), z);
+                
+                for (let x = minTile.x; x <= maxTile.x; x++) {
+                    for (let y = minTile.y; y <= maxTile.y; y++) {
+                        const url = urlTemplate.replace('{x}', x).replace('{y}', y).replace('{z}', z).replace('{s}', 'a');
+                        tiles.push(url);
+                    }
+                }
+            }
+
+            if(tiles.length > 1000) {
+                if(!confirm(`Area ini sangat luas (${tiles.length} tiles). Download akan memakan kuota & waktu. Lanjutkan?`)) {
+                    btn.innerHTML = originalText; btn.disabled = false; lucide.createIcons(); return;
+                }
+            }
+
+            // 4. Proses Download & Cache
+            try {
+                // Gunakan nama cache unik per area agar bisa dihapus terpisah
+                const mapId = Date.now();
+                const cacheKey = `offline-map-${mapId}`;
+                const cache = await caches.open(cacheKey);
+                let count = 0;
+                const batchSize = 10; // Download per 10 file agar tidak lag
+                
+                for (let i = 0; i < tiles.length; i += batchSize) {
+                    const batch = tiles.slice(i, i + batchSize);
+                    await Promise.all(batch.map(url => fetch(url, { mode: 'no-cors' }).then(res => cache.put(url, res))));
+                    
+                    count += batch.length;
+                    btn.innerHTML = `<span class="animate-pulse">Downloading... ${Math.min(count, tiles.length)}/${tiles.length}</span>`;
+                }
+                alert("✅ Download Selesai!\nPeta area ini sekarang bisa dibuka tanpa sinyal.");
+            } catch (e) {
+                console.error(e);
+                alert("Gagal download. Pastikan koneksi internet stabil saat mendownload.");
+            } finally {
+                btn.innerHTML = originalText; btn.disabled = false; lucide.createIcons();
+            }
+        }
+
         // Init dots saat load & resize
         window.addEventListener('resize', initScrollDots);
