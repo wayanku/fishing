@@ -3033,8 +3033,11 @@
                 }
             }
 
+            // Estimasi Ukuran (Asumsi rata-rata 25KB per tile)
+            const estSizeMB = (tiles.length * 25 / 1024).toFixed(1);
+
             if(tiles.length > 1000) {
-                if(!confirm(`Area ini sangat luas (${tiles.length} tiles). Download akan memakan kuota & waktu. Lanjutkan?`)) {
+                if(!confirm(`Area ini mencakup ${tiles.length} tiles (Estimasi ~${estSizeMB} MB). Lanjutkan download?`)) {
                     btn.innerHTML = originalText; btn.disabled = false; lucide.createIcons(); return;
                 }
             }
@@ -3062,6 +3065,7 @@
                     name: mapName,
                     date: new Date().toLocaleDateString(),
                     count: tiles.length,
+                    size: estSizeMB,
                     cacheKey: cacheKey
                 };
                 const savedMaps = JSON.parse(localStorage.getItem('offlineMaps') || '[]');
@@ -3092,12 +3096,13 @@
             }
 
             maps.forEach(map => {
+                const size = map.size || ((map.count * 25) / 1024).toFixed(1);
                 const item = document.createElement('div');
                 item.className = "bg-slate-900/50 p-3 rounded-lg border border-white/5 flex items-center justify-between group hover:bg-slate-800 transition-colors";
                 item.innerHTML = `
                     <div>
                         <p class="text-xs font-bold text-white">${map.name}</p>
-                        <p class="text-[10px] text-slate-400">${map.count} tiles • ${map.date}</p>
+                        <p class="text-[10px] text-slate-400">${map.count} tiles • ~${size} MB • ${map.date}</p>
                     </div>
                     <button onclick="deleteOfflineMap(${map.id})" class="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors" aria-label="Hapus">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
