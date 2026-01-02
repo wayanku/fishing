@@ -585,6 +585,7 @@
         });
 
         let userLatlng = null;
+        let userLocationMarker = null; // Marker lokasi user custom
         // Fitur: Cuaca Realtime di Lokasi User (Header)
         function getUserWeather() {
             if (navigator.geolocation) {
@@ -2343,13 +2344,29 @@
         
         map.on('locationfound', e => {
             // Hapus marker lokasi lama jika ada agar tidak menumpuk
+            if (userLocationMarker) map.removeLayer(userLocationMarker);
+            
+            // Cleanup legacy markers (jika ada sisa dari versi lama)
             map.eachLayer(layer => {
                 if(layer instanceof L.CircleMarker && layer.options.color === '#3b82f6') {
                     map.removeLayer(layer);
                 }
             });
 
-            L.circleMarker(e.latlng, {radius:8, color:'#3b82f6', fillOpacity:0.8}).addTo(map);
+            // Icon Lokasi User Keren (Pulsing Blue Dot)
+            const userIcon = L.divIcon({
+                className: 'bg-transparent',
+                html: `
+                    <div class="relative flex items-center justify-center w-16 h-16">
+                        <div class="absolute w-12 h-12 bg-blue-500 rounded-full opacity-40 animate-ping"></div>
+                        <div class="relative w-5 h-5 bg-blue-600 border-[3px] border-white rounded-full shadow-[0_0_15px_rgba(37,99,235,0.8)] z-10"></div>
+                    </div>
+                `,
+                iconSize: [64, 64],
+                iconAnchor: [32, 32]
+            });
+
+            userLocationMarker = L.marker(e.latlng, {icon: userIcon, zIndexOffset: 1000}).addTo(map);
             
             // PERBAIKAN: Update data cuaca saat lokasi GPS ditemukan via tombol
             // Ini memastikan cuaca tidak lagi menggunakan data IP Address lama
