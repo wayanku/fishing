@@ -51,7 +51,7 @@
                 wx_score: "AI Score", wx_temp: "Suhu", wx_wind: "Angin", wx_weather: "Cuaca",
                 wx_wave: "Ombak (Max)", wx_travel: "Perjalanan", wx_tide: "Pasang Surut", wx_sun: "Matahari",
                 forecast_title: "Prakiraan 7 Hari & Potensi Mancing",
-                btn_savespot: "Simpan Spot", modal_add_title: "Posting Spot",
+                wx_depth: "Kedalaman", btn_savespot: "Simpan Spot", modal_add_title: "Posting Spot",
                 placeholder_spotname: "Nama Spot/Ikan", placeholder_comment: "Komentar...",
                 label_add_photo: "Tambah Foto (Opsional)", btn_save_cloud: "Posting", btn_cancel: "Batal",
                 label_contributors: "Kontributor", label_record: "Rekor Ikan", btn_add_review: "Tambah Foto / Ulasan Disini"
@@ -62,7 +62,7 @@
                 search_placeholder: "Search location (City, Sea)...",
                 wx_score: "AI Score", wx_temp: "Temp", wx_wind: "Wind", wx_weather: "Weather",
                 wx_wave: "Wave (Max)", wx_travel: "Travel", wx_tide: "Tide", wx_sun: "Sun",
-                forecast_title: "7-Day Forecast & Fishing Potential",
+                wx_depth: "Depth", forecast_title: "7-Day Forecast & Fishing Potential",
                 btn_savespot: "Save Spot", modal_add_title: "Post Spot",
                 placeholder_spotname: "Spot Name/Fish", placeholder_comment: "Comment...", solunar_title: "Fish Activity",
                 label_add_photo: "Add Photo (Optional)", btn_save_cloud: "Post", btn_cancel: "Cancel",
@@ -74,7 +74,7 @@
                 search_placeholder: "場所を検索 (都市, 海)...",
                 wx_score: "AIスコア", wx_temp: "気温", wx_wind: "風", wx_weather: "天気",
                 wx_wave: "波 (最大)", wx_travel: "移動", wx_tide: "潮汐", wx_sun: "太陽",
-                forecast_title: "7日間の予報と釣りの可能性",
+                wx_depth: "水深", forecast_title: "7日間の予報と釣りの可能性",
                 btn_savespot: "スポット保存", modal_add_title: "スポット投稿",
                 placeholder_spotname: "スポット名/魚", placeholder_comment: "コメント...", solunar_title: "魚の活性",
                 label_add_photo: "写真を追加 (任意)", btn_save_cloud: "投稿", btn_cancel: "キャンセル",
@@ -207,6 +207,12 @@
         const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+
+        // Layer Laut (Bathymetry/Depth) - Esri Ocean Basemap
+        const oceanLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 13, // Data kedalaman biasanya optimal di zoom level ini
+            attribution: 'Tiles &copy; Esri &mdash; Sources: GEBCO, NOAA, CHS, OSU, UNH, CSUMB, National Geographic, DeLorme, NAVTEQ, and Esri'
         });
         
         // Cek penyimpanan lokal agar saat refresh langsung ke lokasi terakhir
@@ -678,6 +684,7 @@
             document.getElementById('wx-wave').innerText = "-- m";
             document.getElementById('wx-tide').innerText = "-- m";
             document.getElementById('wx-sst').innerText = "--°C";
+            document.getElementById('wx-depth').innerText = "-- m";
             document.getElementById('panel-dist').innerHTML = '<span class="animate-pulse">Menghitung...</span>';
             document.getElementById('wx-sun').innerHTML = "--:--<br>--:--";
             document.getElementById('panel-coords').innerText = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
@@ -759,6 +766,66 @@
                     document.getElementById('panel-address').innerText = fullAddr || "Lokasi Terpilih";
                 })
                 .catch(() => document.getElementById('panel-address').innerText = "Lokasi Tidak Dikenal");
+
+            // 2.5 Fetch Depth/Elevation (GEBCO via OpenTopoData)
+            const depthEl = document.getElementById('wx-depth');
+            if(depthEl) depthEl.innerHTML = '<span class="animate-pulse">...</span>';
+
+            // Helper: Fetch dengan Timeout
+            const fetchWithTimeout = (url, timeout = 5000) => {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), timeout);
+                return fetch(url, { signal: controller.signal })
+                    .then(res => { clearTimeout(id); return res.json(); });
+            };
+
+            // Fallback Terakhir: Open-Meteo (Hanya Darat)
+            const fetchLandOnly = () => {
+                fetch(`https://api.open-meteo.com/v1/elevation?latitude=${latlng.lat}&longitude=${latlng.lng}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data && data.elevation) {
+                            const val = data.elevation[0];
+                            // Jika 0 di laut, berarti data tidak ada
+                            if(depthEl) depthEl.innerText = (val === 0) ? "0 m (?)" : (val < 0 ? `${Math.abs(Math.round(val))} m` : `+${Math.round(val)} m`);
+                        } else {
+                            if(depthEl) depthEl.innerText = "N/A";
+                        }
+                    }).catch(() => { if(depthEl) depthEl.innerText = "--"; });
+            };
+
+            // Gunakan CORS Proxy untuk mengatasi error "Blocked by CORS policy"
+            const corsProxy = "https://corsproxy.io/?";
+
+            // Strategi Bertingkat: GEBCO (High Res) -> ETOPO1 (Backup) -> Open-Meteo (Land)
+            // 1. Coba GEBCO 2020 (Paling Akurat untuk Laut) - Timeout 8 detik
+            fetchWithTimeout(`${corsProxy}https://api.opentopodata.org/v1/gebco2020?locations=${latlng.lat},${latlng.lng}`, 8000)
+                .then(data => {
+                    if(data && data.results && data.results.length > 0) {
+                        const elVal = data.results[0].elevation;
+                        if(depthEl) depthEl.innerText = (elVal < 0) ? `${Math.abs(Math.round(elVal))} m` : `+${Math.round(elVal)} m`;
+                    } else {
+                        throw new Error("GEBCO No Data");
+                    }
+                })
+                .catch(() => {
+                    console.warn("GEBCO timeout/fail, trying ETOPO1...");
+                    // 2. Coba ETOPO1 (Dataset alternatif yang juga punya data laut, biasanya lebih ringan)
+                    fetchWithTimeout(`${corsProxy}https://api.opentopodata.org/v1/etopo1?locations=${latlng.lat},${latlng.lng}`, 5000)
+                        .then(data => {
+                            if(data && data.results && data.results.length > 0) {
+                                const elVal = data.results[0].elevation;
+                                if(depthEl) depthEl.innerText = (elVal < 0) ? `${Math.abs(Math.round(elVal))} m` : `+${Math.round(elVal)} m`;
+                            } else {
+                                throw new Error("ETOPO1 No Data");
+                            }
+                        })
+                        .catch(() => {
+                            // 3. Jika semua gagal, fallback ke Open-Meteo (Darat Only)
+                            console.warn("All bathymetry sources failed, fallback to land data.");
+                            fetchLandOnly();
+                        });
+                });
 
             // 3. Fetch Weather & Marine Data (Open-Meteo API)
             try {
@@ -2453,19 +2520,25 @@
             // Update UI Buttons
             const btnSat = document.getElementById('btn-map-sat');
             const btnStreet = document.getElementById('btn-map-street');
+            const btnOcean = document.getElementById('btn-map-ocean');
+
+            // Reset borders
+            [btnSat, btnStreet, btnOcean].forEach(btn => {
+                if(btn) { btn.classList.remove('border-blue-500'); btn.classList.add('border-transparent'); }
+            });
             
             if(type === 'satellite') {
-                map.removeLayer(streetLayer);
-                map.addLayer(satLayer);
+                map.removeLayer(streetLayer); map.removeLayer(oceanLayer); map.addLayer(satLayer);
                 isSat = true;
-                btnSat.classList.add('border-blue-500'); btnSat.classList.remove('border-transparent');
-                btnStreet.classList.remove('border-blue-500'); btnStreet.classList.add('border-transparent');
-            } else {
-                map.removeLayer(satLayer);
-                map.addLayer(streetLayer);
+                if(btnSat) { btnSat.classList.add('border-blue-500'); btnSat.classList.remove('border-transparent'); }
+            } else if(type === 'street') {
+                map.removeLayer(satLayer); map.removeLayer(oceanLayer); map.addLayer(streetLayer);
                 isSat = false;
-                btnStreet.classList.add('border-blue-500'); btnStreet.classList.remove('border-transparent');
-                btnSat.classList.remove('border-blue-500'); btnSat.classList.add('border-transparent');
+                if(btnStreet) { btnStreet.classList.add('border-blue-500'); btnStreet.classList.remove('border-transparent'); }
+            } else if(type === 'ocean') {
+                map.removeLayer(satLayer); map.removeLayer(streetLayer); map.addLayer(oceanLayer);
+                isSat = false;
+                if(btnOcean) { btnOcean.classList.add('border-blue-500'); btnOcean.classList.remove('border-transparent'); }
             }
             
             // Re-add overlay if exists (because base layer change might hide it)
@@ -2667,6 +2740,25 @@
                 const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
+            // BATHYMETRY LAYER (GEBCO)
+            if(type === 'bathymetry') {
+                activeLayers[type] = L.tileLayer.wms('https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv', {
+                    layers: 'GEBCO_LATEST',
+                    format: 'image/png',
+                    transparent: true,
+                    opacity: 0.5, // Transparan agar bisa ditumpuk di atas Satelit
+                    attribution: 'GEBCO'
+                }).addTo(map);
+
+                const toast = document.createElement('div');
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.innerHTML = `<i data-lucide="waves" class="w-4 h-4 text-cyan-400"></i> Peta Kedalaman Aktif`;
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
+                lucide.createIcons();
+                return;
+            }
+
             try {
                 const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
                 const data = await res.json();
@@ -2856,6 +2948,18 @@
                     title = "Solunar Matahari";
                     icon = "sunrise";
                     text = "Waktu perpindahan gelap-terang (Sunrise/Sunset) adalah 'Golden Hour'. Predator sangat aktif berburu di waktu ini karena penglihatan mangsa terbatas.";
+                    break;
+                case 'depth':
+                    title = "Info Kedalaman / Elevasi";
+                    icon = "anchor";
+                    const dVal = document.getElementById('wx-depth').innerText;
+                    if(dVal.includes('+')) {
+                        text = `Lokasi ini berada di daratan dengan ketinggian <b>${dVal}</b> di atas permukaan laut.`;
+                    } else if(dVal.includes('?') || dVal.includes('--') || dVal.includes('N/A')) {
+                        text = "Data kedalaman belum tersedia atau tidak valid untuk lokasi ini.";
+                    } else {
+                        text = `Kedalaman laut di titik ini diperkirakan <b>${dVal}</b>. Area ini potensial untuk teknik Jigging atau Dasaran tergantung struktur bawah laut.`;
+                    }
                     break;
                 default:
                     title = "Info";
