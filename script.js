@@ -2779,7 +2779,7 @@
             }
 
             try {
-                const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+                const res = await fetch(`https://api.rainviewer.com/public/weather-maps.json?_=${Date.now()}`);
                 const data = await res.json();
                 
                 // Normalisasi Host
@@ -2813,7 +2813,7 @@
 
                     activeLayers[type] = L.tileLayer(tileUrl, { 
                         pane: 'weatherPane',
-                        opacity: 0.7 
+                        opacity: 0.7
                     }).addTo(map);
 
                     // Feedback Visual (Toast)
@@ -2993,10 +2993,10 @@
 
         // --- OFFLINE MAP SYSTEM (Service Worker & Downloader) ---
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW Ready'))
-                    .catch(err => console.log('SW Fail:', err));
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
             });
         }
 
