@@ -3055,12 +3055,79 @@
                     count += batch.length;
                     btn.innerHTML = `<span class="animate-pulse">Downloading... ${Math.min(count, tiles.length)}/${tiles.length}</span>`;
                 }
-                alert("✅ Download Selesai!\nPeta area ini sekarang bisa dibuka tanpa sinyal.");
+                
+                // Simpan Metadata ke LocalStorage
+                const meta = {
+                    id: mapId,
+                    name: mapName,
+                    date: new Date().toLocaleDateString(),
+                    count: tiles.length,
+                    cacheKey: cacheKey
+                };
+                const savedMaps = JSON.parse(localStorage.getItem('offlineMaps') || '[]');
+                savedMaps.push(meta);
+                localStorage.setItem('offlineMaps', JSON.stringify(savedMaps));
+                
+                if(typeof updateOfflineList === 'function') updateOfflineList(); // Refresh list
+                alert(`✅ Area "${mapName}" berhasil didownload!`);
             } catch (e) {
                 console.error(e);
                 alert("Gagal download. Pastikan koneksi internet stabil saat mendownload.");
             } finally {
                 btn.innerHTML = originalText; btn.disabled = false; lucide.createIcons();
+            }
+        }
+
+        // Fungsi Menampilkan Daftar Peta Offline
+        function updateOfflineList() {
+            const list = document.getElementById('offline-maps-list');
+            if(!list) return;
+            
+            const maps = JSON.parse(localStorage.getItem('offlineMaps') || '[]');
+            list.innerHTML = '';
+            
+            if(maps.length === 0) {
+                list.innerHTML = '<p class="text-[10px] text-slate-500 text-center italic py-2">Belum ada peta offline tersimpan.</p>';
+                return;
+            }
+
+            maps.forEach(map => {
+                const item = document.createElement('div');
+                item.className = "bg-slate-900/50 p-3 rounded-lg border border-white/5 flex items-center justify-between group hover:bg-slate-800 transition-colors";
+                item.innerHTML = `
+                    <div>
+                        <p class="text-xs font-bold text-white">${map.name}</p>
+                        <p class="text-[10px] text-slate-400">${map.count} tiles • ${map.date}</p>
+                    </div>
+                    <button onclick="deleteOfflineMap(${map.id})" class="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors" aria-label="Hapus">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        // Fungsi Hapus Peta Offline
+        async function deleteOfflineMap(id) {
+            if(!confirm("Hapus area offline ini?")) return;
+            
+            const maps = JSON.parse(localStorage.getItem('offlineMaps') || '[]');
+            const target = maps.find(m => m.id === id);
+            
+            if(target) {
+                // 1. Hapus Cache Fisik
+                if('caches' in window) {
+                    try {
+                        await caches.delete(target.cacheKey);
+                    } catch(e) { console.log("Cache delete error", e); }
+                }
+                
+                // 2. Hapus Metadata
+                const newMaps = maps.filter(m => m.id !== id);
+                localStorage.setItem('offlineMaps', JSON.stringify(newMaps));
+                
+                updateOfflineList();
             }
         }
 
