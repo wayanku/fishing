@@ -176,7 +176,9 @@
                             if (!imageData) { throw new Error("No image data received."); }
                             
                             const image = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
-                            const predictions = await classifier.classify(image);
+                            const imgTensor = tf.browser.fromPixels(image);
+                            const predictions = await classifier.classify(imgTensor);
+                            imgTensor.dispose();
                             self.postMessage({ type: 'result', predictions: predictions });
                         } catch (error) {
                             self.postMessage({ type: 'error', message: error.message });
@@ -1135,24 +1137,29 @@
             const lat = currentWeatherData.latitude;
             const lng = currentWeatherData.longitude;
             
-            const sunTimes = SunCalc.getTimes(dateObj, lat, lng);
-            const moonTimes = SunCalc.getMoonTimes(dateObj, lat, lng);
-            
-            // Find moon transit (peak) and nadir (low)
+            let sunTimes = { sunrise: null, sunset: null };
+            let moonTimes = { rise: null, set: null };
             let moonTransit = null;
             let moonNadir = null;
-            let highestAlt = -2; // Start from -2 to ensure any value is higher
             
-            for(let i=0; i<24; i++) {
-                const hourDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), i, 0, 0);
-                const moonPos = SunCalc.getMoonPosition(hourDate, lat, lng);
-                if(moonPos.altitude > highestAlt) {
-                    highestAlt = moonPos.altitude;
-                    moonTransit = hourDate;
+            if (typeof SunCalc !== 'undefined') {
+                sunTimes = SunCalc.getTimes(dateObj, lat, lng);
+                moonTimes = SunCalc.getMoonTimes(dateObj, lat, lng);
+                
+                // Find moon transit (peak) and nadir (low)
+                let highestAlt = -2; // Start from -2 to ensure any value is higher
+                
+                for(let i=0; i<24; i++) {
+                    const hourDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), i, 0, 0);
+                    const moonPos = SunCalc.getMoonPosition(hourDate, lat, lng);
+                    if(moonPos.altitude > highestAlt) {
+                        highestAlt = moonPos.altitude;
+                        moonTransit = hourDate;
+                    }
                 }
+                // Nadir is approx 12.4 hours after transit
+                if(moonTransit) moonNadir = new Date(moonTransit.getTime() + 12.4 * 3600 * 1000);
             }
-            // Nadir is approx 12.4 hours after transit
-            if(moonTransit) moonNadir = new Date(moonTransit.getTime() + 12.4 * 3600 * 1000);
 
             currentSolunarData = { sunTimes, moonTimes, moonTransit, moonNadir };
 
@@ -1645,6 +1652,11 @@
 
                 // Add a small delay for UI to render before heavy EXIF processing
                 setTimeout(() => {
+                    if (typeof EXIF === 'undefined') {
+                        console.warn("EXIF library missing");
+                        handleNoGPS(svPreview, saveBtn);
+                        return;
+                    }
                     EXIF.getData(file, function() {
                         const lat = EXIF.getTag(this, "GPSLatitude");
                         const lng = EXIF.getTag(this, "GPSLongitude");
@@ -2500,6 +2512,7 @@
                 html += `<div class="h-1.5 rounded-full transition-all duration-300 ${i===0 ? 'bg-white w-4' : 'bg-slate-600 w-1.5'}" id="dot-${i}"></div>`;
             }
             dotsContainer.innerHTML = html;
+            container.onscroll = updateScrollDots;
         }
 
         function updateScrollDots() {
@@ -3010,6 +3023,11 @@
         async function downloadOfflineMap() {
             const btn = document.getElementById('btn-download-map');
             
+            if (!('caches' in window)) {
+                alert("Browser tidak mendukung fitur offline (Cache API).");
+                return;
+            }
+
             // 1. Input Nama Area
             const name = prompt("Beri nama untuk area ini (misal: Bali Selatan):", "Area " + new Date().toLocaleDateString());
             if (name === null) return; // Batal jika user tekan Cancel
