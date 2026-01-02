@@ -555,6 +555,7 @@
             getUserWeather(); // Ambil cuaca lokasi user saat ini
             loadSpots();
             setTimeout(initScrollDots, 500); // Init dots setelah layout render
+            setTimeout(initTour, 1500); // Mulai tour otomatis untuk user baru
         }
 
         function logout() {
@@ -3157,3 +3158,171 @@
 
         // Init dots saat load & resize
         window.addEventListener('resize', initScrollDots);
+
+        // --- ONBOARDING TOUR SYSTEM ---
+        let currentTourStep = 0;
+        const tourSteps = [
+            {
+                target: null, // Center screen
+                title: "Selamat Datang!",
+                desc: "Aplikasi ini membantu Anda menemukan spot mancing terbaik, cek cuaca laut, dan menyimpan lokasi rahasia Anda.",
+                icon: "anchor"
+            },
+            {
+                target: "#search-input",
+                title: "Cari Lokasi",
+                desc: "Ketik nama desa, pantai, atau koordinat untuk langsung menuju lokasi tujuan mancing Anda.",
+                icon: "search"
+            },
+            {
+                target: "button[onclick='openMapSettings()']",
+                title: "Layer & Offline Map",
+                desc: "Ganti tampilan ke Satelit, cek suhu air (SST), atau <b>Download Peta Offline</b> agar aman saat sinyal hilang di laut.",
+                icon: "layers"
+            },
+            {
+                target: "button[onclick='showUserWeatherPanel()']",
+                title: "Cek Cuaca & Ombak",
+                desc: "Lihat prediksi tinggi ombak, kecepatan angin, dan pasang surut air laut sebelum berangkat.",
+                icon: "cloud-sun"
+            },
+            {
+                target: "button[onclick='locateUser()']",
+                title: "Lokasi Saya",
+                desc: "Tekan tombol ini untuk memusatkan peta ke posisi GPS Anda saat ini.",
+                icon: "navigation"
+            },
+            {
+                target: "button[onclick='findNearestSpot()']",
+                title: "Spot Terdekat",
+                desc: "Bingung mau mancing di mana? Biarkan aplikasi mencarikan spot terdekat dari posisi Anda.",
+                icon: "locate-fixed"
+            },
+            {
+                target: "button[onclick='openAddModal()']",
+                title: "Simpan Spot",
+                desc: "Klik tombol ini untuk menyimpan hasil pancingan. Atau <b>Tekan Lama di Peta</b> untuk menandai lokasi secara manual.",
+                icon: "map-pin"
+            },
+            {
+                target: "button[onclick='openFavorites()']",
+                title: "Favorit",
+                desc: "Simpan spot yang Anda sukai agar mudah diakses kembali nanti.",
+                icon: "heart"
+            },
+            {
+                target: "button[onclick='openLegend()']",
+                title: "Pengaturan",
+                desc: "Ubah bahasa, tema tampilan, atau lihat panduan ikon di sini.",
+                icon: "settings"
+            }
+        ];
+
+        function initTour() {
+            // Cek apakah user sudah pernah melihat tour
+            if(localStorage.getItem('hasSeenTour')) return;
+            
+            currentTourStep = 0;
+            document.getElementById('tour-highlight').classList.remove('hidden');
+            document.getElementById('tour-tooltip').classList.remove('hidden');
+            showTourStep();
+        }
+
+        function showTourStep() {
+            const step = tourSteps[currentTourStep];
+            const highlight = document.getElementById('tour-highlight');
+            const tooltip = document.getElementById('tour-tooltip');
+            
+            // Update Konten
+            document.getElementById('tour-title').innerText = step.title;
+            document.getElementById('tour-desc').innerHTML = step.desc;
+            document.getElementById('tour-icon').setAttribute('data-lucide', step.icon);
+            document.getElementById('tour-step-count').innerText = `${currentTourStep + 1}/${tourSteps.length}`;
+            
+            // Update Tombol Navigasi (Back & Finish)
+            const nextBtn = document.getElementById('tour-next-btn');
+            const prevBtn = document.getElementById('tour-prev-btn');
+            
+            if(currentTourStep === 0) {
+                prevBtn.classList.add('hidden');
+            } else {
+                prevBtn.classList.remove('hidden');
+            }
+
+            if(currentTourStep === tourSteps.length - 1) {
+                nextBtn.innerText = "Selesai";
+                nextBtn.classList.replace('bg-blue-600', 'bg-emerald-600');
+                nextBtn.classList.replace('hover:bg-blue-500', 'hover:bg-emerald-500');
+            } else {
+                nextBtn.innerText = "Lanjut";
+                nextBtn.classList.replace('bg-emerald-600', 'bg-blue-600');
+                nextBtn.classList.replace('hover:bg-emerald-500', 'hover:bg-blue-500');
+            }
+            
+            lucide.createIcons();
+
+            // Positioning Logic
+            if(step.target) {
+                const targetEl = document.querySelector(step.target);
+                if(targetEl) {
+                    const rect = targetEl.getBoundingClientRect();
+                    const padding = 8;
+                    
+                    // Pindahkan Highlight Box
+                    highlight.style.top = `${rect.top - padding}px`;
+                    highlight.style.left = `${rect.left - padding}px`;
+                    highlight.style.width = `${rect.width + (padding*2)}px`;
+                    highlight.style.height = `${rect.height + (padding*2)}px`;
+                    
+                    // Pindahkan Tooltip (Otomatis cari posisi aman)
+                    const tooltipRect = tooltip.getBoundingClientRect();
+                    let top = rect.top - tooltipRect.height - 20; // Default di atas
+                    if(top < 20) top = rect.bottom + 20; // Kalau mentok atas, pindah ke bawah
+                    
+                    let left = rect.left + (rect.width/2) - (tooltipRect.width/2);
+                    // Jaga agar tidak keluar layar kiri/kanan
+                    if(left < 10) left = 10;
+                    if(left + tooltipRect.width > window.innerWidth) left = window.innerWidth - tooltipRect.width - 10;
+
+                    tooltip.style.top = `${top}px`;
+                    tooltip.style.left = `${left}px`;
+                    tooltip.style.transform = 'none';
+                }
+            } else {
+                // Posisi Tengah (Welcome Screen)
+                highlight.style.top = '50%'; highlight.style.left = '50%'; highlight.style.width = '0px'; highlight.style.height = '0px';
+                tooltip.style.top = '50%'; tooltip.style.left = '50%'; tooltip.style.transform = 'translate(-50%, -50%)';
+            }
+            
+            // Animasi Masuk
+            tooltip.classList.remove('active');
+            setTimeout(() => tooltip.classList.add('active'), 50);
+        }
+
+        function nextTourStep() {
+            if(currentTourStep < tourSteps.length - 1) {
+                currentTourStep++;
+                showTourStep();
+            } else {
+                endTour();
+            }
+        }
+
+        function prevTourStep() {
+            if(currentTourStep > 0) {
+                currentTourStep--;
+                showTourStep();
+            }
+        }
+
+        function endTour() {
+            document.getElementById('tour-highlight').classList.add('hidden');
+            document.getElementById('tour-tooltip').classList.add('hidden');
+            localStorage.setItem('hasSeenTour', 'true'); // Simpan status agar tidak muncul lagi
+        }
+
+        function resetTour() {
+            localStorage.removeItem('hasSeenTour'); // Hapus status "sudah dilihat"
+            closeLegend(); // Tutup menu pengaturan
+            initTour(); // Mulai tour dari awal
+        }
