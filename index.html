@@ -775,17 +775,17 @@
             <div class="bg-blue-600 p-2 rounded-lg shrink-0 text-white shadow-lg shadow-blue-600/30">
                 <i id="tour-icon" data-lucide="info" class="w-6 h-6"></i>
             </div>
-            <div>
+            <div class="flex-1">
                 <h4 id="tour-title" class="font-bold text-white text-sm mb-1">Title</h4>
-                <p id="tour-desc" class="text-xs text-slate-300 leading-relaxed mb-4">Description goes here.</p>
-                <div class="flex items-center justify-between border-t border-white/10 pt-3">
-                    <span id="tour-step-count" class="text-[10px] text-slate-500 font-mono font-bold">1/5</span>
-                    <div class="flex gap-2">
-                        <button onclick="endTour()" class="text-xs text-slate-500 hover:text-slate-300 font-medium px-2 transition-colors">Lewati</button>
-                        <button id="tour-prev-btn" onclick="prevTourStep()" class="hidden text-xs text-slate-300 hover:text-white font-medium px-2 transition-colors">Kembali</button>
-                        <button id="tour-next-btn" onclick="nextTourStep()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all shadow-lg shadow-blue-900/50 active:scale-95">Lanjut</button>
-                    </div>
-                </div>
+                <p id="tour-desc" class="text-xs text-slate-300 leading-relaxed">Description goes here.</p>
+            </div>
+        </div>
+        <div class="flex items-center justify-between border-t border-white/10 pt-3 mt-4">
+            <span id="tour-step-count" class="text-[10px] text-slate-500 font-mono font-bold">1/5</span>
+            <div class="flex gap-2">
+                <button onclick="endTour()" class="text-xs text-slate-500 hover:text-slate-300 font-medium px-2 transition-colors">Lewati</button>
+                <button id="tour-prev-btn" onclick="prevTourStep()" class="hidden text-xs text-slate-300 hover:text-white font-medium px-2 transition-colors">Kembali</button>
+                <button id="tour-next-btn" onclick="nextTourStep()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all shadow-lg shadow-blue-900/50 active:scale-95">Lanjut</button>
             </div>
         </div>
     </div>
