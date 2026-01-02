@@ -169,7 +169,7 @@ body.light-mode {
 .tour-tooltip {
     position: fixed;
     z-index: 9999;
-    width: 280px;
+    width: 340px;
     opacity: 0;
     transition: opacity 0.3s ease, transform 0.3s ease;
     pointer-events: auto;
