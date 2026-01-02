@@ -1,10 +1,21 @@
-const CACHE_NAME = 'fishing-spot-v1';
+const CACHE_NAME = 'fishing-spot-v2';
 const TILE_CACHE = 'offline-tiles';
 const ASSETS = [
     './',
     './index.html',
     './style.css',
-    './script.js'
+    './script.js',
+    'https://cdn.tailwindcss.com',
+    'https://unpkg.com/lucide@latest',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js',
+    'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest',
+    'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest',
+    'https://cdn.jsdelivr.net/npm/exif-js',
+    'https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js',
+    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap',
+    'https://cdn-icons-png.flaticon.com/512/2970/2970068.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -28,7 +39,9 @@ self.addEventListener('fetch', (event) => {
         url.href.includes('arcgisonline.com') ||
         url.href.includes('opentopodata.org') ||
         url.href.includes('rainviewer.com') ||
-        url.href.includes('nasa.gov')) {
+        url.href.includes('nasa.gov') ||
+        url.href.includes('openseamap.org') ||
+        url.href.includes('gebco.net')) {
         
         event.respondWith(
             caches.match(event.request).then((cachedResponse) => {
@@ -53,7 +66,11 @@ self.addEventListener('fetch', (event) => {
         url.href.includes('cdn.tailwindcss.com') ||
         url.href.includes('unpkg.com') ||
         url.href.includes('cdn.jsdelivr.net') ||
-        url.href.includes('cdnjs.cloudflare.com')) {
+        url.href.includes('cdnjs.cloudflare.com') ||
+        url.href.includes('fonts.googleapis.com') ||
+        url.href.includes('fonts.gstatic.com') ||
+        url.href.includes('via.placeholder.com') ||
+        url.href.includes('cdn-icons-png.flaticon.com')) {
 
         event.respondWith(
             caches.open(CACHE_NAME).then(cache => {
