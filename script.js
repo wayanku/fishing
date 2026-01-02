@@ -2072,6 +2072,7 @@
             
             // Event saat popup dibuka: Fetch Nama Lokasi
             marker.on('popupopen', () => {
+                lucide.createIcons(); // Fix: Render ikon di dalam popup saat dibuka
                 const el = document.getElementById(addrId);
                 if(el && el.innerText === "Memuat lokasi...") {
                     fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${mainSpot.lat}&lon=${mainSpot.lng}`)
@@ -2235,42 +2236,37 @@
             // Bersihkan marker lama (kecuali user & search)
             allMarkers.forEach(m => map.removeLayer(m));
             allMarkers = [];
+            
+            // Reset grouping global
+            groupedSpots = {};
 
-            // 1. Load dari Google Sheets
+            // 1. Ambil Data LocalStorage (sebagai base)
+            let local = JSON.parse(localStorage.getItem('spots') || '[]');
+            local.forEach(item => {
+                const key = item.spotId || (item.lat + ',' + item.lng);
+                if(!groupedSpots[key]) groupedSpots[key] = [];
+                groupedSpots[key].push(item);
+            });
+
+            // 2. Ambil Data Google Sheets (Async) & Merge
             if(GOOGLE_SCRIPT_URL.startsWith("http")) {
                 try {
                     const res = await fetch(GOOGLE_SCRIPT_URL);
                     const data = await res.json();
                     
-                    // GROUPING LOGIC (Reset Global Variable)
-                    groupedSpots = {};
                     data.forEach(item => {
-                        // Gunakan spotId jika ada, jika tidak (data lama) gunakan lat,lng sebagai key
                         const key = item.spotId || (item.lat + ',' + item.lng);
                         if(!groupedSpots[key]) groupedSpots[key] = [];
                         groupedSpots[key].push(item);
                     });
-
-                    // Render setiap grup
-                    Object.keys(groupedSpots).forEach(key => addMarker(key, groupedSpots[key]));
-                    handleZoomEffect(); // Update tampilan setelah load
                     
                 } catch(e) { console.log("Gagal load Sheet:", e); }
             }
             
-            // 2. Load dari LocalStorage (Backup/Demo)
-            let local = JSON.parse(localStorage.getItem('spots') || '[]');
-            // Simple render for local (no grouping logic implemented for local demo)
-            local.forEach(item => {
-                const key = item.lat + ',' + item.lng;
-                // Tambahkan ke groupedSpots juga agar bisa dibuka detailnya
-                if(!groupedSpots[key]) groupedSpots[key] = [];
-                groupedSpots[key].push(item);
-                // Render (jika belum ada di map dari sheet, tapi disini kita render ulang mungkin duplikat kalau tidak di handle, 
-                // tapi asumsi local storage hanya fallback atau data tambahan)
-                // Untuk simplifikasi demo:
-                addMarker(key, [item]);
-            });
+            // 3. Render Semua Marker dari Grouping yang sudah terkumpul
+            Object.keys(groupedSpots).forEach(key => addMarker(key, groupedSpots[key]));
+            
+            lucide.createIcons();
             handleZoomEffect(); // Update tampilan setelah load
         }
 
