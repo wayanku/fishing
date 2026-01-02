@@ -1537,7 +1537,7 @@
                     }
                     
                     // Cek Animasi Cuaca di lokasi user
-                    checkWeatherAnimation(currentUserWeatherCode, currentUserWindSpeed);
+                    // checkWeatherAnimation(currentUserWeatherCode, currentUserWindSpeed); // Disabled: Jangan auto-start di peta
                 }
             } catch(e) {
                 const infoEl = document.getElementById('user-weather-info');
@@ -1769,7 +1769,10 @@
             document.getElementById('wx-desc').innerText = desc;
 
             // Cek Animasi Cuaca untuk lokasi yang dipilih
-            checkWeatherAnimation(code, wx.windspeed);
+            // Hanya jalankan animasi jika panel cuaca sedang terbuka
+            if (!document.getElementById('location-panel').classList.contains('translate-y-full')) {
+                checkWeatherAnimation(code, wx.windspeed);
+            }
 
             // Ambil data ombak jam sekarang
             if(data.hourly && data.hourly.wave_height) {
@@ -1907,12 +1910,7 @@
         function closeLocationPanel() {
             document.getElementById('location-panel').classList.add('translate-y-full');
             
-            // Kembalikan efek cuaca ke lokasi user saat panel ditutup
-            if(currentUserWeatherCode !== null) {
-                checkWeatherAnimation(currentUserWeatherCode, currentUserWindSpeed);
-            } else {
-                stopWeatherEffect();
-            }
+            stopWeatherEffect(); // Matikan total animasi saat panel ditutup
         }
 
         // --- FITUR DETAIL CUACA (Chart & Hourly) ---
