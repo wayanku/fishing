@@ -3017,7 +3017,7 @@
             } else if (map.hasLayer(oceanLayer)) {
                 urlTemplate = "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}";
             } else {
-                urlTemplate = "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
+                urlTemplate = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
             }
 
             // 3. Generate Daftar URL Tile
@@ -3027,7 +3027,9 @@
                 
                 for (let x = minTile.x; x <= maxTile.x; x++) {
                     for (let y = minTile.y; y <= maxTile.y; y++) {
-                        const url = urlTemplate.replace('{x}', x).replace('{y}', y).replace('{z}', z).replace('{s}', 'a');
+                        // Gunakan logika subdomain Leaflet (a, b, c) agar cocok dengan request peta
+                        const s = ['a','b','c'][(x + y) % 3];
+                        const url = urlTemplate.replace('{x}', x).replace('{y}', y).replace('{z}', z).replace('{s}', s);
                         tiles.push(url);
                     }
                 }
