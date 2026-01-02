@@ -152,3 +152,26 @@ body.light-mode {
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 #chart-cursor { pointer-events: none; transition: left 0.05s linear; }
+
+/* --- ONBOARDING TOUR --- */
+.tour-highlight {
+    position: fixed;
+    z-index: 9998;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.85); /* Efek Gelap Sekeliling */
+    pointer-events: none;
+    transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    border: 2px solid rgba(59, 130, 246, 0.8);
+    animation: pulse-border 2s infinite;
+}
+@keyframes pulse-border { 0% { border-color: rgba(59, 130, 246, 0.8); } 50% { border-color: rgba(59, 130, 246, 0.3); } 100% { border-color: rgba(59, 130, 246, 0.8); } }
+
+.tour-tooltip {
+    position: fixed;
+    z-index: 9999;
+    width: 280px;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: auto;
+}
+.tour-tooltip.active { opacity: 1; }
