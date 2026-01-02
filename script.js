@@ -2507,6 +2507,7 @@
         // --- NEW MAP SETTINGS & LAYERS FUNCTIONS ---
         function openMapSettings() {
             document.getElementById('mapSettingsModal').classList.remove('translate-y-full');
+            if(typeof updateOfflineList === 'function') updateOfflineList(); // Refresh list saat menu dibuka
             lucide.createIcons();
         }
 
