@@ -278,16 +278,16 @@
                 <!-- Weather Grid (Updated to 3x2 for more info) -->
                 <!-- Mobile Optimization: Horizontal Scroll (Carousel) -->
                 <div id="weather-scroll" class="flex overflow-x-auto gap-3 mb-3 pb-2 no-scrollbar snap-x" onscroll="updateScrollDots()">
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-blue-600 to-indigo-600 p-3 rounded-2xl shadow-lg shadow-blue-500/20 text-center relative overflow-hidden flex flex-col justify-center transform transition hover:scale-105 active:scale-95 border border-white/10 cursor-pointer">
+                    <div onclick="showMetricInsight('score')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-blue-600 to-indigo-600 p-3 rounded-2xl shadow-lg shadow-blue-500/20 text-center relative overflow-hidden flex flex-col justify-center transform transition hover:scale-105 active:scale-95 border border-white/10 cursor-pointer">
                         <div class="absolute top-0 right-0 p-1"><i data-lucide="sparkles" class="w-3 h-3 text-yellow-400 animate-pulse"></i></div>
                         <p class="text-[10px] text-blue-100 uppercase font-bold mb-1" data-i18n="wx_score">AI Score</p>
                         <div class="text-2xl font-black text-white" id="wx-score">--%</div>
                     </div>
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-orange-500/10 to-red-500/5 border border-orange-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                    <div onclick="showMetricInsight('temp')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-orange-500/10 to-red-500/5 border border-orange-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_temp">Suhu</p>
                         <div class="text-2xl font-black text-white" id="wx-temp">--°</div>
                     </div>
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-cyan-500/10 to-blue-500/5 border border-cyan-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col items-center justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                    <div onclick="showMetricInsight('wind')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-cyan-500/10 to-blue-500/5 border border-cyan-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col items-center justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_wind">Angin</p>
                         <div class="flex items-center gap-1">
                             <i data-lucide="arrow-up" id="wx-wind-dir" class="w-4 h-4 text-blue-400 wind-arrow"></i>
@@ -295,27 +295,27 @@
                         </div>
                         <span class="text-[9px] text-slate-500">km/h</span>
                     </div>
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-slate-700/30 to-slate-800/10 border border-white/5 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                    <div onclick="showMetricInsight('weather')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-slate-700/30 to-slate-800/10 border border-white/5 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_weather">Cuaca</p>
                         <div class="text-sm font-bold text-blue-300 mt-1" id="wx-desc">Memuat...</div>
                     </div>
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-teal-500/10 to-emerald-500/5 border border-teal-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                    <div onclick="showMetricInsight('wave')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-teal-500/10 to-emerald-500/5 border border-teal-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_wave">Ombak (Max)</p>
                         <div class="text-xl font-black text-cyan-300 mt-1" id="wx-wave">-- m</div>
                     </div>
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                    <div onclick="showMetricInsight('travel')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_travel">Perjalanan</p>
                         <div class="text-sm font-black text-emerald-400 mt-1 leading-tight" id="panel-dist">-- km<br>-- mnt</div>
                     </div>
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                    <div onclick="showMetricInsight('tide')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_tide">Pasang Surut</p>
                         <div class="text-xl font-black text-purple-300 mt-1" id="wx-tide">-- m</div>
                     </div>
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-indigo-500/10 to-blue-500/5 border border-indigo-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                    <div onclick="showMetricInsight('sst')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-indigo-500/10 to-blue-500/5 border border-indigo-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Suhu Air</p>
                         <div class="text-xl font-black text-indigo-300 mt-1" id="wx-sst">--°C</div>
                     </div>
-                    <div class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border border-yellow-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                    <div onclick="showMetricInsight('sun')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border border-yellow-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_sun">Matahari</p>
                         <div class="text-[10px] font-bold text-yellow-300 mt-1 leading-tight" id="wx-sun">--:--<br>--:--</div>
                     </div>
@@ -323,6 +323,21 @@
                 
                 <!-- Scroll Indicators (Dots) -->
                 <div id="scroll-dots" class="flex justify-center gap-1.5 mb-6"></div>
+
+                <!-- AI Insight Panel (New) -->
+                <div id="weather-insight-panel" class="hidden mb-6 bg-slate-800/50 p-4 rounded-2xl border border-blue-500/30 relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div class="absolute top-0 right-0 p-2 opacity-10"><i data-lucide="bot" class="w-12 h-12 text-blue-400"></i></div>
+                    <div class="flex items-start gap-3">
+                        <div class="bg-blue-500/20 p-2 rounded-lg text-blue-400 shrink-0 mt-1">
+                            <i id="insight-icon" data-lucide="info" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 id="insight-title" class="text-xs font-bold text-blue-300 uppercase mb-1">Analisis AI</h4>
+                            <p id="insight-text" class="text-sm text-slate-200 leading-relaxed">...</p>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('weather-insight-panel').classList.add('hidden')" class="absolute top-2 right-2 text-slate-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
 
                 <!-- 7-Day Forecast & Fishing Rating (New Feature) -->
                 <div class="mb-6">
@@ -1171,6 +1186,7 @@
         let currentUserWeatherCode = null; // Simpan kode cuaca user
         let currentUserWindSpeed = 0; // Simpan kecepatan angin user
         let currentWeatherData = null; // Simpan data cuaca lengkap
+        let currentMarineData = null; // Simpan data laut (New)
         let currentDetailSpot = null; // Data spot yang sedang dibuka detailnya
         let groupedSpots = {}; // Global variable untuk menyimpan data spot yang dikelompokkan
         let isContributionMode = false; // Flag untuk membedakan mode tambah spot vs ulasan
@@ -1653,6 +1669,7 @@
                 // Added sea_surface_temperature
                 const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${latlng.lat}&longitude=${latlng.lng}&hourly=sea_level_height_msl,sea_surface_temperature&timezone=auto`);
                 const data = await res.json();
+                currentMarineData = data; // Store data for AI Insight
 
                 // Perbaikan: Cek jika API mengembalikan error (misal: lokasi di darat) atau tidak ada data 'hourly'
                 if (data.error || !data.hourly) {
@@ -3617,6 +3634,135 @@
         function closeWindy() {
             document.getElementById('windyModal').classList.add('translate-y-full');
             setTimeout(() => { document.getElementById('windy-frame').src = ''; }, 300); // Reset iframe agar tidak berat
+        }
+
+        // --- AI INSIGHT FUNCTION (New) ---
+        function showMetricInsight(type) {
+            const panel = document.getElementById('weather-insight-panel');
+            const titleEl = document.getElementById('insight-title');
+            const textEl = document.getElementById('insight-text');
+            const iconEl = document.getElementById('insight-icon');
+            
+            // Ensure panel is visible
+            panel.classList.remove('hidden');
+            
+            // Default values if data not loaded
+            if(!currentWeatherData || !currentWeatherData.current_weather) {
+                textEl.innerText = "Data cuaca belum tersedia sepenuhnya. Silakan tunggu atau refresh.";
+                return;
+            }
+
+            const wx = currentWeatherData.current_weather;
+            const hourly = currentWeatherData.hourly;
+            const currentHour = new Date().getHours();
+            
+            let title = "";
+            let text = "";
+            let icon = "info";
+
+            switch(type) {
+                case 'score':
+                    title = "AI Fishing Score";
+                    icon = "sparkles";
+                    const scoreText = document.getElementById('wx-score').innerText;
+                    const scoreVal = parseInt(scoreText);
+                    if(scoreVal > 80) text = `Skor ${scoreText} sangat bagus! Kondisi angin, suhu, dan tekanan udara sangat mendukung aktivitas ikan. Waktu yang tepat untuk memancing.`;
+                    else if(scoreVal > 50) text = `Skor ${scoreText} cukup baik. Ikan mungkin aktif, namun perhatikan perubahan angin mendadak.`;
+                    else text = `Skor ${scoreText} rendah. Kondisi cuaca kurang mendukung (mungkin angin kencang atau badai). Ikan cenderung bersembunyi.`;
+                    break;
+                case 'temp':
+                    title = "Analisis Suhu";
+                    icon = "thermometer";
+                    const temp = wx.temperature;
+                    if(temp > 32) text = `Suhu ${temp}°C tergolong panas. Ikan cenderung turun ke kedalaman yang lebih sejuk. Pastikan Anda membawa air minum yang cukup.`;
+                    else if(temp < 20) text = `Suhu ${temp}°C cukup dingin. Ikan mungkin kurang aktif di permukaan. Coba teknik dasar (bottom fishing).`;
+                    else text = `Suhu ${temp}°C sangat ideal. Metabolisme ikan stabil, kemungkinan strike lebih besar di area dangkal maupun tengah.`;
+                    break;
+                case 'wind':
+                    title = "Analisis Angin";
+                    icon = "wind";
+                    const wind = wx.windspeed;
+                    if(wind > 30) text = `BAHAYA: Angin ${wind} km/h sangat kencang. Ombak bisa tinggi tiba-tiba. Tidak disarankan untuk perahu kecil.`;
+                    else if(wind > 15) text = `Angin ${wind} km/h lumayan terasa. Permukaan air akan bergelombang. Gunakan pemberat/timah yang lebih besar agar umpan tidak hanyut.`;
+                    else text = `Angin tenang (${wind} km/h). Permukaan air stabil, sangat nyaman untuk memancing teknik casting atau pelampung.`;
+                    break;
+                case 'weather':
+                    title = "Kondisi Langit";
+                    icon = "cloud-sun";
+                    const code = wx.weathercode;
+                    if(code > 90) text = "Peringatan Badai Petir! Segera hindari area terbuka atau laut. Joran karbon bisa menghantar listrik.";
+                    else if(code >= 61) text = "Hujan sedang turun. Ikan lele atau patin mungkin lebih aktif, tapi jarak pandang terbatas. Hati-hati licin.";
+                    else if(code <= 3) text = "Langit cerah/berawan. Cahaya matahari menembus air, gunakan umpan dengan warna natural atau mengkilap.";
+                    else text = "Cuaca mendung/berkabut. Ikan predator mungkin lebih berani naik ke permukaan karena cahaya redup.";
+                    break;
+                case 'wave':
+                    title = "Tinggi Ombak";
+                    icon = "waves";
+                    const wave = hourly && hourly.wave_height ? hourly.wave_height[currentHour] : 0;
+                    if(wave > 2.5) text = `Ombak ${wave}m SANGAT TINGGI. Dilarang melaut dengan perahu nelayan biasa. Bahaya terbalik.`;
+                    else if(wave > 1.2) text = `Ombak ${wave}m cukup tinggi. Perahu akan bergoyang keras. Waspada mabuk laut.`;
+                    else text = `Ombak ${wave}m relatif tenang. Aman untuk sebagian besar aktivitas memancing di pinggir atau tengah.`;
+                    break;
+                case 'tide':
+                    title = "Pasang Surut";
+                    icon = "activity";
+                    text = "Pergerakan air (arus) memicu ikan untuk makan. Saat terbaik adalah menjelang pasang penuh atau saat air mulai surut perlahan.";
+                    if(currentMarineData && currentMarineData.hourly && currentMarineData.hourly.sea_level_height_msl) {
+                        const tideData = currentMarineData.hourly.sea_level_height_msl;
+                        const tideNow = tideData[currentHour];
+                        const tideNext = tideData[currentHour+1];
+                        
+                        if(tideNext > tideNow) text += " Air sedang <b>PASANG NAIK</b>, ikan biasanya bergerak ke tepian untuk mencari makan.";
+                        else text += " Air sedang <b>SURUT</b>, ikan predator sering menunggu mangsa yang terbawa arus keluar ke laut dalam.";
+
+                        // Cari waktu pasang/surut berikutnya
+                        let nextHigh = null;
+                        let nextLow = null;
+                        
+                        for(let i = currentHour + 1; i < currentHour + 25; i++) {
+                            if(i >= tideData.length - 1) break;
+                            const prev = tideData[i-1];
+                            const curr = tideData[i];
+                            const next = tideData[i+1];
+                            
+                            if(!nextHigh && curr > prev && curr > next) nextHigh = { h: i % 24, v: curr };
+                            if(!nextLow && curr < prev && curr < next) nextLow = { h: i % 24, v: curr };
+                            if(nextHigh && nextLow) break;
+                        }
+
+                        if(nextHigh || nextLow) {
+                            text += "<br><br><b>Jadwal Berikutnya:</b><br>";
+                            if(nextHigh) text += `🌊 Pasang: Jam ${nextHigh.h.toString().padStart(2, '0')}:00 (${nextHigh.v.toFixed(1)}m)<br>`;
+                            if(nextLow) text += `🔻 Surut: Jam ${nextLow.h.toString().padStart(2, '0')}:00 (${nextLow.v.toFixed(1)}m)`;
+                        }
+                    }
+                    break;
+                case 'sst':
+                    title = "Suhu Permukaan Laut";
+                    icon = "thermometer-sun";
+                    const sstText = document.getElementById('wx-sst').innerText;
+                    text = `Suhu air ${sstText}. Perubahan suhu air drastis bisa membuat ikan mogok makan (shock). Suhu hangat stabil biasanya disukai ikan pelagis.`;
+                    break;
+                case 'travel':
+                    title = "Info Perjalanan";
+                    icon = "map";
+                    const distText = document.getElementById('panel-dist').innerText;
+                    text = `Estimasi perjalanan: ${distText.replace('\n', ', ')}. Pastikan bahan bakar cukup. Cek rute untuk menghindari macet.`;
+                    break;
+                case 'sun':
+                    title = "Solunar Matahari";
+                    icon = "sunrise";
+                    text = "Waktu perpindahan gelap-terang (Sunrise/Sunset) adalah 'Golden Hour'. Predator sangat aktif berburu di waktu ini karena penglihatan mangsa terbatas.";
+                    break;
+                default:
+                    title = "Info";
+                    text = "Klik item lain untuk melihat analisis detail.";
+            }
+            
+            titleEl.innerText = title;
+            textEl.innerHTML = text;
+            iconEl.setAttribute('data-lucide', icon);
+            lucide.createIcons();
         }
 
         // Init dots saat load & resize
