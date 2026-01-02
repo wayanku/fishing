@@ -1,19 +1,10 @@
-const CACHE_NAME = 'fishing-spot-v2';
+const CACHE_NAME = 'fishing-spot-v1';
 const TILE_CACHE = 'offline-tiles';
 const ASSETS = [
     './',
     './index.html',
     './style.css',
-    './script.js',
-    'https://cdn.tailwindcss.com',
-    'https://unpkg.com/lucide@latest',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js',
-    'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest',
-    'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest',
-    'https://cdn.jsdelivr.net/npm/exif-js',
-    'https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js'
+    './script.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -56,6 +47,31 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 2. Default: Network First (Untuk data lain)
+    // 2. Handle Static Assets & CDN (Scripts, Styles, Images) - Stale While Revalidate
+    // Ini menangani Tailwind, Lucide, Leaflet, dll secara dinamis
+    if (url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|json)$/) || 
+        url.href.includes('cdn.tailwindcss.com') ||
+        url.href.includes('unpkg.com') ||
+        url.href.includes('cdn.jsdelivr.net') ||
+        url.href.includes('cdnjs.cloudflare.com')) {
+
+        event.respondWith(
+            caches.open(CACHE_NAME).then(cache => {
+                return cache.match(event.request).then(cachedResponse => {
+                    const fetchPromise = fetch(event.request).then(networkResponse => {
+                        // Cache valid responses (termasuk opaque response dari CDN)
+                        if(networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    }).catch(() => cachedResponse); // Jika offline & fetch gagal, return cache
+                    return cachedResponse || fetchPromise;
+                });
+            })
+        );
+        return;
+    }
+
+    // 3. Default: Network First (Untuk data lain)
     event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });
