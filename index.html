@@ -269,6 +269,16 @@
                     </div>
                 </div>
 
+                <!-- Offline Map Section -->
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-white/5">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Mode Offline (Laut Lepas)</h4>
+                    <p class="text-[10px] text-slate-400 mb-3 leading-relaxed">Download area peta yang sedang tampil di layar agar tetap bisa dibuka saat tidak ada sinyal (Blank Spot).</p>
+                    <button id="btn-download-map" onclick="downloadOfflineMap()" class="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/10"><i data-lucide="download-cloud" class="w-4 h-4"></i> Download Area Ini</button>
+                    
+                    <!-- Daftar Peta Offline -->
+                    <div id="offline-maps-list" class="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar"></div>
+                </div>
+
                 <!-- Weather Overlay Section -->
                 <div>
                     <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Lapisan Peta (Multi-Layer)</h4>
