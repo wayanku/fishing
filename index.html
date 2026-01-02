@@ -157,6 +157,10 @@
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_tide">Pasang Surut</p>
                         <div class="text-xl font-black text-purple-300 mt-1" id="wx-tide">-- m</div>
                     </div>
+                    <div onclick="showMetricInsight('depth')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-cyan-900/40 to-blue-900/20 border border-cyan-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold mb-1" data-i18n="wx_depth">Kedalaman</p>
+                        <div class="text-xl font-black text-cyan-300 mt-1" id="wx-depth">-- m</div>
+                    </div>
                     <div onclick="showMetricInsight('sst')" class="min-w-[100px] md:min-w-[130px] snap-center bg-gradient-to-br from-indigo-500/10 to-blue-500/5 border border-indigo-500/20 hover:bg-slate-800/60 transition-all p-3 rounded-2xl text-center flex flex-col justify-center backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer">
                         <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Suhu Air</p>
                         <div class="text-xl font-black text-indigo-300 mt-1" id="wx-sst">--°C</div>
@@ -249,7 +253,7 @@
                 <!-- Base Map Section -->
                 <div>
                     <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Jenis Peta Dasar</h4>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-3 gap-3">
                         <button onclick="setBaseMap('satellite')" id="btn-map-sat" class="relative h-24 rounded-xl overflow-hidden border-2 border-blue-500 group transition-all">
                             <img src="https://mt1.google.com/vt/lyrs=y&x=10&y=6&z=4" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity">
                             <div class="absolute inset-0 bg-black/30 flex items-center justify-center font-bold text-white text-sm">Satelit</div>
@@ -257,6 +261,10 @@
                         <button onclick="setBaseMap('street')" id="btn-map-street" class="relative h-24 rounded-xl overflow-hidden border-2 border-transparent group transition-all">
                             <img src="https://a.tile.openstreetmap.org/4/6/10.png" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity">
                             <div class="absolute inset-0 bg-black/30 flex items-center justify-center font-bold text-white text-sm">Jalan</div>
+                        </button>
+                        <button onclick="setBaseMap('ocean')" id="btn-map-ocean" class="relative h-24 rounded-xl overflow-hidden border-2 border-transparent group transition-all">
+                            <img src="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/4/6/10" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity">
+                            <div class="absolute inset-0 bg-black/30 flex items-center justify-center font-bold text-white text-sm text-center leading-tight">Laut<br><span class="text-[9px] font-normal">(Depth)</span></div>
                         </button>
                     </div>
                 </div>
@@ -344,6 +352,15 @@
                                 <div><p class="font-bold text-sm text-white">Klorofil-a</p><p class="text-[10px] text-slate-400">Plankton/PPDPI (NASA)</p></div>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('chlorophyll')" id="toggle-chlorophyll"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                        </div>
+
+                        <!-- Bathymetry (GEBCO) Toggle -->
+                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-cyan-500/20 p-2 rounded-lg text-cyan-400"><i data-lucide="waves" class="w-5 h-5"></i></div>
+                                <div><p class="font-bold text-sm text-white">Kontur Kedalaman</p><p class="text-[10px] text-slate-400">Overlay GEBCO (Shaded Relief)</p></div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('bathymetry')" id="toggle-bathymetry"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-4 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-white/5">
