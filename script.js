@@ -528,33 +528,30 @@
         }
 
         // 3. Auth Logic
+        // (MODIFIKASI: Login Dinonaktifkan - Aplikasi Tanpa Profil)
         function handleAuth(type) {
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-pass').value;
-            const errorEl = document.getElementById('auth-error');
-
-            if(!email || !pass) { alert("Isi email & pass!"); return; }
-
-            // Login Sederhana (Tanpa Firebase Auth)
-            // Karena pakai Google Sheets, kita hanya butuh Email sebagai identitas pengupload
-            console.log("Login berhasil sebagai:", email);
-            loginSuccess({ email: email, uid: email });
+            console.log("Auth system disabled.");
         }
 
-        // BYPASS LOGIN (Mode Desain) - Langsung masuk otomatis
-        // firebase.auth().onAuthStateChanged(user => { if (user) loginSuccess(user); });
-        
-        setTimeout(() => loginSuccess({ email: 'designer@app.com', uid: 'dev_mode' }), 100);
+        // Langsung inisialisasi aplikasi (Bypass Login)
+        setTimeout(() => initApp(), 100);
 
-        function loginSuccess(user) {
-            currentUser = user;
-            document.getElementById('auth-overlay').classList.add('hidden');
-            document.getElementById('app-content').classList.remove('hidden');
+        function initApp() {
+            // Set user default (Guest) agar fungsi penyimpanan tetap berjalan
+            currentUser = { email: 'Guest', uid: 'guest_user' };
+            
+            // Sembunyikan overlay login & tampilkan konten utama
+            const authOverlay = document.getElementById('auth-overlay');
+            if(authOverlay) authOverlay.classList.add('hidden');
+            
+            const appContent = document.getElementById('app-content');
+            if(appContent) appContent.classList.remove('hidden');
+            
             const emailEl = document.getElementById('user-display-email');
-            if(emailEl) emailEl.innerText = user.email;
+            if(emailEl) emailEl.innerText = "Guest Mode";
             
             // PERBAIKAN: Refresh ukuran peta agar tidak error/abu-abu saat muncul
-            setTimeout(() => { map.invalidateSize(); }, 100);
+            setTimeout(() => { if(typeof map !== 'undefined') map.invalidateSize(); }, 100);
             
             // Pre-load the AI model in the background for faster analysis later
             getAiWorker().postMessage({ type: 'init' });
@@ -564,10 +561,12 @@
             setTimeout(initScrollDots, 500); // Init dots setelah layout render
             setTimeout(initTour, 1500); // Mulai tour otomatis untuk user baru
             setTimeout(initCompass, 1000); // Inisialisasi Kompas Digital
+            setTimeout(loadLayerPreferences, 2000); // Mengembalikan layer peta yang tersimpan
         }
 
         function logout() {
-            location.reload();
+            // Tidak ada logout di mode tanpa login
+            console.log("Logout disabled");
         }
 
         // 4. Spot Management
@@ -3074,11 +3073,34 @@
             return d.toISOString().split('T')[0];
         }
 
+        // --- LAYER PERSISTENCE (SIMPAN PENGATURAN PETA) ---
+        function updateLayerStorage() {
+            const active = [];
+            document.querySelectorAll('input[id^="toggle-"]').forEach(el => {
+                if(el.checked) active.push(el.id.replace('toggle-', ''));
+            });
+            localStorage.setItem('activeMapLayers', JSON.stringify(active));
+        }
+
+        function loadLayerPreferences() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('activeMapLayers') || '[]');
+                saved.forEach(type => {
+                    const toggle = document.getElementById(`toggle-${type}`);
+                    if(toggle && !toggle.checked) {
+                        toggle.checked = true;
+                        toggleLayer(type); // Aktifkan layer
+                    }
+                });
+            } catch(e) { console.log("Error restoring layers", e); }
+        }
+
         async function toggleLayer(type) {
             const toggle = document.getElementById(`toggle-${type}`);
             if(!toggle) return;
             
             const isChecked = toggle.checked;
+            updateLayerStorage(); // Simpan status terbaru setiap kali di-klik
 
             // 1. Jika dimatikan (Uncheck)
             if(!isChecked) {
@@ -3098,6 +3120,7 @@
                 if(OWM_API_KEY === "YOUR_OWM_API_KEY" || !OWM_API_KEY) {
                     alert("⚠️ Fitur Peta Angin Memerlukan API Key");
                     toggle.checked = false;
+                    updateLayerStorage();
                     return;
                 }
                 
@@ -3159,6 +3182,7 @@
                 } catch(e) {
                     alert("Gagal memuat data gempa.");
                     toggle.checked = false;
+                    updateLayerStorage();
                 }
                 return;
             }
@@ -3181,7 +3205,7 @@
             // PRESSURE LAYER (Tekanan Udara)
             if(type === 'pressure') {
                 if(OWM_API_KEY === "YOUR_OWM_API_KEY" || !OWM_API_KEY) {
-                    alert("Fitur ini butuh API Key OpenWeatherMap."); toggle.checked = false; return;
+                    alert("Fitur ini butuh API Key OpenWeatherMap."); toggle.checked = false; updateLayerStorage(); return;
                 }
                 activeLayers[type] = L.tileLayer(`https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${OWM_API_KEY}`, {
                     opacity: 0.6
@@ -3201,6 +3225,7 @@
                 if(!L.heatLayer) {
                     alert("Plugin Heatmap belum dimuat.");
                     toggle.checked = false;
+                    updateLayerStorage();
                     return;
                 }
                 
@@ -3218,6 +3243,7 @@
                 if(heatPoints.length === 0) {
                     alert("Belum ada data spot untuk membuat heatmap.");
                     toggle.checked = false;
+                    updateLayerStorage();
                     return;
                 }
 
@@ -3328,12 +3354,14 @@
                 } else {
                     alert("Data cuaca tidak tersedia saat ini.");
                     toggle.checked = false;
+                    updateLayerStorage();
                 }
 
             } catch(e) {
                 console.error(e);
                 alert("Gagal memuat peta cuaca. Cek koneksi internet.");
                 toggle.checked = false;
+                updateLayerStorage();
             }
         }
 
