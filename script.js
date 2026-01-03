@@ -768,6 +768,9 @@
                     if(fullAddr.length > 45) fullAddr = fullAddr.substring(0, 45) + "...";
                     
                     document.getElementById('panel-address').innerText = fullAddr || "Lokasi Terpilih";
+                    // NEW: Also update the new header if it exists
+                    const headerLocation = document.getElementById('header-location');
+                    if (headerLocation) headerLocation.innerText = fullAddr || "Lokasi Terpilih";
                 })
                 .catch(() => document.getElementById('panel-address').innerText = "Lokasi Tidak Dikenal");
 
@@ -926,6 +929,43 @@
             const lang = localStorage.getItem('appLang') || 'id';
             const dt = dynamicTranslations[lang];
             
+            // --- NEW: Create and Populate iPhone-style Header ---
+            const panelContent = document.querySelector('#location-panel > div'); // Target the main content div of the panel
+            if (panelContent) {
+                let header = document.getElementById('new-weather-header');
+                if (!header) {
+                    header = document.createElement('div');
+                    header.id = 'new-weather-header';
+                    header.className = 'flex flex-col items-center text-white pt-4 pb-6 px-4 text-center';
+                    header.innerHTML = `
+                        <h2 id="header-location" class="text-2xl font-bold tracking-tight"></h2>
+                        <p id="header-temp" class="text-7xl font-thin -my-1" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;"></p>
+                        <p id="header-desc" class="font-semibold"></p>
+                        <p id="header-minmax" class="text-sm mt-1"></p>
+                    `;
+                    // Insert header at the top of the panel content
+                    panelContent.prepend(header);
+
+                    // Hide the old elements that are now in the header.
+                    const oldAddress = document.getElementById('panel-address');
+                    const oldCoords = document.getElementById('panel-coords');
+                    const oldDist = document.getElementById('panel-dist');
+                    if (oldAddress) oldAddress.classList.add('hidden');
+                    if (oldCoords) oldCoords.classList.add('hidden');
+                    if (oldDist) oldDist.classList.add('hidden');
+
+                    // Hide the now-redundant cards from the scroll view
+                    const tempCard = document.querySelector('[onclick="showMetricInsight(\'temp\')"]');
+                    const weatherCard = document.querySelector('[onclick="showMetricInsight(\'weather\')"]');
+                    if (tempCard) tempCard.classList.add('hidden');
+                    if (weatherCard) weatherCard.classList.add('hidden');
+                }
+
+                // Populate new header with data
+                document.getElementById('header-temp').innerText = `${Math.round(data.current_weather.temperature)}°`;
+                document.getElementById('header-minmax').innerText = `Tertinggi: ${Math.round(data.daily.temperature_2m_max[0])}° Terendah: ${Math.round(data.daily.temperature_2m_min[0])}°`;
+            }
+
             const wx = data.current_weather;
             document.getElementById('wx-temp').innerText = `${Math.round(wx.temperature)}°`;
             document.getElementById('wx-wind-speed').innerText = wx.windspeed;
@@ -946,7 +986,11 @@
                 if(code > 80) desc = dt.weather[95]; // Badai
             }
 
-            document.getElementById('wx-desc').innerText = desc;
+            document.getElementById('wx-desc').innerText = desc; // Keep old one for the card logic
+            const headerDesc = document.getElementById('header-desc');
+            if (headerDesc) headerDesc.innerText = desc;
+            const headerLocation = document.getElementById('header-location');
+            if(headerLocation) headerLocation.innerText = document.getElementById('panel-address').innerText;
 
             // Cek Animasi Cuaca untuk lokasi yang dipilih
             // Hanya jalankan animasi jika panel cuaca sedang terbuka
