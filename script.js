@@ -503,6 +503,10 @@
             stopWeatherEffect();
             currentWxType = type;
 
+            // Pastikan canvas muncul di atas panel full-screen
+            canvas.style.zIndex = "2147483647";
+            canvas.style.pointerEvents = "none";
+
             if (type === 'rain') for (let i = 0; i < 150; i++) particles.push(new RainDrop());
             else if (type === 'snow') for (let i = 0; i < 50; i++) particles.push(new SnowFlake());
             else if (type === 'wind') for (let i = 0; i < 10; i++) particles.push(new WindLine());
@@ -520,6 +524,7 @@
             storm = null;
             currentWxType = null;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.style.zIndex = "0"; // Reset z-index saat stop
         }
 
         // 3. Auth Logic
@@ -709,7 +714,7 @@
             panel.style.setProperty('right', '0', 'important');
             panel.style.setProperty('bottom', '0', 'important');
             panel.style.setProperty('position', 'fixed', 'important');
-            panel.style.setProperty('z-index', '2147483647', 'important'); // Max Z-Index (Tertinggi yang mungkin)
+            panel.style.setProperty('z-index', '2147483640', 'important'); // Max Z-Index (Dikurangi agar animasi cuaca bisa di atasnya)
             panel.style.setProperty('border-radius', '0', 'important');
             panel.style.setProperty('max-height', 'none', 'important');
             panel.style.setProperty('max-width', 'none', 'important'); // Override batasan lebar di laptop
@@ -3182,6 +3187,14 @@
 
         // --- AI INSIGHT FUNCTION (New) ---
         function showMetricInsight(type) {
+            // Trigger Animation saat diklik
+            if(currentWeatherData && currentWeatherData.current_weather) {
+                const wx = currentWeatherData.current_weather;
+                if(type === 'weather') checkWeatherAnimation(wx.weathercode, wx.windspeed);
+                else if(type === 'wind') startWeatherEffect('wind');
+                else if(type === 'temp' && [71, 73, 75, 77, 85, 86].includes(wx.weathercode)) startWeatherEffect('snow');
+            }
+
             const panel = document.getElementById('weather-insight-panel');
             const titleEl = document.getElementById('insight-title');
             const textEl = document.getElementById('insight-text');
