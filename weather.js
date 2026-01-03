@@ -809,7 +809,7 @@ function updateWeatherUI(data) {
 
         // --- MODIFIED: Buat Wrapper Card untuk Prakiraan 24 Jam ---
         const hourlyCard = document.createElement('div');
-        hourlyCard.className = "mx-4 mb-8 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
+        hourlyCard.className = "mx-0 mb-8 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
         
         if(referenceNode.parentNode) {
             referenceNode.parentNode.insertBefore(hourlyCard, referenceNode.nextSibling);
@@ -1050,11 +1050,18 @@ function updateWeatherUI(data) {
 
     // --- FITUR BARU: 7-DAY FORECAST & FISHING RATING ---
     if(data.daily) {
+        // Hapus Judul Lama (External) sesuai permintaan
+        const oldTitle = document.querySelector('[data-i18n="forecast_title"]');
+        if(oldTitle) {
+            oldTitle.style.display = 'none';
+            if(oldTitle.parentElement) oldTitle.parentElement.style.display = 'none'; // Sembunyikan container judul lama
+        }
+
         const list = document.getElementById('forecast-list');
-        list.className = "mx-4 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 p-2 shadow-lg"; // Style Kartu 7 Hari
+        list.className = "mx-0 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 p-2 shadow-lg"; // Style Kartu 7 Hari (Lebar Penuh)
         list.innerHTML = ''; // Clear
 
-        // --- NEW: Judul Header Kartu 7 Hari ---
+        // --- RESTORED: Judul Header Kartu 7 Hari (Internal) ---
         const titleDiv = document.createElement('div');
         titleDiv.className = "px-2 py-2 mb-2 flex items-center gap-2 border-b border-white/5";
         const titleText = lang === 'en' ? '7-Day Forecast' : (lang === 'jp' ? '7日間予報' : 'Prakiraan 7 Hari');
