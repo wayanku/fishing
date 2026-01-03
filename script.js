@@ -303,23 +303,30 @@
             attribution: '© Google Maps'
         });
         
-        const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        // GANTI OSM DENGAN GOOGLE ROADMAP (Lebih Lengkap & Familiar)
+        const streetLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { 
+            maxZoom: 20,
+            attribution: '© Google Maps'
         });
 
         // Layer Laut (Bathymetry/Depth) - Esri Ocean Basemap
-        // UPDATED: Menggunakan LayerGroup (Base + Reference) agar mirip i-Boating/Navionics
+        // UPDATED: Menggunakan LayerGroup (Base + Reference + Seamark) agar mirip i-Boating/Navionics
         const oceanBaseTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
-            maxNativeZoom: 13, // NAIKKAN KE 13: Agar detail karang & kedalaman muncul
+            maxNativeZoom: 10, // FIX: Batas zoom asli Esri Ocean adalah 10, paksa stretch setelahnya agar tidak "data not available"
             maxZoom: 20,
             attribution: 'Tiles &copy; Esri'
         });
         const oceanRefTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {
-            maxNativeZoom: 13, // NAIKKAN KE 13: Agar angka kedalaman terbaca jelas
+            maxNativeZoom: 10, // FIX: Batas zoom asli Esri Ocean adalah 10
             maxZoom: 20
         });
-        const oceanLayer = L.layerGroup([oceanBaseTile, oceanRefTile]);
+        // Tambahan: OpenSeaMap untuk navigasi lengkap (Buoy, Lampu, Jalur)
+        const oceanSeamarkTile = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+            maxNativeZoom: 18,
+            maxZoom: 20,
+            attribution: 'OpenSeaMap'
+        });
+        const oceanLayer = L.layerGroup([oceanBaseTile, oceanRefTile, oceanSeamarkTile]);
         
         // Cek penyimpanan lokal agar saat refresh langsung ke lokasi terakhir
         const lastLat = localStorage.getItem('lastLat');
@@ -3539,7 +3546,7 @@
                 const base = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
                     pane: 'sonarPane',
                     opacity: 1.0,
-                    maxNativeZoom: 13, // FIX: Detail lebih tinggi
+                    maxNativeZoom: 10, // FIX: Batas zoom asli Esri Ocean adalah 10
                     maxZoom: 20,
                     attribution: 'Esri Ocean'
                 });
@@ -3549,7 +3556,7 @@
                 const ref = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {
                     pane: 'sonarPane',
                     opacity: 1.0,
-                    maxNativeZoom: 13, // FIX: Detail lebih tinggi
+                    maxNativeZoom: 10, // FIX: Batas zoom asli Esri Ocean adalah 10
                     maxZoom: 20
                 });
                 layers.push(ref);
@@ -3558,6 +3565,8 @@
                 const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
                     pane: 'sonarPane', // Tumpuk di pane yang sama
                     opacity: 1.0, 
+                    maxNativeZoom: 18, // OpenSeaMap support zoom tinggi
+                    maxZoom: 20,
                     attribution: 'OpenSeaMap'
                 });
                 layers.push(seamark);
