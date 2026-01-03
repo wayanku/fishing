@@ -980,43 +980,171 @@
             // Tampilkan Score
             document.getElementById('wx-score').innerText = `${Math.max(10, score)}%`;
 
+            // --- NEW: HOURLY FORECAST (iPhone Style) ---
+            // Cari atau buat container baru DI BAWAH weather-scroll agar fitur lama (AI Score dll) tetap ada
+            let hourlySummaryContainer = document.getElementById('hourly-summary-container');
+            let hourlyContainer = document.getElementById('hourly-forecast-container');
+            const existingScroll = document.getElementById('weather-scroll');
+            const dotsContainer = document.getElementById('scroll-dots');
+
+            if (!hourlyContainer && existingScroll) {
+                const referenceNode = dotsContainer || existingScroll;
+
+                // Buat container untuk summary text di atas forecast
+                if (!hourlySummaryContainer) {
+                    hourlySummaryContainer = document.createElement('div');
+                    hourlySummaryContainer.id = 'hourly-summary-container';
+                    hourlySummaryContainer.className = "px-4 pb-3 text-xs text-slate-200 border-b border-white/10 mb-3 leading-relaxed";
+                    if(referenceNode.parentNode) {
+                        referenceNode.parentNode.insertBefore(hourlySummaryContainer, referenceNode.nextSibling);
+                    }
+                }
+
+                // Buat container untuk forecast per jam
+                hourlyContainer = document.createElement('div');
+                hourlyContainer.id = 'hourly-forecast-container';
+                // Styling: Horizontal scroll, spacing, border top for separation
+                hourlyContainer.className = "flex items-stretch gap-x-2 px-4 overflow-x-auto no-scrollbar pb-4";
+                
+                // Insert setelah container summary
+                if(hourlySummaryContainer && hourlySummaryContainer.parentNode) {
+                    hourlySummaryContainer.parentNode.insertBefore(hourlyContainer, hourlySummaryContainer.nextSibling);
+                }
+            }
+
+            if (hourlyContainer && data.hourly && data.hourly.time && data.daily) {
+                hourlyContainer.innerHTML = ''; // Clear only the new container
+
+                // NEW: Populate Summary Text
+                if (hourlySummaryContainer) {
+                    const currentCode = wx.weathercode;
+                    const maxWind = data.daily.windspeed_10m_max[0];
+                    let summaryText = `${dt.weather[currentCode] || 'Cuaca bervariasi'}. `;
+
+                    summaryText += `Embusan angin hari ini hingga <strong>${maxWind} km/j</strong>.`;
+                    hourlySummaryContainer.innerHTML = `<p>${summaryText}</p>`;
+                }
+
+                const now = new Date();
+                const endOfForecast = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+                const currentHour = now.getHours();
+
+                // 1. Buat daftar semua acara (per jam, matahari terbit, terbenam)
+                let timelineEvents = [];
+
+                // Tambahkan data prakiraan per jam
+                for (let i = 0; i < 24; i++) {
+                    const hourIndex = currentHour + i;
+                    if (hourIndex >= data.hourly.time.length) break;
+
+                    const date = new Date(data.hourly.time[hourIndex]);
+                    timelineEvents.push({
+                        type: 'hourly',
+                        date: date,
+                        temp: Math.round(data.hourly.temperature_2m[hourIndex]),
+                        code: data.hourly.weathercode[hourIndex],
+                        isNow: i === 0
+                    });
+                }
+
+                // Tambahkan acara matahari terbit/terbenam untuk hari ini dan besok
+                const todaySunrise = new Date(data.daily.sunrise[0]);
+                const todaySunset = new Date(data.daily.sunset[0]);
+                if (data.daily.sunrise[1]) {
+                    const tomorrowSunrise = new Date(data.daily.sunrise[1]);
+                    if (tomorrowSunrise > now && tomorrowSunrise < endOfForecast) {
+                        timelineEvents.push({ type: 'sunrise', date: tomorrowSunrise });
+                    }
+                }
+                if (todaySunrise > now && todaySunrise < endOfForecast) {
+                    timelineEvents.push({ type: 'sunrise', date: todaySunrise });
+                }
+                if (todaySunset > now && todaySunset < endOfForecast) {
+                    timelineEvents.push({ type: 'sunset', date: todaySunset });
+                }
+
+                // 2. Urutkan semua acara berdasarkan waktu
+                timelineEvents.sort((a, b) => a.date - b.date);
+
+                // 3. Render acara yang sudah diurutkan
+                const sunriseLabel = { id: 'Terbit', en: 'Sunrise', jp: '日の出' }[lang];
+                const sunsetLabel = { id: 'Terbenam', en: 'Sunset', jp: '日没' }[lang];
+
+                timelineEvents.forEach(event => {
+                    const item = document.createElement('div');
+                    const hour = event.date.getHours();
+                    const minutes = event.date.getMinutes().toString().padStart(2, '0');
+
+                    if (event.type === 'hourly') {
+                        // Logika ikon dinamis siang/malam
+                        const isNight = hour >= 19 || hour < 6;
+                        let icon = getWeatherIcon(event.code);
+                        let iconColorClass = 'text-white';
+
+                        if (isNight) {
+                            if (icon === 'sun') icon = 'moon';
+                            if (icon === 'cloud-sun') icon = 'cloud-moon';
+                        } else { // Day
+                            if (icon === 'sun') iconColorClass = 'text-yellow-300';
+                        }
+
+                        item.className = "flex flex-col items-center justify-between py-2 shrink-0 w-14 border-b-2 border-transparent hover:bg-white/5 rounded-lg transition-colors";
+                        const timeText = event.isNow ? (lang === 'en' ? 'Now' : 'Kini') : `${hour.toString().padStart(2, '0')}`;
+                        const textWeight = event.isNow ? 'font-bold text-white' : 'font-medium text-slate-300';
+                        if (event.isNow) item.classList.replace('border-transparent', 'border-blue-500');
+                        item.innerHTML = `<div class="text-xs ${textWeight}">${timeText}</div><i data-lucide="${icon}" class="w-6 h-6 ${iconColorClass} drop-shadow-lg my-1.5"></i><div class="text-lg font-bold text-white">${event.temp}°</div>`;
+                    } else { // Sunrise or Sunset
+                        const isSunrise = event.type === 'sunrise';
+                        item.className = "flex flex-col items-center justify-end py-2 shrink-0 w-20 text-center"; // Lebih lebar untuk teks
+                        item.innerHTML = `<div class="text-xs font-medium ${isSunrise ? 'text-yellow-300' : 'text-orange-400'} mb-2">${isSunrise ? sunriseLabel : sunsetLabel}</div><i data-lucide="${isSunrise ? 'sunrise' : 'sunset'}" class="w-7 h-7 ${isSunrise ? 'text-yellow-400' : 'text-orange-400'} drop-shadow-lg mb-2"></i><div class="text-lg font-bold text-white">${hour}:${minutes}</div>`;
+                    }
+                    hourlyContainer.appendChild(item);
+                });
+
+                lucide.createIcons();
+            }
+
             // --- FITUR BARU: 7-DAY FORECAST & FISHING RATING ---
             if(data.daily) {
                 const list = document.getElementById('forecast-list');
                 list.innerHTML = ''; // Clear
+
+                // Pre-calculate overall min/max temps for consistent bar scaling (iPhone style)
+                const allMinTemps = data.daily.temperature_2m_min.slice(0, 7);
+                const allMaxTemps = data.daily.temperature_2m_max.slice(0, 7);
+                const overallMinTemp = Math.min(...allMinTemps);
+                const overallMaxTemp = Math.max(...allMaxTemps);
+                const totalRange = (overallMaxTemp - overallMinTemp) || 1; // Avoid division by zero
                 
                 for(let i=0; i<7; i++) {
                     const date = new Date(data.daily.time[i]);
                     const dayName = i === 0 ? (lang === 'en' ? 'Today' : (lang === 'jp' ? '今日' : 'Hari Ini')) : dt.days[date.getDay()];
                     const maxTemp = Math.round(data.daily.temperature_2m_max[i]);
                     const minTemp = Math.round(data.daily.temperature_2m_min[i]);
-                    const rain = data.daily.precipitation_sum[i];
-                    const wind = data.daily.windspeed_10m_max[i];
                     const code = data.daily.weathercode[i];
 
-                    // Logika Sederhana Rating Mancing
-                    let fishRating = dt.rating.good;
-                    let fishColor = "text-emerald-400";
-                    
-                    if(wind > 20 || rain > 5) { fishRating = dt.rating.medium; fishColor = "text-yellow-400"; }
-                    if(wind > 30 || rain > 10 || code > 60) { fishRating = dt.rating.bad; fishColor = "text-red-400"; }
+                    // Calculate bar dimensions based on the overall range
+                    const leftOffset = ((minTemp - overallMinTemp) / totalRange) * 100;
+                    const barWidth = ((maxTemp - minTemp) / totalRange) * 100;
 
                     const item = document.createElement('div');
-                    item.className = "flex items-center justify-between bg-slate-800/30 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-slate-700/50 transition-colors";
+                    // A cleaner, row-based design inspired by iOS Weather
+                    item.className = "flex items-center justify-between py-3.5 px-2 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors group";
                     item.onclick = () => openDetailModal(i); // Tambahkan event klik
+
                     item.innerHTML = `
-                        <div class="flex items-center gap-3 w-1/3">
-                            <div class="text-xs font-bold text-slate-300">${dayName}</div>
+                        <div class="w-[25%] text-sm font-medium text-white truncate pr-2 group-hover:font-bold">${dayName}</div>
+                        <div class="w-[15%] flex justify-center">
+                            <i data-lucide="${getWeatherIcon(code)}" class="w-6 h-6 text-white drop-shadow-lg"></i>
                         </div>
-                        <div class="flex items-center gap-2 w-1/3 justify-center">
-                            <i data-lucide="${getWeatherIcon(code)}" class="w-4 h-4 text-blue-300"></i>
-                            <span class="text-xs font-bold">${maxTemp}° / ${minTemp}°</span>
-                        </div>
-                        <div class="flex flex-col items-end w-1/3">
-                            <span class="text-[10px] font-black uppercase ${fishColor}">${fishRating}</span>
-                            <span class="text-[10px] text-slate-500 flex items-center gap-1">
-                                <i data-lucide="wind" class="w-3 h-3"></i> ${wind} km/h
-                            </span>
+                        <div class="w-[60%] flex items-center gap-2 text-xs">
+                            <span class="text-slate-400 w-8 text-right">${minTemp}°</span>
+                            <div class="flex-1 h-1.5 bg-slate-800/80 rounded-full relative overflow-hidden shadow-inner">
+                                <div class="absolute h-full bg-gradient-to-r from-cyan-500 via-yellow-400 to-orange-500 rounded-full"
+                                     style="left: ${leftOffset.toFixed(2)}%; width: ${barWidth.toFixed(2)}%;">
+                                </div>
+                            </div>
+                            <span class="text-white w-8 text-left font-medium">${maxTemp}°</span>
                         </div>
                     `;
                     list.appendChild(item);
@@ -1057,15 +1185,32 @@
                 else if(instr === 'depart') { icon = "navigation"; actionText = "Mulai Perjalanan"; }
                 
                 const item = document.createElement('div');
-                item.className = "p-4 flex items-start gap-4 hover:bg-slate-800/50 transition-colors";
+                // Layout Timeline Modern
+                item.className = "relative pl-2 py-1 flex items-start gap-3 group";
+                
+                // Garis vertikal (Timeline)
+                const isLast = index === currentRouteSteps.length - 1;
+                const line = !isLast ? `<div class="absolute top-10 bottom-0 w-0.5 bg-slate-700 group-hover:bg-blue-500/50 transition-colors" style="left: 19px;"></div>` : '';
+
+                // Warna Icon Dinamis
+                let iconBg = "bg-slate-800 border-slate-700";
+                let iconColor = "text-slate-400";
+                
+                if(instr === 'depart') { iconBg = "bg-blue-500/20 border-blue-500/50"; iconColor = "text-blue-400"; }
+                else if(instr === 'arrive') { iconBg = "bg-emerald-500/20 border-emerald-500/50"; iconColor = "text-emerald-400"; }
+                else if(mod && (mod.includes('left') || mod.includes('right'))) { iconColor = "text-white"; }
+
                 item.innerHTML = `
-                    <div class="mt-1 bg-slate-800 p-2 rounded-full border border-white/5 shrink-0">
-                        <i data-lucide="${icon}" class="w-5 h-5 text-blue-400"></i>
+                    ${line}
+                    <div class="z-10 mt-1 ${iconBg} p-2 rounded-full border shrink-0 shadow-sm transition-all group-hover:scale-110 group-hover:shadow-blue-500/20">
+                        <i data-lucide="${icon}" class="w-4 h-4 ${iconColor}"></i>
                     </div>
-                    <div>
-                        <p class="font-bold text-white text-sm">${actionText}</p>
-                        <p class="text-xs text-slate-400 mt-0.5">${name}</p>
-                        <p class="text-[10px] text-slate-500 mt-1 font-mono bg-slate-900/50 inline-block px-1.5 py-0.5 rounded">${dist}</p>
+                    <div class="flex-1 bg-slate-800/30 p-3 rounded-xl border border-white/5 hover:bg-slate-800 hover:border-blue-500/30 transition-all">
+                        <div class="flex justify-between items-start mb-1">
+                            <p class="font-bold text-white text-sm leading-tight">${actionText}</p>
+                            <span class="text-[10px] font-mono text-slate-400 bg-black/20 px-1.5 py-0.5 rounded border border-white/5">${dist}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 line-clamp-2">${name}</p>
                     </div>
                 `;
                 list.appendChild(item);
@@ -1080,11 +1225,15 @@
         }
 
         function getWeatherIcon(code) {
-            if(code <= 3) return 'sun';
-            if(code <= 48) return 'cloud';
-            if(code <= 67) return 'cloud-drizzle';
-            if(code <= 82) return 'cloud-rain';
-            return 'cloud-lightning';
+            if (code === 0) return 'sun'; // Cerah
+            if (code >= 1 && code <= 2) return 'cloud-sun'; // Sedikit Berawan
+            if (code === 3) return 'cloud'; // Berawan
+            if (code >= 45 && code <= 48) return 'cloud-fog'; // Kabut
+            if (code >= 51 && code <= 67) return 'cloud-drizzle'; // Hujan Ringan
+            if (code >= 71 && code <= 77) return 'cloud-snow'; // Salju
+            if (code >= 80 && code <= 82) return 'cloud-rain'; // Hujan Deras
+            if (code >= 95) return 'cloud-lightning'; // Badai
+            return 'sun'; // Default
         }
 
         function closeLocationPanel() {
@@ -1274,7 +1423,30 @@
             // Default Chart
             switchChart('temp');
             
-            document.getElementById('weatherDetailModal').classList.remove('hidden');
+            const modal = document.getElementById('weatherDetailModal');
+            modal.classList.remove('hidden');
+            
+            // --- FIX: Tombol Close Floating (Pindah ke Body) ---
+            let closeBtn = document.getElementById('weather-floating-close');
+            if (!closeBtn) {
+                // Cari tombol asli di dalam modal
+                const originalBtn = modal.querySelector('button[onclick*="closeDetailModal"]');
+                if (originalBtn) {
+                    closeBtn = originalBtn;
+                    closeBtn.id = 'weather-floating-close';
+                    document.body.appendChild(closeBtn); // Pindah ke body agar bebas dari transform modal
+                    
+                    closeBtn.style.position = 'fixed';
+                    closeBtn.style.top = '20px';
+                    closeBtn.style.right = '20px';
+                    closeBtn.style.zIndex = '10000';
+                    closeBtn.className = "bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-full p-2 hover:bg-red-500/20 transition-all text-white";
+                }
+            }
+            if (closeBtn) {
+                closeBtn.classList.remove('hidden');
+            }
+            
             lucide.createIcons();
             initChartInteractivity();
         }
@@ -1469,6 +1641,8 @@
 
         function closeDetailModal() {
             document.getElementById('weatherDetailModal').classList.add('hidden');
+            const closeBtn = document.getElementById('weather-floating-close');
+            if(closeBtn) closeBtn.classList.add('hidden');
         }
 
         // --- FAVORITE SYSTEM ---
@@ -2293,10 +2467,36 @@
             }
 
             document.getElementById('spotDetailModal').classList.remove('hidden');
+            
+            // --- FIX: Tombol Close Spot Detail ---
+            const modal = document.getElementById('spotDetailModal');
+            let closeBtn = document.getElementById('spot-floating-close');
+            if (!closeBtn) {
+                const originalBtn = modal.querySelector('button[onclick*="closeSpotDetail"]');
+                if (originalBtn) {
+                    closeBtn = originalBtn;
+                    closeBtn.id = 'spot-floating-close';
+                    document.body.appendChild(closeBtn);
+                    
+                    closeBtn.style.position = 'fixed';
+                    closeBtn.style.top = '20px';
+                    closeBtn.style.right = '20px';
+                    closeBtn.style.zIndex = '10000';
+                    closeBtn.className = "bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-full p-2 hover:bg-red-500/20 transition-all text-white";
+                }
+            }
+            if (closeBtn) {
+                closeBtn.classList.remove('hidden');
+            }
+            
             lucide.createIcons();
         }
 
-        function closeSpotDetail() { document.getElementById('spotDetailModal').classList.add('hidden'); }
+        function closeSpotDetail() { 
+            document.getElementById('spotDetailModal').classList.add('hidden'); 
+            const closeBtn = document.getElementById('spot-floating-close');
+            if(closeBtn) closeBtn.classList.add('hidden');
+        }
 
         function addContribution() {
             if(currentDetailSpot) {
@@ -2869,9 +3069,18 @@
             const titleEl = document.getElementById('insight-title');
             const textEl = document.getElementById('insight-text');
             const iconEl = document.getElementById('insight-icon');
+
+            // --- NEW: Reposition the insight panel ---
+            // The user wants the insight box to appear above the hourly forecast.
+            // We find the hourly summary container and insert the insight panel right before it.
+            const hourlySummary = document.getElementById('hourly-summary-container');
+            if (hourlySummary && hourlySummary.parentNode) {
+                hourlySummary.parentNode.insertBefore(panel, hourlySummary);
+            }
             
             // Ensure panel is visible
             panel.classList.remove('hidden');
+            panel.classList.add('mb-3'); // Add margin to separate it from the content below
             
             // Default values if data not loaded
             if(!currentWeatherData || !currentWeatherData.current_weather) {
