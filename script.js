@@ -536,6 +536,45 @@
         // Langsung inisialisasi aplikasi (Bypass Login)
         setTimeout(() => initApp(), 100);
 
+        // --- AUTO RECONNECT HANDLER (Fitur Baru) ---
+        // Mendeteksi saat internet nyala kembali
+        window.addEventListener('online', () => {
+            console.log("Internet Connected: Refreshing Data...");
+            
+            // 1. Notifikasi Visual
+            const toast = document.createElement('div');
+            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] flex items-center gap-2 animate-bounce";
+            toast.innerHTML = `<i data-lucide="wifi" class="w-4 h-4"></i> Online: Memuat Ulang Data...`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+            lucide.createIcons();
+
+            // 2. Coba ambil ulang lokasi & cuaca jika sebelumnya gagal
+            getUserWeather();
+
+            // 3. Coba ambil ulang data spot dari Cloud (Google Sheets)
+            loadSpots();
+
+            // 4. Coba nyalakan ulang layer peta yang mungkin mati karena offline
+            loadLayerPreferences();
+            
+            // 5. Refresh tampilan peta (Tiles) agar bagian abu-abu hilang
+            if(typeof map !== 'undefined') {
+                map.eachLayer(layer => {
+                    if(layer._url) layer.redraw();
+                });
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            const toast = document.createElement('div');
+            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-400 px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[3000] flex items-center gap-2";
+            toast.innerHTML = `<i data-lucide="wifi-off" class="w-4 h-4"></i> Koneksi Terputus`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+            lucide.createIcons();
+        });
+
         function initApp() {
             // Set user default (Guest) agar fungsi penyimpanan tetap berjalan
             currentUser = { email: 'Guest', uid: 'guest_user' };
