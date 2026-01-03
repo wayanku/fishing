@@ -1315,7 +1315,7 @@ function updateWeatherUI(data) {
                     if (icon === 'sun') icon = 'moon';
                     if (icon === 'cloud-sun') icon = 'cloud-moon';
                 } else { // Day
-                    if (icon === 'sun') iconColorClass = 'text-yellow-300';
+                    if (icon === 'sun' || icon === 'cloud-sun') iconColorClass = 'text-yellow-300';
                 }
 
                 item.className = "flex flex-col items-center justify-between py-2 shrink-0 w-14 border-b-2 border-transparent hover:bg-white/5 rounded-lg transition-colors";
@@ -1379,7 +1379,7 @@ function updateWeatherUI(data) {
 
             // Dynamic Icon Color
             let iconColor = "text-white";
-            if(code <= 1) iconColor = "text-yellow-400";
+            if(code <= 2) iconColor = "text-yellow-400";
             else if(code >= 51) iconColor = "text-blue-400";
             else if(code === 3) iconColor = "text-slate-400";
 
