@@ -563,6 +563,7 @@
             loadSpots();
             setTimeout(initScrollDots, 500); // Init dots setelah layout render
             setTimeout(initTour, 1500); // Mulai tour otomatis untuk user baru
+            setTimeout(initCompass, 1000); // Inisialisasi Kompas Digital
         }
 
         function logout() {
@@ -1856,6 +1857,40 @@
             lucide.createIcons();
         }
 
+        // --- FITUR BARU: EKSPOR GPX (Untuk Fishfinder) ---
+        function exportFavoritesToGPX() {
+            const favs = JSON.parse(localStorage.getItem('favorites') || '[]');
+            if(favs.length === 0) {
+                alert("Belum ada spot favorit untuk diekspor.");
+                return;
+            }
+
+            let gpx = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<gpx version="1.1" creator="FishingSpotApp">`;
+
+            favs.forEach(spot => {
+                gpx += `
+  <wpt lat="${spot.lat}" lon="${spot.lng}">
+    <name>${(spot.name || 'Spot').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</name>
+    <desc>${spot.comment || 'Spot Mancing'}</desc>
+    <sym>Fishing Hot Spot Map Symbol</sym>
+  </wpt>`;
+            });
+
+            gpx += `
+</gpx>`;
+
+            const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fishing_spots_${new Date().toISOString().slice(0,10)}.gpx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
         // --- FAVORITES LIST FUNCTIONS ---
         function openFavorites() {
             const favs = JSON.parse(localStorage.getItem('favorites') || '[]');
@@ -1865,6 +1900,13 @@
             if(favs.length === 0) {
                 list.innerHTML = '<div class="text-center text-slate-500 py-8 flex flex-col items-center gap-2"><i data-lucide="heart-off" class="w-8 h-8 opacity-50"></i><p>Belum ada spot favorit.<br>Klik ikon hati pada detail spot untuk menyimpan.</p></div>';
             } else {
+                // Tambahkan Tombol Export GPX di atas list jika ada data
+                const exportBtn = document.createElement('button');
+                exportBtn.className = "w-full mb-4 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg";
+                exportBtn.innerHTML = '<i data-lucide="download" class="w-4 h-4"></i> Ekspor ke GPX (Garmin/GPS)';
+                exportBtn.onclick = exportFavoritesToGPX;
+                list.appendChild(exportBtn);
+
                 favs.forEach(spot => {
                     const item = document.createElement('div');
                     item.className = "bg-slate-800/50 p-3 rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer hover:bg-slate-700 transition-colors group";
@@ -2919,6 +2961,78 @@
 
         function closeMapSettings() {
             document.getElementById('mapSettingsModal').classList.add('translate-y-full');
+        }
+
+        // --- FITUR BARU: KOMPAS DIGITAL ---
+        function initCompass() {
+            // Cek agar tidak double render
+            if(document.getElementById('map-compass-control')) return;
+
+            const CompassControl = L.Control.extend({
+                options: { position: 'topright' },
+                onAdd: function(map) {
+                    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                    container.id = 'map-compass-control';
+                    container.style.backgroundColor = '#0f172a';
+                    container.style.border = '1px solid rgba(255,255,255,0.1)';
+                    container.style.borderRadius = '50%';
+                    container.style.width = '44px';
+                    container.style.height = '44px';
+                    container.style.display = 'flex';
+                    container.style.alignItems = 'center';
+                    container.style.justifyContent = 'center';
+                    container.style.cursor = 'pointer';
+                    container.style.marginTop = '80px'; // Turunkan posisi agar tidak tertutup search bar
+                    container.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                    
+                    // Ikon Kompas Custom (Jarum Merah = Utara)
+                    container.innerHTML = `
+                        <div id="compass-icon" class="transition-transform duration-300">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-md">
+                                <path d="M12 2L16 12H8L12 2Z" fill="#ef4444"/> <!-- Utara (Merah) -->
+                                <path d="M12 22L8 12H16L12 22Z" fill="#e2e8f0"/> <!-- Selatan (Putih) -->
+                                <circle cx="12" cy="12" r="2" fill="#0f172a"/>
+                                <text x="12" y="7.5" font-family="sans-serif" font-size="3.5" font-weight="900" fill="white" text-anchor="middle">N</text>
+                            </svg>
+                        </div>`;
+                    
+                    // Handler Klik (Penting untuk Izin iOS)
+                    container.onclick = function() {
+                        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                            // Khusus iOS 13+ (Butuh Izin User)
+                            DeviceOrientationEvent.requestPermission()
+                                .then(response => {
+                                    if (response === 'granted') {
+                                        window.addEventListener('deviceorientation', handleOrientation);
+                                        alert("Kompas Aktif! Putar HP Anda.");
+                                    } else {
+                                        alert("Izin Kompas Ditolak.");
+                                    }
+                                })
+                                .catch(console.error);
+                        } else {
+                            // Android / Browser Biasa
+                            window.addEventListener('deviceorientation', handleOrientation);
+                            alert("Kompas Diaktifkan (Jika sensor tersedia).");
+                        }
+                    };
+                    return container;
+                }
+            });
+            map.addControl(new CompassControl());
+            lucide.createIcons();
+        }
+
+        function handleOrientation(e) {
+            const icon = document.getElementById('compass-icon');
+            if(!icon) return;
+            
+            let heading = 0;
+            if(e.webkitCompassHeading) heading = e.webkitCompassHeading; // iOS
+            else if(e.alpha) heading = 360 - e.alpha; // Android (Fallback)
+            
+            // Putar ikon berlawanan arah heading agar jarum selalu menunjuk Utara
+            icon.style.transform = `rotate(${-heading}deg)`;
         }
 
         function setBaseMap(type) {
