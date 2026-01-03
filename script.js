@@ -59,7 +59,9 @@
                 'trending-up': '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
                 'trending-down': '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
                 'download': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
-                'heart-off': '<line x1="2" x2="22" y1="2" y2="22"/><path d="M16.5 16.5 12 21l-7-7c-1.5-1.45-3-3.2-3-5.5a5.5 5.5 0 0 1 2.14-4.35"/><path d="M8.76 3.1c1.1-.36 2.24-.27 3.24.44 1.5 1.05 2.74 2 4.5 2A5.5 5.5 0 0 1 21.5 11c0 2.12-.74 4.07-1.97 5.61"/>'
+                'heart-off': '<line x1="2" x2="22" y1="2" y2="22"/><path d="M16.5 16.5 12 21l-7-7c-1.5-1.45-3-3.2-3-5.5a5.5 5.5 0 0 1 2.14-4.35"/><path d="M8.76 3.1c1.1-.36 2.24-.27 3.24.44 1.5 1.05 2.74 2 4.5 2A5.5 5.5 0 0 1 21.5 11c0 2.12-.74 4.07-1.97 5.61"/>',
+                'radar': '<path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/>',
+                'ship': '<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9.33a2 2 0 0 0-.59-1.41l-5-5A2 2 0 0 0 13.33 2H4a2 2 0 0 0-2 2Z"/><path d="M8 12h8"/><path d="M8 16h8"/>'
             };
 
             window.lucide = {
@@ -3253,6 +3255,18 @@
                     <div class="flex justify-between text-[9px] text-slate-300 font-mono">
                         <span>Sedikit</span><span>Sedang</span><span>Subur</span>
                     </div>`;
+            } else if(type === 'sonar') {
+                content = `
+                    <h5 class="text-xs font-bold text-white mb-2 flex items-center gap-1"><i data-lucide="radar" class="w-3 h-3 text-emerald-400"></i> Legenda Peta Laut</h5>
+                    <div class="flex items-center gap-2 mb-1">
+                        <div class="w-3 h-3 bg-[#a3c6e6] border border-slate-400 rounded-sm"></div> <span class="text-[9px] text-slate-300">Laut Dangkal</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <div class="w-3 h-3 bg-[#1e4e79] border border-slate-400 rounded-sm"></div> <span class="text-[9px] text-slate-300">Laut Dalam</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <i data-lucide="activity" class="w-3 h-3 text-slate-400"></i> <span class="text-[9px] text-slate-300">Garis Kontur & Kedalaman</span>
+                    </div>`;
             }
             
             if(content) {
@@ -3290,6 +3304,10 @@
             // 1. Jika dimatikan (Uncheck)
             if(!isChecked) {
                 if(activeLayers[type]) {
+                    // Hapus handler klik jika ada (untuk radar kapal)
+                    if (activeLayers[type].getFeatureInfoHandler) {
+                        map.off('click', activeLayers[type].getFeatureInfoHandler);
+                    }
                     map.removeLayer(activeLayers[type]);
                     delete activeLayers[type];
                 }
@@ -3444,10 +3462,13 @@
 
             // SST (Sea Surface Temperature) LAYER - NASA GIBS (Free)
             if(type === 'sst') {
-                const dateStr = getGibsDate(3); // Data 3 hari lalu (biasanya sudah matang)
-                activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
-                    pane: 'gibsPane', // Gunakan pane khusus
-                    opacity: 0.5, // Sedikit lebih transparan agar peta dasar terlihat
+                // Ganti ke Data BULANAN (Monthly) agar pasti berwarna penuh (tidak ada celah data harian)
+                const d = new Date(); d.setMonth(d.getMonth() - 1); d.setDate(1); 
+                const dateStr = d.toISOString().split('T')[0];
+
+                activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_L3_Sea_Surface_Temperature_11u_4km_Month/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
+                    pane: 'gibsPane', // Wajib di pane khusus agar di atas Satelit
+                    opacity: 0.75,    // Diperjelas agar warna terlihat
                     maxNativeZoom: 9, // Batas zoom asli tiles NASA
                     maxZoom: 20,      // Izinkan zoom lebih dalam (stretch)
                     attribution: 'NASA GIBS'
@@ -3465,7 +3486,7 @@
                 
                 activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_L3_Chlorophyll_a_4km_Month/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
                     pane: 'gibsPane', // Gunakan pane khusus
-                    opacity: 0.6,
+                    opacity: 0.75,    // Diperjelas
                     maxNativeZoom: 9,
                     maxZoom: 20,
                     attribution: 'NASA GIBS'
@@ -3479,7 +3500,10 @@
             if(type === 'bathymetry') {
                 // Gunakan Esri Ocean Basemap sebagai Overlay (Semi-Transparan) - Lebih cepat & detail
                 activeLayers[type] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
-                    opacity: 0.5,
+                    pane: 'gibsPane', // FIX: Paksa layer ini di atas peta dasar (Satelit)
+                    opacity: 0.7,     // Agak tebal agar kontur kedalaman terlihat jelas
+                    maxNativeZoom: 10, // PENTING: Paksa ambil tiles dari zoom 10 saat di-zoom in (agar tidak hilang)
+                    maxZoom: 20,       // Izinkan stretch sampai zoom 20
                     attribution: 'Esri Ocean'
                 }).addTo(map);
 
@@ -3489,6 +3513,111 @@
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
                 lucide.createIcons();
+                return;
+            }
+
+            // SONAR MAP (New Feature: Struktur + Heatmap Ikan)
+            if(type === 'sonar') {
+                const layers = [];
+                
+                // 1. Base Layer: Esri Ocean (High Contrast untuk Struktur)
+                if(!map.getPane('sonarPane')) {
+                    map.createPane('sonarPane');
+                    map.getPane('sonarPane').style.zIndex = 220; // Di atas base map biasa
+                    // Hapus filter gelap agar terlihat seperti Peta Laut (Chart) asli yang terang/jelas
+                    // map.getPane('sonarPane').style.filter = 'contrast(1.2) saturate(1.2) brightness(0.9)'; 
+                }
+                
+                // Layer 1: Base (Warna Dasar Laut & Daratan)
+                const base = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+                    pane: 'sonarPane',
+                    opacity: 1.0,
+                    maxNativeZoom: 10,
+                    maxZoom: 20,
+                    attribution: 'Esri Ocean'
+                });
+                layers.push(base);
+
+                // Layer 2: Reference (Garis Kontur, Label Kedalaman, Nama Karang) - INI KUNCINYA
+                const ref = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {
+                    pane: 'sonarPane',
+                    opacity: 1.0,
+                    maxNativeZoom: 10,
+                    maxZoom: 20
+                });
+                layers.push(ref);
+
+                // Layer 3: Nautical Chart Overlay (Buoy, Lampu, Rambu Laut)
+                const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+                    pane: 'sonarPane', // Tumpuk di pane yang sama
+                    opacity: 1.0, 
+                    attribution: 'OpenSeaMap'
+                });
+                layers.push(seamark);
+
+                activeLayers[type] = L.layerGroup(layers).addTo(map);
+                
+                showLegend('sonar');
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="radar" class="w-4 h-4 text-emerald-400"></i> Peta Laut (Chart) Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+            }
+
+            // LIVE SHIP RADAR (AIS)
+            if(type === 'ship_radar') {
+                if(!map.getPane('shipPane')) {
+                    map.createPane('shipPane');
+                    map.getPane('shipPane').style.zIndex = 450; // Di atas peta, di bawah marker
+                }
+
+                const wmsLayer = L.tileLayer.wms('https://wwws.marinetraffic.com/services/wms/wms.aspx', {
+                    layers: 'SHIPINFO', // Layer untuk kapal
+                    format: 'image/png',
+                    transparent: true,
+                    pane: 'shipPane',
+                    attribution: '© MarineTraffic'
+                }).addTo(map);
+
+                activeLayers[type] = wmsLayer;
+
+                // Handler untuk GetFeatureInfo (klik kapal)
+                const getFeatureInfoHandler = (e) => {
+                    // Jangan trigger jika klik pada marker yang sudah ada
+                    if (e.originalEvent.target.closest('.leaflet-marker-icon')) return;
+
+                    const mapSize = map.getSize();
+                    const bounds = map.getBounds();
+                    const sw = bounds.getSouthWest();
+                    const ne = bounds.getNorthEast();
+
+                    const params = { request: 'GetFeatureInfo', service: 'WMS', srs: 'EPSG:4326', styles: '', transparent: true, version: '1.1.1', format: 'image/png', bbox: `${sw.lng},${sw.lat},${ne.lng},${ne.lat}`, height: mapSize.y, width: mapSize.x, layers: 'SHIPINFO', query_layers: 'SHIPINFO', info_format: 'text/html' };
+                    const point = map.latLngToContainerPoint(e.latlng, map.getZoom());
+                    params.x = Math.round(point.x);
+                    params.y = Math.round(point.y);
+
+                    const url = 'https://wwws.marinetraffic.com/services/wms/wms.aspx' + L.Util.getParamString(params, 'https://wwws.marinetraffic.com/services/wms/wms.aspx');
+                    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+
+                    const popup = L.popup().setLatLng(e.latlng).setContent('<p class="animate-pulse">Mencari info kapal...</p>').openOn(map);
+
+                    fetch(proxyUrl)
+                        .then(response => response.text())
+                        .then(html => {
+                            if (html && !html.includes('bbox') && html.trim().length > 10) {
+                                const bodyContentMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+                                let cleanHtml = bodyContentMatch ? bodyContentMatch[1] : html;
+                                cleanHtml = cleanHtml.replace(/<link[^>]*>/g, '').replace(/<style[^>]*>[\s\S]*?<\/style>/g, '').replace(/<img[^>]*>/g, '').replace(/<a[^>]*>/g, '<span>').replace(/<\/a>/g, '</span>');
+                                popup.setContent(`<div class="ship-info-popup">${cleanHtml}</div>`);
+                            } else {
+                                map.closePopup(popup); // Tutup popup jika tidak ada info
+                            }
+                        })
+                        .catch(error => { console.error('GetFeatureInfo error:', error); popup.setContent('<p>Gagal mengambil data kapal.</p>'); });
+                };
+
+                // Simpan handler agar bisa dihapus nanti
+                wmsLayer.getFeatureInfoHandler = getFeatureInfoHandler;
+                map.on('click', getFeatureInfoHandler);
+
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="ship" class="w-4 h-4 text-red-400"></i> Radar Kapal Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons();
                 return;
             }
 
