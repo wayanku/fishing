@@ -12,6 +12,7 @@ let wxIsDay = true;
 let wxCode = 0;
 let stars = [];
 let moonPhase = 0.5; // 0.0 - 1.0
+let wxLocalHour = new Date().getHours(); // Jam lokal lokasi terpilih
 
 // --- NEW: Inject SVG Filters & CSS for Realistic Clouds ---
 function initCloudAssets() {
@@ -218,10 +219,9 @@ class Cloud {
 
 function drawSkyBackground() {
     if (!ctx || !canvas) return;
-    // if (!ctx || !canvas) return; // Tidak perlu canvas context untuk background div
     
     // --- NEW: Gradasi Langit Natural (iPhone Style) ---
-    const h = new Date().getHours();
+    const h = wxLocalHour; 
     let top, bot;
 
     if (wxCode >= 95) { // Badai (Sangat Gelap)
@@ -230,19 +230,12 @@ function drawSkyBackground() {
         if(h >= 6 && h < 18) { top = "#475569"; bot = "#94a3b8"; } // Siang Kelabu
         else { top = "#0f172a"; bot = "#334155"; } // Malam Kelabu
     } else {
-        // Cuaca Cerah / Berawan Ringan (Warna-warni sesuai jam)
-        if (h >= 5 && h < 7) { // Subuh/Sunrise (Biru ke Emas)
-            top = "#1e3a8a"; bot = "#fbbf24"; 
-        } else if (h >= 7 && h < 10) { // Pagi (Biru Cerah)
-            top = "#3b82f6"; bot = "#bae6fd"; 
-        } else if (h >= 10 && h < 16) { // Siang (Biru Langit)
-            top = "#0ea5e9"; bot = "#7dd3fc"; 
-        } else if (h >= 16 && h < 19) { // Sore/Sunset (Ungu ke Oranye)
-            top = "#4338ca"; bot = "#f97316"; 
-        }
-        else { // Malam (Hitam ke Biru Malam)
-            top = "#020617"; bot = "#1e293b"; 
-        }
+        // Cuaca Cerah / Berawan Ringan
+        if (h >= 5 && h < 7) { top = "#1e3a8a"; bot = "#fbbf24"; } 
+        else if (h >= 7 && h < 10) { top = "#3b82f6"; bot = "#bae6fd"; } 
+        else if (h >= 10 && h < 16) { top = "#0ea5e9"; bot = "#7dd3fc"; } 
+        else if (h >= 16 && h < 19) { top = "#4338ca"; bot = "#f97316"; } 
+        else { top = "#020617"; bot = "#1e293b"; } 
     }
 
     const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -250,7 +243,7 @@ function drawSkyBackground() {
     grd.addColorStop(1, bot);
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // FIX: Terapkan gradasi ke DIV background, bukan Canvas (agar canvas transparan & awan terlihat)
+    
     const sky = document.getElementById('sky-gradient');
     if(sky) sky.style.background = `linear-gradient(to bottom, ${top}, ${bot})`;
 }
@@ -258,7 +251,7 @@ function drawSkyBackground() {
 function drawCelestialBodies() {
     if (!ctx) return;
     // Draw Stars (Night only, if not heavy storm)
-    const h = new Date().getHours();
+    const h = wxLocalHour; // Gunakan jam lokal lokasi
     const isNightTime = h >= 19 || h < 5; // Jam malam visual
 
     if (isNightTime && wxCode < 60) {
@@ -466,9 +459,10 @@ function getUserWeather() {
 
 async function fetchUserWeather(lat, lng) {
     try {
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&timezone=auto`);
         const data = await res.json();
         if(data.current_weather) {
+            if(data.current_weather.time) wxLocalHour = parseInt(data.current_weather.time.split('T')[1].split(':')[0]);
             const temp = Math.round(data.current_weather.temperature);
             currentUserWeatherCode = data.current_weather.weathercode;
             currentUserWindSpeed = data.current_weather.windspeed;
@@ -537,9 +531,11 @@ async function showLocationPanel(latlng) {
         currentWeatherData.current_weather) {
         
         const wx = currentWeatherData.current_weather;
+        if(wx.time) wxLocalHour = parseInt(wx.time.split('T')[1].split(':')[0]); // Update jam dari cache
         checkWeatherAnimation(wx.weathercode, wx.windspeed, wx.is_day);
     } else {
         // Lokasi baru / belum ada data: Gunakan estimasi waktu sistem & cerah
+        wxLocalHour = sysHour; // Reset ke jam sistem sementara loading
         wxIsDay = initIsDay;
         wxCode = 0;
         startWeatherEffect('clear');
@@ -863,6 +859,9 @@ function getMoonPhaseValue(date) {
 function updateWeatherUI(data) {
     if(!data || !data.current_weather) return;
     
+    // Update Jam Lokal dari Data API
+    if(data.current_weather.time) wxLocalHour = parseInt(data.current_weather.time.split('T')[1].split(':')[0]);
+
     const lang = localStorage.getItem('appLang') || 'id';
     const dt = dynamicTranslations[lang];
 
