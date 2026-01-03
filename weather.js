@@ -13,6 +13,7 @@ let wxCode = 0;
 let stars = [];
 let moonPhase = 0.5; // 0.0 - 1.0
 let wxLocalHour = new Date().getHours(); // Jam lokal lokasi terpilih
+let lastSkyGradient = ''; // Cache untuk mencegah redraw background berlebihan
 
 // --- NEW: Inject SVG Filters & CSS for Realistic Clouds ---
 function initCloudAssets() {
@@ -185,19 +186,24 @@ class Splash {
 class SnowFlake {
     constructor() { 
         if(!canvas) return; 
-        // FIX: Perluas area spawn (lebar layar + 800px) agar saat berayun (400px) layar tidak kosong
-        this.initialX = Math.random() * (canvas.width + 800) - 400;
-        this.initialY = Math.random() * canvas.height;
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
         this.radius = Math.random() * 3 + 0.5;
         this.color = ['#ccc', '#eee', '#fff', '#ddd'][Math.floor(Math.random() * 4)];
-        this.radians = Math.random() * 80;
-        this.velocity = 0.005;
+        this.radians = Math.random() * Math.PI * 2;
+        this.velocity = 0.02;
+        this.fallSpeed = 1 + Math.random() * 2;
     }
     update() { 
         if(!canvas) return; 
         this.radians += this.velocity;
-        this.x = this.initialX + Math.cos(this.radians) * 400;
-        this.y = this.initialY + Math.tan(this.radians) * 600;
+        this.x += Math.sin(this.radians) * 0.5; // Gerakan mengayun ringan
+        this.y += this.fallSpeed; // Jatuh ke bawah
+        
+        if (this.y > canvas.height) {
+            this.y = -10;
+            this.x = Math.random() * canvas.width;
+        }
     }
     draw() { if(!ctx) return; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); ctx.closePath(); }
 }
@@ -284,11 +290,13 @@ function drawSkyBackground() {
         else { top = "#020617"; bot = "#1e293b"; } 
     }
 
-    // FIX: Jangan gambar di canvas (biarkan transparan untuk awan), update div background saja
-    // ctx.fillRect(0, 0, canvas.width, canvas.height); <--- HAPUS INI
-    
-    const sky = document.getElementById('sky-gradient');
-    if(sky) sky.style.background = `linear-gradient(to bottom, ${top}, ${bot})`;
+    // OPTIMISASI: Hanya update DOM jika warna berubah (Mencegah Lag/Patah-patah)
+    const newGradient = `linear-gradient(to bottom, ${top}, ${bot})`;
+    if (lastSkyGradient !== newGradient) {
+        const sky = document.getElementById('sky-gradient');
+        if(sky) sky.style.background = newGradient;
+        lastSkyGradient = newGradient;
+    }
 }
 
 function drawCelestialBodies() {
@@ -406,7 +414,7 @@ function startWeatherEffect(type) {
     canvas.style.pointerEvents = "none";
 
     if (type === 'rain') for (let i = 0; i < 150; i++) particles.push(new RainDrop());
-    else if (type === 'snow') for (let i = 0; i < 1500; i++) particles.push(new SnowFlake()); // Tambah jumlah partikel
+    else if (type === 'snow') for (let i = 0; i < 200; i++) particles.push(new SnowFlake()); // Optimasi: Kurangi jumlah partikel agar ringan
     else if (type === 'wind') for (let i = 0; i < 10; i++) particles.push(new WindLine());
     else if (type === 'storm') {
         for (let i = 0; i < 200; i++) particles.push(new RainDrop());
