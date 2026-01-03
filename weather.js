@@ -372,6 +372,26 @@ async function showLocationPanel(latlng) {
     document.getElementById('wx-score').innerText = "--%";
     document.getElementById('forecast-list').innerHTML = `<div class="text-center text-xs text-slate-500 py-4">${dt.loading}</div>`;
     
+    // --- FIX: Tampilkan Latar Langit Dulu Sebelum Panel Muncul ---
+    // Agar tidak terlihat peta yang "berantakan" di bawah panel transparan
+    const sysHour = new Date().getHours();
+    let initIsDay = (sysHour >= 6 && sysHour < 18);
+
+    // Cek apakah data yang ada di memori relevan dengan lokasi yang dibuka
+    if (currentWeatherData && currentWeatherData.latitude && 
+        Math.abs(currentWeatherData.latitude - latlng.lat) < 0.01 && 
+        Math.abs(currentWeatherData.longitude - latlng.lng) < 0.01 &&
+        currentWeatherData.current_weather) {
+        
+        const wx = currentWeatherData.current_weather;
+        checkWeatherAnimation(wx.weathercode, wx.windspeed, wx.is_day);
+    } else {
+        // Lokasi baru / belum ada data: Gunakan estimasi waktu sistem & cerah
+        wxIsDay = initIsDay;
+        wxCode = 0;
+        startWeatherEffect('clear');
+    }
+
     // Tampilkan Panel
     panel.classList.remove('translate-y-full');
     
