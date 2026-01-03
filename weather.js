@@ -3,6 +3,7 @@
 const canvas = document.getElementById('weather-canvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 let particles = [];
+let clouds = []; // Array untuk awan
 let animationFrameId = null;
 let wxInterval = null;
 let currentWxType = null;
@@ -93,30 +94,89 @@ class WindLine {
     }
 }
 
+// --- NEW: Cloud Class untuk Awan Bergerak ---
+class Cloud {
+    constructor() {
+        this.reset();
+        this.x = Math.random() * canvas.width; // Posisi awal acak
+    }
+
+    reset() {
+        this.x = -300;
+        this.y = Math.random() * (canvas.height * 0.35); // Area langit atas
+        this.speed = 0.15 + Math.random() * 0.25; // Gerakan lambat
+        this.scale = 0.6 + Math.random() * 0.8; // Variasi ukuran
+        this.opacity = 0.6 + Math.random() * 0.3; 
+        
+        this.puffs = [];
+        // Buat bentuk awan yang lebih kompleks (elongated)
+        const count = 5 + Math.floor(Math.random() * 6);
+        for(let i=0; i<count; i++) {
+            this.puffs.push({
+                x: (Math.random() - 0.5) * 200 * this.scale,
+                y: (Math.random() - 0.5) * 50 * this.scale,
+                r: (40 + Math.random() * 30) * this.scale
+            });
+        }
+    }
+
+    update() {
+        if(!canvas) return;
+        this.x += this.speed;
+        if(this.x > canvas.width + 300) this.reset();
+    }
+
+    draw() {
+        if(!ctx) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        
+        // Efek Blur agar terlihat seperti kapas/asap (Natural)
+        ctx.filter = 'blur(20px)'; 
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+        
+        ctx.beginPath();
+        this.puffs.forEach(p => {
+            ctx.moveTo(p.x + p.r, p.y);
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        });
+        ctx.fill();
+        
+        ctx.restore();
+    }
+}
+
 function drawSkyBackground() {
     if (!ctx || !canvas) return;
-    // Dynamic Gradient based on Weather & Time
-    let topColor, bottomColor;
+    
+    // --- NEW: Gradasi Langit Natural (iPhone Style) ---
+    const h = new Date().getHours();
+    let top, bot;
 
-    if (wxIsDay) {
-        if (wxCode <= 1) { // Clear
-            topColor = "#3b82f6"; bottomColor = "#93c5fd";
-        } else if (wxCode <= 3) { // Cloudy
-            topColor = "#64748b"; bottomColor = "#94a3b8";
-        } else { // Rain/Storm
-            topColor = "#334155"; bottomColor = "#475569";
-        }
+    if (wxCode >= 95) { // Badai (Sangat Gelap)
+        top = "#020617"; bot = "#1e1b4b"; 
+    } else if (wxCode >= 51 || wxCode === 3) { // Hujan / Mendung Tebal
+        if(h >= 6 && h < 18) { top = "#475569"; bot = "#94a3b8"; } // Siang Kelabu
+        else { top = "#0f172a"; bot = "#334155"; } // Malam Kelabu
     } else {
-        if (wxCode <= 1) { // Clear Night
-            topColor = "#0f172a"; bottomColor = "#1e293b";
-        } else { // Cloudy/Rain Night
-            topColor = "#020617"; bottomColor = "#1e293b";
+        // Cuaca Cerah / Berawan Ringan (Warna-warni sesuai jam)
+        if (h >= 5 && h < 7) { // Subuh/Sunrise (Biru ke Emas)
+            top = "#1e3a8a"; bot = "#fbbf24"; 
+        } else if (h >= 7 && h < 10) { // Pagi (Biru Cerah)
+            top = "#3b82f6"; bot = "#bae6fd"; 
+        } else if (h >= 10 && h < 16) { // Siang (Biru Langit)
+            top = "#0ea5e9"; bot = "#7dd3fc"; 
+        } else if (h >= 16 && h < 19) { // Sore/Sunset (Ungu ke Oranye)
+            top = "#4338ca"; bot = "#f97316"; 
+        }
+        else { // Malam (Hitam ke Biru Malam)
+            top = "#020617"; bot = "#1e293b"; 
         }
     }
 
     const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grd.addColorStop(0, topColor);
-    grd.addColorStop(1, bottomColor);
+    grd.addColorStop(0, top);
+    grd.addColorStop(1, bot);
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
@@ -124,7 +184,10 @@ function drawSkyBackground() {
 function drawCelestialBodies() {
     if (!ctx) return;
     // Draw Stars (Night only, if not heavy storm)
-    if (!wxIsDay && wxCode < 60) {
+    const h = new Date().getHours();
+    const isNightTime = h >= 19 || h < 5; // Jam malam visual
+
+    if (isNightTime && wxCode < 60) {
         ctx.fillStyle = "white";
         stars.forEach(star => {
             ctx.globalAlpha = star.alpha;
@@ -139,7 +202,7 @@ function drawCelestialBodies() {
     }
 
     // Draw Sun (Day & Clear/Partly Cloudy)
-    if (wxIsDay && wxCode <= 3) {
+    if (!isNightTime && wxCode <= 3) {
         // Sun Position: Top Left (as requested for Moon, keeping consistent or mirrored)
         // Let's put Sun Top Left as well to match the "corner" request
         const sunX = 60; 
@@ -158,7 +221,7 @@ function drawCelestialBodies() {
     }
 
     // Draw Moon (Night)
-    if (!wxIsDay) {
+    if (isNightTime) {
         const moonX = 60; // Top Left
         const moonY = 80;
         const radius = 25;
@@ -202,7 +265,10 @@ function animate() {
     drawSkyBackground();
     drawCelestialBodies();
 
-    // 2. Draw Particles
+    // 2. Draw Clouds (Awan)
+    clouds.forEach(c => { c.update(); c.draw(); });
+
+    // 3. Draw Particles (Hujan/Salju)
     particles = particles.filter(p => !p.isDead);
     for (const p of particles) { p.update(); p.draw(); }
 
@@ -224,6 +290,7 @@ function startWeatherEffect(type) {
     
     stopWeatherEffect();
     currentWxType = type;
+    clouds = []; // Reset awan
 
     // Pastikan canvas muncul di BELAKANG panel text (2147483640) tapi DI ATAS peta
     canvas.style.zIndex = "2147483639"; 
@@ -236,6 +303,13 @@ function startWeatherEffect(type) {
         for (let i = 0; i < 200; i++) particles.push(new RainDrop());
         storm = { flashOpacity: 0 };
     }
+    
+    // Tambahkan Awan jika cuaca mendukung (Berawan/Hujan/Salju)
+    // Kode: 1,2,3 (Cloudy), 45,48 (Fog), 51+ (Rain/Snow)
+    if ([1, 2, 3, 45, 48].includes(wxCode) || wxCode >= 51) {
+        const cloudCount = (wxCode >= 51 || wxCode === 3) ? 8 : 5; // Lebih banyak jika hujan/mendung
+        for(let i=0; i<cloudCount; i++) clouds.push(new Cloud());
+    }
 
     if (!animationFrameId) animate();
 }
@@ -243,6 +317,7 @@ function startWeatherEffect(type) {
 function stopWeatherEffect() {
     if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     particles = [];
+    clouds = [];
     storm = null;
     currentWxType = null;
     if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -428,6 +503,18 @@ async function showLocationPanel(latlng) {
         child.style.setProperty('backdrop-filter', 'none', 'important'); // Hapus efek blur pada anak elemen
         child.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
         child.style.setProperty('box-shadow', 'none', 'important');
+    });
+
+    // FIX: Style Kartu Grid (Angin, Ombak, dll) agar kontras di siang hari
+    // Berikan latar belakang gelap transparan pada kartu agar teks putih terbaca jelas
+    const detailCards = panel.querySelectorAll('[onclick*="showMetricInsight"]');
+    detailCards.forEach(card => {
+        card.style.setProperty('background-color', 'rgba(15, 23, 42, 0.4)', 'important'); 
+        card.style.setProperty('backdrop-filter', 'blur(4px)', 'important');
+        card.style.setProperty('-webkit-backdrop-filter', 'blur(4px)', 'important');
+        card.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.1)', 'important');
+        card.style.setProperty('border-radius', '1rem', 'important'); // Rounded-xl
+        card.style.setProperty('box-shadow', '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 'important');
     });
 
     // --- CLEANUP: Hapus elemen navigasi ganda (Garis & Tombol X) ---
@@ -716,7 +803,7 @@ function updateWeatherUI(data) {
         if (!header) {
             header = document.createElement('div');
             header.id = 'new-weather-header';
-            header.className = 'flex flex-col items-center text-white pt-4 pb-6 px-4 text-center';
+            header.className = 'flex flex-col items-center text-white pt-4 pb-6 px-4 text-center drop-shadow-md';
             header.innerHTML = `
                 <div class="flex items-center justify-center gap-2 w-full mb-1">
                     <i data-lucide="map-pin" class="w-5 h-5 text-white/80 shrink-0"></i>
@@ -1903,4 +1990,3 @@ function showMetricInsight(type) {
     iconEl.setAttribute('data-lucide', icon);
     lucide.createIcons();
 }
-
