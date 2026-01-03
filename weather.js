@@ -22,7 +22,7 @@ function initCloudAssets() {
     const assets = document.createElement('div');
     assets.id = 'cloud-assets';
     assets.innerHTML = `
-        <div id="sky-gradient" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:2147483637; pointer-events:none; transition: background 1s ease;"></div>
+        <div id="sky-gradient" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:2147483637; pointer-events:none;"></div>
         <svg width="0" height="0" style="position:absolute; z-index:-1;">
             <filter id="filter-base">
                 <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="5" seed="8517" />     
@@ -431,6 +431,9 @@ function startWeatherEffect(type) {
         const cloudCount = (wxCode >= 51 || wxCode === 3 || ['rain', 'storm'].includes(type)) ? 8 : 5; 
         for(let i=0; i<cloudCount; i++) clouds.push(new Cloud(isDark));
     }
+    
+    // FIX: Force render background immediately to prevent transparency
+    drawSkyBackground();
 
     if (!animationFrameId) animate();
 }
@@ -447,6 +450,7 @@ function stopWeatherEffect() {
     // Reset Sky Gradient agar peta terlihat kembali saat panel ditutup
     const sky = document.getElementById('sky-gradient');
     if(sky) sky.style.background = 'transparent';
+    lastSkyGradient = ''; // FIX: Reset cache agar saat dibuka kembali background langsung dirender ulang
 
     if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
     if(canvas) canvas.style.zIndex = "-1"; // Reset z-index saat stop
@@ -698,7 +702,7 @@ async function showLocationPanel(latlng) {
     }
 
     detailCards.forEach(card => {
-        card.style.setProperty('background-color', 'rgba(15, 23, 42, 0.4)', 'important'); 
+        card.style.setProperty('background-color', 'rgba(15, 23, 42, 0.85)', 'important'); 
         card.style.setProperty('backdrop-filter', 'blur(4px)', 'important');
         card.style.setProperty('-webkit-backdrop-filter', 'blur(4px)', 'important');
         card.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.1)', 'important');
@@ -1111,7 +1115,7 @@ function updateWeatherUI(data) {
 
         // --- MODIFIED: Gabungkan kembali ke dalam satu Wrapper Card ---
         const hourlyCard = document.createElement('div');
-        hourlyCard.className = "mx-0 mb-8 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
+        hourlyCard.className = "mx-0 mb-8 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
         if(parentNode) parentNode.insertBefore(hourlyCard, referenceNode.nextSibling);
 
         // 1. Summary Container (Header Kartu)
@@ -1368,7 +1372,7 @@ function updateWeatherUI(data) {
         }
 
         const list = document.getElementById('forecast-list');
-        list.className = "mx-0 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 p-2 shadow-lg"; // Style Kartu 7 Hari (Lebar Penuh)
+        list.className = "mx-0 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 p-2 shadow-lg"; // Style Kartu 7 Hari (Lebar Penuh)
         list.innerHTML = ''; // Clear
 
         // --- RESTORED: Judul Header Kartu 7 Hari (Internal) ---
