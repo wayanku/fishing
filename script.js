@@ -700,6 +700,47 @@
             
             // Tampilkan Panel
             panel.classList.remove('translate-y-full');
+            
+            // FIX: Tampilan Penuh (Full Page) - Paksa Style via JS untuk override CSS class
+            panel.style.setProperty('height', '100vh', 'important');
+            panel.style.setProperty('width', '100vw', 'important');
+            panel.style.setProperty('top', '0', 'important');
+            panel.style.setProperty('left', '0', 'important');
+            panel.style.setProperty('right', '0', 'important');
+            panel.style.setProperty('bottom', '0', 'important');
+            panel.style.setProperty('position', 'fixed', 'important');
+            panel.style.setProperty('z-index', '2147483647', 'important'); // Max Z-Index (Tertinggi yang mungkin)
+            panel.style.setProperty('border-radius', '0', 'important');
+            panel.style.setProperty('max-height', 'none', 'important');
+            panel.style.setProperty('max-width', 'none', 'important'); // Override batasan lebar di laptop
+            panel.style.setProperty('margin', '0', 'important');
+            panel.style.setProperty('overflow-y', 'auto', 'important');
+            panel.style.setProperty('background-color', '#0f172a', 'important'); // Pastikan background solid (Slate-900)
+            panel.style.setProperty('padding-bottom', '80px', 'important'); // Tambahan padding bawah agar konten paling bawah tidak mentok
+            
+            // FIX: Hapus lengkungan pada elemen anak (konten dalam panel)
+            Array.from(panel.children).forEach(child => {
+                child.style.setProperty('border-radius', '0', 'important');
+                child.style.setProperty('max-height', 'none', 'important'); // CRITICAL: Hapus batasan tinggi wrapper
+                child.style.setProperty('height', 'auto', 'important'); // Biarkan konten memanjang
+                child.style.setProperty('min-height', '100%', 'important');
+                child.classList.remove('rounded-t-[2rem]', 'rounded-t-3xl', 'rounded-2xl', 'rounded-3xl', 'overflow-hidden');
+            });
+
+            // Tambahkan tombol Close/Kembali di pojok kiri atas agar user bisa keluar
+            let closeBtn = document.getElementById('panel-close-btn');
+            if (!closeBtn) {
+                closeBtn = document.createElement('button');
+                closeBtn.id = 'panel-close-btn';
+                closeBtn.className = 'fixed top-4 left-4 z-[2147483647] p-2 bg-black/20 hover:bg-black/40 rounded-full text-white backdrop-blur-sm transition-colors';
+                closeBtn.innerHTML = '<i data-lucide="chevron-left" class="w-6 h-6"></i>';
+                closeBtn.onclick = closeLocationPanel;
+                document.body.appendChild(closeBtn);
+                lucide.createIcons();
+            }
+            closeBtn.classList.remove('hidden');
+            
+            panel.classList.remove('rounded-t-[2rem]', 'rounded-t-3xl', 'rounded-2xl', 'rounded-3xl', 'max-h-[85vh]', 'h-auto');
 
             // 1. HITUNG RUTE & WAKTU (OSRM Routing)
             if(userLatlng) {
@@ -1282,6 +1323,8 @@
 
         function closeLocationPanel() {
             document.getElementById('location-panel').classList.add('translate-y-full');
+            const closeBtn = document.getElementById('panel-close-btn');
+            if(closeBtn) closeBtn.classList.add('hidden');
             
             stopWeatherEffect(); // Matikan total animasi saat panel ditutup
         }
@@ -1292,6 +1335,7 @@
         const solunarTranslations = { id: "Aktivitas Ikan", en: "Fish Activity", jp: "魚の活性" };
 
         function openDetailModal(dayIndex) {
+            closeLocationPanel();
             if(!currentWeatherData || !currentWeatherData.hourly) return;
             
             currentDayIndex = dayIndex;
@@ -1469,6 +1513,35 @@
             
             const modal = document.getElementById('weatherDetailModal');
             modal.classList.remove('hidden');
+            modal.classList.remove('translate-y-full');
+            
+            // FIX: Tampilan Penuh (Full Page) - Paksa Style via JS
+            modal.style.setProperty('height', '100vh', 'important');
+            modal.style.setProperty('width', '100vw', 'important');
+            modal.style.setProperty('top', '0', 'important');
+            modal.style.setProperty('left', '0', 'important');
+            modal.style.setProperty('right', '0', 'important');
+            modal.style.setProperty('bottom', '0', 'important');
+            modal.style.setProperty('position', 'fixed', 'important');
+            modal.style.setProperty('z-index', '2147483647', 'important');
+            modal.style.setProperty('border-radius', '0', 'important');
+            modal.style.setProperty('max-height', 'none', 'important');
+            modal.style.setProperty('max-width', 'none', 'important');
+            modal.style.setProperty('margin', '0', 'important');
+            modal.style.setProperty('background-color', '#0f172a', 'important');
+            modal.style.setProperty('overflow-y', 'auto', 'important'); // Pastikan bisa di-scroll
+            modal.style.setProperty('padding-bottom', '80px', 'important');
+            
+            // FIX: Reset style anak elemen modal juga agar tidak memotong konten
+            Array.from(modal.children).forEach(child => {
+                child.style.setProperty('border-radius', '0', 'important');
+                child.style.setProperty('max-height', 'none', 'important');
+                child.style.setProperty('height', 'auto', 'important');
+                child.style.setProperty('min-height', '100%', 'important');
+                child.classList.remove('rounded-t-[2rem]', 'rounded-t-3xl', 'rounded-2xl', 'rounded-3xl', 'overflow-hidden');
+            });
+
+            modal.classList.remove('rounded-t-[2rem]', 'rounded-t-3xl', 'rounded-2xl', 'rounded-3xl', 'max-h-[85vh]', 'h-auto');
             
             // --- FIX: Tombol Close Floating (Pindah ke Body) ---
             let closeBtn = document.getElementById('weather-floating-close');
@@ -1483,7 +1556,7 @@
                     closeBtn.style.position = 'fixed';
                     closeBtn.style.top = '20px';
                     closeBtn.style.right = '20px';
-                    closeBtn.style.zIndex = '10000';
+                    closeBtn.style.zIndex = '2147483647'; // Pastikan tombol close selalu di atas
                     closeBtn.className = "bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-full p-2 hover:bg-red-500/20 transition-all text-white";
                 }
             }
@@ -1684,7 +1757,7 @@
         }
 
         function closeDetailModal() {
-            document.getElementById('weatherDetailModal').classList.add('hidden');
+            document.getElementById('weatherDetailModal').classList.add('translate-y-full');
             const closeBtn = document.getElementById('weather-floating-close');
             if(closeBtn) closeBtn.classList.add('hidden');
         }
