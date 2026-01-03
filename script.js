@@ -1,3 +1,17 @@
+        // --- SAFETY CHECK: OFFLINE MODE FALLBACK ---
+        // Mencegah aplikasi crash jika library tidak termuat karena offline
+        if (typeof lucide === 'undefined') {
+            window.lucide = {
+                createIcons: () => {
+                    document.querySelectorAll('[data-lucide]').forEach(el => {
+                        // Fallback: Tampilkan emoji jika icon gagal muat
+                        const map = { 'map-pin': '📍', 'search': '🔍', 'wind': '💨', 'waves': '🌊', 'fish': '🐟', 'menu': '☰', 'x': '✖', 'chevron-left': '⬅', 'layers': '📚', 'cloud-sun': '⛅', 'navigation': '🧭', 'locate-fixed': '🎯', 'heart': '❤️', 'settings': '⚙️' };
+                        const key = el.getAttribute('data-lucide');
+                        if(!el.innerHTML.trim()) el.innerHTML = map[key] || '•';
+                    });
+                }
+            };
+        }
         lucide.createIcons();
         let isSat = true; // Hoisted to top to fix initialization error
         
@@ -197,6 +211,17 @@
                 });
             }
             return aiWorker;
+        }
+
+        // Cek apakah Leaflet (Peta) termuat
+        if (typeof L === 'undefined') {
+            document.getElementById('map').innerHTML = '<div class="flex flex-col items-center justify-center h-full text-slate-500 bg-slate-900 gap-2"><i class="text-4xl">🗺️</i><p>Mode Offline: Peta tidak dapat dimuat.</p></div>';
+            // Mock object agar script tidak crash total
+            window.L = {
+                map: () => ({ setView: () => {}, on: () => {}, addControl: () => {}, removeLayer: () => {}, addLayer: () => {}, getPane: () => ({ style: {} }), createPane: () => {}, getBounds: () => ({ getNorth:()=>0, getWest:()=>0, getSouth:()=>0, getEast:()=>0 }), getZoom: () => 10, flyTo: () => {}, eachLayer: () => {}, invalidateSize: () => {} }),
+                tileLayer: () => ({ addTo: () => {} }), marker: () => ({ addTo: () => ({ bindPopup: () => ({ openPopup: () => {} }), on: () => {} }) }), divIcon: () => {}, control: { attribution: () => ({ addTo: () => {} }), extend: () => {} }, DomUtil: { create: () => document.createElement('div') }, Control: { extend: () => {} }, latLng: () => {}, polyline: () => ({ addTo: () => {} }), circleMarker: () => ({ addTo: () => {} }), geoJSON: () => ({ addTo: () => {} }), heatLayer: () => ({ addTo: () => {} })
+            };
+            window.L.tileLayer.wms = () => ({ addTo: () => {} });
         }
 
         // 2. Map & Street View Setup
@@ -3579,11 +3604,8 @@
 
         // --- OFFLINE MAP SYSTEM (Service Worker & Downloader) ---
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                }
-            });
+            // PERBAIKAN: Kode penghapus Service Worker dihapus agar cache offline tetap awet.
+            // Jika Anda memiliki file sw.js, browser akan menggunakannya untuk cache aset.
         }
 
         // Helper: Konversi LatLng ke Tile Coordinate
