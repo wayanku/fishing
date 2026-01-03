@@ -3568,7 +3568,7 @@
                     map.getPane('shipPane').style.zIndex = 450; // Di atas peta, di bawah marker
                 }
 
-                const wmsLayer = L.tileLayer.wms('https://wwws.marinetraffic.com/services/wms/wms.aspx', {
+                const wmsLayer = L.tileLayer.wms('https://www.marinetraffic.com/services/wms/wms.aspx', {
                     layers: 'SHIPINFO', // Layer untuk kapal
                     format: 'image/png',
                     transparent: true,
@@ -3593,7 +3593,7 @@
                     params.x = Math.round(point.x);
                     params.y = Math.round(point.y);
 
-                    const url = 'https://wwws.marinetraffic.com/services/wms/wms.aspx' + L.Util.getParamString(params, 'https://wwws.marinetraffic.com/services/wms/wms.aspx');
+                    const url = 'https://www.marinetraffic.com/services/wms/wms.aspx' + L.Util.getParamString(params, 'https://www.marinetraffic.com/services/wms/wms.aspx');
                     const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
 
                     const popup = L.popup().setLatLng(e.latlng).setContent('<p class="animate-pulse">Mencari info kapal...</p>').openOn(map);
