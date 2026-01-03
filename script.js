@@ -1,13 +1,83 @@
         // --- SAFETY CHECK: OFFLINE MODE FALLBACK ---
         // Mencegah aplikasi crash jika library tidak termuat karena offline
         if (typeof lucide === 'undefined') {
+            // Definisi Path Icon (SVG) untuk Fallback Offline agar tidak jadi Emoji
+            const iconPaths = {
+                'map-pin': '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+                'search': '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+                'wind': '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+                'waves': '<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
+                'fish': '<path d="M6.5 12.5c0-2.5 3.5-6 3.5-6s3.5 3.5 3.5 6-1.5 2.5-3.5 2.5-3.5-0-3.5-2.5z"/><path d="M18.5 10.5c0-2.5 3.5-6 3.5-6s3.5 3.5 3.5 6-1.5 2.5-3.5 2.5-3.5-0-3.5-2.5z"/><path d="M13 10.5c-2.5 0-2.5 2-5 2s-2.5-2-5-2"/><path d="M13 15.5c-2.5 0-2.5 2-5 2s-2.5-2-5-2"/>',
+                'menu': '<line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>',
+                'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+                'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+                'layers': '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+                'cloud-sun': '<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
+                'navigation': '<polygon points="3 11 22 2 13 21 11 13 3 11"/>',
+                'locate-fixed': '<line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/>',
+                'heart': '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+                'settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+                'sun': '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+                'moon': '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+                'wifi': '<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/>',
+                'wifi-off': '<line x1="1" x2="23" y1="1" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/>',
+                'check': '<path d="M20 6 9 17l-5-5"/>',
+                'activity': '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+                'anchor': '<circle cx="12" cy="5" r="3"/><line x1="12" x2="12" y1="22" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/>',
+                'gauge': '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+                'scan-line': '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+                'thermometer-sun': '<path d="M12 9a4 4 0 0 0-2 7.5"/><path d="M12 3v2"/><path d="m6.6 18.4-1.4 1.4"/><path d="M20 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/><path d="M4 13H2"/><path d="M6.34 7.34 4.93 5.93"/>',
+                'sprout': '<path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/>',
+                'thermometer': '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+                'sunrise': '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+                'sunset': '<path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+                'corner-up-left': '<polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',
+                'corner-up-right': '<polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>',
+                'refresh-ccw': '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>',
+                'arrow-up': '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+                'image': '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+                'trophy': '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+                'message-square': '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+                'star': '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+                'loader': '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+                'alert-circle': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+                'scan': '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>',
+                'pencil': '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
+                'shield-x': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m14.5 9-5 5"/><path d="m9.5 9 5 5"/>',
+                'trash-2': '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+                'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+                'sparkles': '<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 9h4"/><path d="M3 5h4"/>',
+                'clock': '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+                'shield-check': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/>',
+                'moon-star': '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9"/><path d="M19 3v4"/><path d="M21 5h-4"/>',
+                'cloud': '<path d="M17.5 19c0-1.7-1.3-3-3-3h-11a4 4 0 0 1-1-7.9 5 5 0 0 1 9.8-1.2 3 3 0 0 1 2.7 2.1"/>',
+                'cloud-fog': '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 17H7"/><path d="M17 21H9"/>',
+                'cloud-drizzle': '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 19v2"/><path d="M8 13v2"/><path d="M16 19v2"/><path d="M16 13v2"/><path d="M12 21v2"/><path d="M12 15v2"/>',
+                'cloud-snow': '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 15h.01"/><path d="M8 19h.01"/><path d="M12 17h.01"/><path d="M12 21h.01"/><path d="M16 15h.01"/><path d="M16 19h.01"/>',
+                'cloud-rain': '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/>',
+                'cloud-lightning': '<path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973"/><path d="m13 12-3 5h4l-3 5"/>',
+                'trending-up': '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+                'trending-down': '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
+                'download': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+                'heart-off': '<line x1="2" x2="22" y1="2" y2="22"/><path d="M16.5 16.5 12 21l-7-7c-1.5-1.45-3-3.2-3-5.5a5.5 5.5 0 0 1 2.14-4.35"/><path d="M8.76 3.1c1.1-.36 2.24-.27 3.24.44 1.5 1.05 2.74 2 4.5 2A5.5 5.5 0 0 1 21.5 11c0 2.12-.74 4.07-1.97 5.61"/>'
+            };
+
             window.lucide = {
+                isFallback: true, // Flag untuk deteksi saat online nanti
                 createIcons: () => {
                     document.querySelectorAll('[data-lucide]').forEach(el => {
-                        // Fallback: Tampilkan emoji jika icon gagal muat
-                        const map = { 'map-pin': '📍', 'search': '🔍', 'wind': '💨', 'waves': '🌊', 'fish': '🐟', 'menu': '☰', 'x': '✖', 'chevron-left': '⬅', 'layers': '📚', 'cloud-sun': '⛅', 'navigation': '🧭', 'locate-fixed': '🎯', 'heart': '❤️', 'settings': '⚙️' };
                         const key = el.getAttribute('data-lucide');
-                        if(!el.innerHTML.trim()) el.innerHTML = map[key] || '•';
+                        const path = iconPaths[key];
+                        // Jika path ada, render SVG. Jika tidak, fallback ke emoji atau dot
+                        if (path) {
+                            // Cek class bawaan elemen untuk ditransfer ke SVG
+                            const existingClass = el.getAttribute('class') || '';
+                            el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-${key} ${existingClass}">${path}</svg>`;
+                        } else {
+                            // Fallback Emoji (Hanya untuk yang belum terdaftar di iconPaths)
+                            const emojiMap = { 'map-pin': '📍', 'search': '🔍', 'wind': '💨', 'waves': '🌊', 'fish': '🐟', 'menu': '☰', 'x': '✖', 'chevron-left': '⬅', 'layers': '📚', 'cloud-sun': '⛅', 'navigation': '🧭', 'locate-fixed': '🎯', 'heart': '❤️', 'settings': '⚙️' };
+                            if(!el.innerHTML.trim()) el.innerHTML = emojiMap[key] || '•';
+                        }
                     });
                 }
             };
@@ -566,6 +636,18 @@
         window.addEventListener('online', () => {
             console.log("Internet Connected: Refreshing Data...");
             
+            // --- FIX: RECOVERY ICON JIKA SEBELUMNYA OFFLINE ---
+            if (window.lucide && window.lucide.isFallback) {
+                console.log("Reloading Lucide Library...");
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/lucide@latest';
+                script.onload = () => {
+                    // Library asli termuat, timpa mock object dan render ulang
+                    lucide.createIcons(); 
+                };
+                document.head.appendChild(script);
+            }
+
             // 1. Notifikasi Visual
             const toast = document.createElement('div');
             toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] flex items-center gap-2 animate-bounce";
@@ -3146,6 +3228,45 @@
             localStorage.setItem('activeMapLayers', JSON.stringify(active));
         }
 
+        // --- HELPER: LEGEND / INDIKATOR PETA ---
+        function showLegend(type) {
+            let legend = document.getElementById('map-legend-container');
+            if(!legend) {
+                legend = document.createElement('div');
+                legend.id = 'map-legend-container';
+                legend.className = 'fixed bottom-24 left-4 z-[1000] bg-slate-900/90 p-3 rounded-xl border border-white/10 shadow-xl backdrop-blur-md max-w-[200px] animate-in slide-in-from-left-5 duration-300';
+                document.body.appendChild(legend);
+            }
+            
+            let content = '';
+            if(type === 'sst') {
+                content = `
+                    <h5 class="text-xs font-bold text-white mb-2 flex items-center gap-1"><i data-lucide="thermometer" class="w-3 h-3 text-red-400"></i> Suhu Laut (SST)</h5>
+                    <div class="h-2 w-full bg-gradient-to-r from-purple-600 via-blue-500 to-red-500 rounded-full mb-1"></div>
+                    <div class="flex justify-between text-[9px] text-slate-300 font-mono">
+                        <span>0°C</span><span>15°</span><span>32°C</span>
+                    </div>`;
+            } else if(type === 'chlorophyll') {
+                content = `
+                    <h5 class="text-xs font-bold text-white mb-2 flex items-center gap-1"><i data-lucide="sprout" class="w-3 h-3 text-green-400"></i> Klorofil (Plankton)</h5>
+                    <div class="h-2 w-full bg-gradient-to-r from-blue-800 via-green-500 to-yellow-300 rounded-full mb-1"></div>
+                    <div class="flex justify-between text-[9px] text-slate-300 font-mono">
+                        <span>Sedikit</span><span>Sedang</span><span>Subur</span>
+                    </div>`;
+            }
+            
+            if(content) {
+                legend.innerHTML = content;
+                legend.classList.remove('hidden');
+                lucide.createIcons();
+            }
+        }
+
+        function hideLegend() {
+            const legend = document.getElementById('map-legend-container');
+            if(legend) legend.classList.add('hidden');
+        }
+
         function loadLayerPreferences() {
             try {
                 const saved = JSON.parse(localStorage.getItem('activeMapLayers') || '[]');
@@ -3172,9 +3293,8 @@
                     map.removeLayer(activeLayers[type]);
                     delete activeLayers[type];
                 }
-                // Sembunyikan legenda terkait saat layer dimatikan
-                if(type === 'sst') document.getElementById('sst-legend').classList.add('hidden');
-                if(type === 'chlorophyll') document.getElementById('chloro-legend').classList.add('hidden');
+                // Sembunyikan legenda otomatis
+                hideLegend();
                 return;
             }
 
@@ -3324,41 +3444,43 @@
 
             // SST (Sea Surface Temperature) LAYER - NASA GIBS (Free)
             if(type === 'sst') {
-                const dateStr = getGibsDate(2); // Data 2 hari lalu (lebih aman & pasti tersedia)
+                const dateStr = getGibsDate(3); // Data 3 hari lalu (biasanya sudah matang)
                 activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
                     pane: 'gibsPane', // Gunakan pane khusus
-                    opacity: 0.7, 
+                    opacity: 0.5, // Sedikit lebih transparan agar peta dasar terlihat
                     maxNativeZoom: 9, // Batas zoom asli tiles NASA
                     maxZoom: 20,      // Izinkan zoom lebih dalam (stretch)
                     attribution: 'NASA GIBS'
                 }).addTo(map);
-                document.getElementById('sst-legend').classList.remove('hidden'); // Tampilkan legenda
+                
+                showLegend('sst'); // Tampilkan Indikator Warna
                 const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // CHLOROPHYLL LAYER - NASA GIBS (Free)
             if(type === 'chlorophyll') {
-                const dateStr = getGibsDate(2); // Data 2 hari lalu
-                // Menggunakan data rata-rata 8 hari (8d) agar tutupan awan berkurang dan data lebih jelas
-                activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_L3_Chlorophyll_a_4km_8d/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
+                // Gunakan Data BULANAN (Monthly) agar pasti ada isinya (tidak bolong-bolong)
+                const d = new Date(); d.setMonth(d.getMonth() - 1); d.setDate(1); // Ambil tanggal 1 bulan lalu
+                const dateStr = d.toISOString().split('T')[0];
+                
+                activeLayers[type] = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_L3_Chlorophyll_a_4km_Month/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`, { 
                     pane: 'gibsPane', // Gunakan pane khusus
-                    opacity: 0.7, 
+                    opacity: 0.6,
                     maxNativeZoom: 9,
                     maxZoom: 20,
                     attribution: 'NASA GIBS'
                 }).addTo(map);
-                document.getElementById('chloro-legend').classList.remove('hidden'); // Tampilkan legenda
+                
+                showLegend('chlorophyll'); // Tampilkan Indikator Warna
                 const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // BATHYMETRY LAYER (GEBCO)
             if(type === 'bathymetry') {
-                activeLayers[type] = L.tileLayer.wms('https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv', {
-                    layers: 'GEBCO_LATEST',
-                    format: 'image/png',
-                    transparent: true,
-                    opacity: 0.5, // Transparan agar bisa ditumpuk di atas Satelit
-                    attribution: 'GEBCO'
+                // Gunakan Esri Ocean Basemap sebagai Overlay (Semi-Transparan) - Lebih cepat & detail
+                activeLayers[type] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+                    opacity: 0.5,
+                    attribution: 'Esri Ocean'
                 }).addTo(map);
 
                 const toast = document.createElement('div');
