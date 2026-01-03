@@ -807,34 +807,31 @@ function updateWeatherUI(data) {
     if (!hourlyContainer && existingScroll) {
         const referenceNode = dotsContainer || existingScroll;
 
-        // Buat container untuk summary text di atas forecast
-        if (!hourlySummaryContainer) {
-            hourlySummaryContainer = document.createElement('div');
-            hourlySummaryContainer.id = 'hourly-summary-container';
-            hourlySummaryContainer.className = "px-4 pb-3 text-xs text-slate-200 border-b border-white/10 mb-3 leading-relaxed";
-            if(referenceNode.parentNode) {
-                referenceNode.parentNode.insertBefore(hourlySummaryContainer, referenceNode.nextSibling);
-            }
+        // --- MODIFIED: Buat Wrapper Card untuk Prakiraan 24 Jam ---
+        const hourlyCard = document.createElement('div');
+        hourlyCard.className = "mx-4 mb-8 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
+        
+        if(referenceNode.parentNode) {
+            referenceNode.parentNode.insertBefore(hourlyCard, referenceNode.nextSibling);
         }
 
-        // Buat container untuk Grafik Hujan (Next Hour)
-        if (!precipChartContainer) {
-            precipChartContainer = document.createElement('div');
-            precipChartContainer.id = 'precip-chart-container';
-            precipChartContainer.className = "px-4 mb-4 hidden"; // Default hidden
-            hourlySummaryContainer.parentNode.insertBefore(precipChartContainer, hourlySummaryContainer);
-        }
+        // 1. Summary Container (Header Kartu)
+        hourlySummaryContainer = document.createElement('div');
+        hourlySummaryContainer.id = 'hourly-summary-container';
+        hourlySummaryContainer.className = "px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium border-b border-white/5 bg-white/5";
+        hourlyCard.appendChild(hourlySummaryContainer);
 
-        // Buat container untuk forecast per jam
+        // 2. Precip Chart Container (Grafik Hujan)
+        precipChartContainer = document.createElement('div');
+        precipChartContainer.id = 'precip-chart-container';
+        precipChartContainer.className = "px-4 py-2 hidden border-b border-white/5";
+        hourlyCard.appendChild(precipChartContainer);
+
+        // 3. Hourly Forecast Container (List Scrollable)
         hourlyContainer = document.createElement('div');
         hourlyContainer.id = 'hourly-forecast-container';
-        // Styling: Horizontal scroll, spacing, border top for separation
-        hourlyContainer.className = "flex items-stretch gap-x-2 px-4 overflow-x-auto no-scrollbar pb-4";
-        
-        // Insert setelah container summary
-        if(hourlySummaryContainer && hourlySummaryContainer.parentNode) {
-            hourlySummaryContainer.parentNode.insertBefore(hourlyContainer, hourlySummaryContainer.nextSibling);
-        }
+        hourlyContainer.className = "flex items-stretch gap-x-4 overflow-x-auto no-scrollbar p-4";
+        hourlyCard.appendChild(hourlyContainer);
     }
 
     if (hourlyContainer && data.hourly && data.hourly.time && data.daily) {
@@ -900,7 +897,7 @@ function updateWeatherUI(data) {
                     return `<div class="flex flex-col items-center justify-end h-20 w-full gap-1"><div class="w-1.5 rounded-full ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${timeLabel}</span></div>`;
                 }).join('');
 
-                precipChartContainer.innerHTML = `<div class="bg-slate-800/50 rounded-xl border border-white/10 p-4 backdrop-blur-sm"><p class="text-sm font-bold text-white mb-3 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-20 border-b border-white/5 pb-1">${barsHtml}</div></div>`;
+                precipChartContainer.innerHTML = `<div class="bg-slate-800/30 rounded-lg border border-white/5 p-3 backdrop-blur-sm"><p class="text-xs font-bold text-white mb-2 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-16 border-b border-white/5 pb-1">${barsHtml}</div></div>`;
             } else {
                 precipChartContainer.classList.add('hidden');
             }
@@ -1054,7 +1051,15 @@ function updateWeatherUI(data) {
     // --- FITUR BARU: 7-DAY FORECAST & FISHING RATING ---
     if(data.daily) {
         const list = document.getElementById('forecast-list');
+        list.className = "mx-4 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 p-2 shadow-lg"; // Style Kartu 7 Hari
         list.innerHTML = ''; // Clear
+
+        // --- NEW: Judul Header Kartu 7 Hari ---
+        const titleDiv = document.createElement('div');
+        titleDiv.className = "px-2 py-2 mb-2 flex items-center gap-2 border-b border-white/5";
+        const titleText = lang === 'en' ? '7-Day Forecast' : (lang === 'jp' ? '7日間予報' : 'Prakiraan 7 Hari');
+        titleDiv.innerHTML = `<i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i> <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">${titleText}</span>`;
+        list.appendChild(titleDiv);
 
         // Pre-calculate overall min/max temps for consistent bar scaling (iPhone style)
         const allMinTemps = data.daily.temperature_2m_min.slice(0, 7);
