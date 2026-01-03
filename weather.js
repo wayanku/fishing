@@ -228,7 +228,11 @@ class Cloud {
         document.body.appendChild(this.element);
         
         // Randomize Position & Animation
-        this.y = 5 + Math.random() * 40;
+        // FIX: Posisi awan lebih tinggi di HP agar tidak menutupi peta
+        const isMobile = window.innerWidth < 768;
+        const minTop = isMobile ? -5 : 5;
+        const maxTop = isMobile ? 25 : 40;
+        this.y = minTop + Math.random() * (maxTop - minTop);
         this.element.style.top = `${this.y}%`;
 
         // Random Speed (Duration) & Start Position (Delay)
@@ -410,7 +414,8 @@ function startWeatherEffect(type) {
     
     // Tambahkan Awan jika cuaca mendukung (Berawan/Hujan/Salju)
     // Kode: 1,2,3 (Cloudy), 45,48 (Fog), 51+ (Rain/Snow)
-    const isDark = (['storm', 'rain'].includes(type) || wxCode >= 51 || wxCode === 3 || !wxIsDay);
+    // FIX: Mendung biasa (Code 3) tetap putih jika tidak hujan, kecuali malam
+    const isDark = (['storm', 'rain'].includes(type) || wxCode >= 51 || !wxIsDay);
     
     if ([1, 2, 3, 45, 48].includes(wxCode) || wxCode >= 51 || ['rain', 'storm', 'snow', 'cloudy'].includes(type)) {
         // Lebih banyak awan jika hujan/badai
