@@ -214,8 +214,8 @@
             localStorage.setItem('appLang', lang);
             
             // Refresh tampilan cuaca jika sedang terbuka atau ada data
-            if(currentWeatherData) updateWeatherUI(currentWeatherData);
-            if(currentUserWeatherCode !== null) getUserWeather(); // Refresh header
+            if(typeof currentWeatherData !== 'undefined' && currentWeatherData && typeof updateWeatherUI === 'function') updateWeatherUI(currentWeatherData);
+            if(typeof currentUserWeatherCode !== 'undefined' && currentUserWeatherCode !== null && typeof getUserWeather === 'function') getUserWeather();
         }
         
         // Init Language
@@ -588,7 +588,7 @@
             // Pre-load the AI model in the background for faster analysis later
             getAiWorker().postMessage({ type: 'init' });
 
-            getUserWeather(); // Ambil cuaca lokasi user saat ini
+            if(typeof getUserWeather === 'function') getUserWeather(); // Ambil cuaca lokasi user saat ini
             loadSpots();
             setTimeout(initScrollDots, 500); // Init dots setelah layout render
             setTimeout(initTour, 1500); // Mulai tour otomatis untuk user baru
@@ -621,7 +621,7 @@
             });
             selectionMarker = L.marker(e.latlng, {icon: pinIcon}).addTo(map);
             
-            showLocationPanel(e.latlng);
+            if(typeof showLocationPanel === 'function') showLocationPanel(e.latlng);
         });
 
         let userLatlng = null;
