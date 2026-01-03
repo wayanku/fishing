@@ -309,10 +309,17 @@
         });
 
         // Layer Laut (Bathymetry/Depth) - Esri Ocean Basemap
-        const oceanLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 13, // Data kedalaman biasanya optimal di zoom level ini
-            attribution: 'Tiles &copy; Esri &mdash; Sources: GEBCO, NOAA, CHS, OSU, UNH, CSUMB, National Geographic, DeLorme, NAVTEQ, and Esri'
+        // UPDATED: Menggunakan LayerGroup (Base + Reference) agar mirip i-Boating/Navionics
+        const oceanBaseTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+            maxNativeZoom: 13, // NAIKKAN KE 13: Agar detail karang & kedalaman muncul
+            maxZoom: 20,
+            attribution: 'Tiles &copy; Esri'
         });
+        const oceanRefTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {
+            maxNativeZoom: 13, // NAIKKAN KE 13: Agar angka kedalaman terbaca jelas
+            maxZoom: 20
+        });
+        const oceanLayer = L.layerGroup([oceanBaseTile, oceanRefTile]);
         
         // Cek penyimpanan lokal agar saat refresh langsung ke lokasi terakhir
         const lastLat = localStorage.getItem('lastLat');
@@ -3532,7 +3539,7 @@
                 const base = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
                     pane: 'sonarPane',
                     opacity: 1.0,
-                    maxNativeZoom: 10,
+                    maxNativeZoom: 13, // FIX: Detail lebih tinggi
                     maxZoom: 20,
                     attribution: 'Esri Ocean'
                 });
@@ -3542,7 +3549,7 @@
                 const ref = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {
                     pane: 'sonarPane',
                     opacity: 1.0,
-                    maxNativeZoom: 10,
+                    maxNativeZoom: 13, // FIX: Detail lebih tinggi
                     maxZoom: 20
                 });
                 layers.push(ref);
@@ -3568,56 +3575,18 @@
                     map.getPane('shipPane').style.zIndex = 450; // Di atas peta, di bawah marker
                 }
 
-                const wmsLayer = L.tileLayer.wms('https://www.marinetraffic.com/services/wms/wms.aspx', {
-                    layers: 'SHIPINFO', // Layer untuk kapal
-                    format: 'image/png',
-                    transparent: true,
+                // Ganti ke VesselFinder (Tiles) - Menampilkan ikon kapal visual
+                const shipLayer = L.tileLayer('https://tiles.vesselfinder.com/tiles/{z}/{x}/{y}.png', {
                     pane: 'shipPane',
-                    attribution: '© MarineTraffic'
+                    opacity: 1.0,
+                    attribution: '© VesselFinder'
                 }).addTo(map);
 
-                activeLayers[type] = wmsLayer;
+                activeLayers[type] = shipLayer;
 
-                // Handler untuk GetFeatureInfo (klik kapal)
-                const getFeatureInfoHandler = (e) => {
-                    // Jangan trigger jika klik pada marker yang sudah ada
-                    if (e.originalEvent.target.closest('.leaflet-marker-icon')) return;
-
-                    const mapSize = map.getSize();
-                    const bounds = map.getBounds();
-                    const sw = bounds.getSouthWest();
-                    const ne = bounds.getNorthEast();
-
-                    const params = { request: 'GetFeatureInfo', service: 'WMS', srs: 'EPSG:4326', styles: '', transparent: true, version: '1.1.1', format: 'image/png', bbox: `${sw.lng},${sw.lat},${ne.lng},${ne.lat}`, height: mapSize.y, width: mapSize.x, layers: 'SHIPINFO', query_layers: 'SHIPINFO', info_format: 'text/html' };
-                    const point = map.latLngToContainerPoint(e.latlng, map.getZoom());
-                    params.x = Math.round(point.x);
-                    params.y = Math.round(point.y);
-
-                    const url = 'https://www.marinetraffic.com/services/wms/wms.aspx' + L.Util.getParamString(params, 'https://www.marinetraffic.com/services/wms/wms.aspx');
-                    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-
-                    const popup = L.popup().setLatLng(e.latlng).setContent('<p class="animate-pulse">Mencari info kapal...</p>').openOn(map);
-
-                    fetch(proxyUrl)
-                        .then(response => response.text())
-                        .then(html => {
-                            if (html && !html.includes('bbox') && html.trim().length > 10) {
-                                const bodyContentMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-                                let cleanHtml = bodyContentMatch ? bodyContentMatch[1] : html;
-                                cleanHtml = cleanHtml.replace(/<link[^>]*>/g, '').replace(/<style[^>]*>[\s\S]*?<\/style>/g, '').replace(/<img[^>]*>/g, '').replace(/<a[^>]*>/g, '<span>').replace(/<\/a>/g, '</span>');
-                                popup.setContent(`<div class="ship-info-popup">${cleanHtml}</div>`);
-                            } else {
-                                map.closePopup(popup); // Tutup popup jika tidak ada info
-                            }
-                        })
-                        .catch(error => { console.error('GetFeatureInfo error:', error); popup.setContent('<p>Gagal mengambil data kapal.</p>'); });
-                };
-
-                // Simpan handler agar bisa dihapus nanti
-                wmsLayer.getFeatureInfoHandler = getFeatureInfoHandler;
-                map.on('click', getFeatureInfoHandler);
-
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="ship" class="w-4 h-4 text-red-400"></i> Radar Kapal Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons();
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; 
+                toast.innerHTML = `<i data-lucide="ship" class="w-4 h-4 text-red-400"></i> Radar Kapal Aktif`; 
+                document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons();
                 return;
             }
 
