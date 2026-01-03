@@ -732,6 +732,22 @@
                 child.classList.remove('rounded-t-[2rem]', 'rounded-t-3xl', 'rounded-2xl', 'rounded-3xl', 'overflow-hidden');
             });
 
+            // --- CLEANUP: Hapus elemen navigasi ganda (Garis & Tombol X) ---
+            // 1. Sembunyikan garis drag handle (biasanya div kecil di tengah atas)
+            const handles = panel.querySelectorAll('div.w-12.h-1\\.5, div.w-16.h-1\\.5, .mx-auto.bg-slate-700, .mx-auto.bg-gray-300');
+            handles.forEach(h => h.classList.add('hidden'));
+
+            // 2. Sembunyikan tombol close bawaan (X)
+            const oldCloseBtns = panel.querySelectorAll('button');
+            oldCloseBtns.forEach(btn => {
+                if(btn.id === 'panel-close-btn') return; // Skip tombol back kita
+                
+                // Cek Icon X atau Posisi Top Right
+                if(btn.querySelector('[data-lucide="x"]') || btn.querySelector('[data-lucide="x-circle"]') || (btn.classList.contains('absolute') && btn.classList.contains('right-4'))) {
+                    btn.classList.add('hidden');
+                }
+            });
+
             // Tambahkan tombol Close/Kembali di pojok kiri atas agar user bisa keluar
             let closeBtn = document.getElementById('panel-close-btn');
             if (!closeBtn) {
@@ -744,6 +760,10 @@
                 lucide.createIcons();
             }
             closeBtn.classList.remove('hidden');
+            
+            // Pastikan tombol close dari detail view (grafik) tersembunyi agar tidak menumpuk
+            const floatClose = document.getElementById('weather-floating-close');
+            if(floatClose) floatClose.classList.add('hidden');
             
             panel.classList.remove('rounded-t-[2rem]', 'rounded-t-3xl', 'rounded-2xl', 'rounded-3xl', 'max-h-[85vh]', 'h-auto');
 
@@ -984,7 +1004,10 @@
                     header.id = 'new-weather-header';
                     header.className = 'flex flex-col items-center text-white pt-4 pb-6 px-4 text-center';
                     header.innerHTML = `
-                        <h2 id="header-location" class="text-2xl font-bold tracking-tight"></h2>
+                        <div class="flex items-center justify-center gap-2 w-full mb-1">
+                            <i data-lucide="map-pin" class="w-5 h-5 text-white/80 shrink-0"></i>
+                            <h2 id="header-location" class="text-2xl font-bold tracking-tight text-center leading-tight line-clamp-2"></h2>
+                        </div>
                         <p id="header-temp" class="text-7xl font-thin -my-1" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;"></p>
                         <p id="header-desc" class="font-semibold"></p>
                         <p id="header-minmax" class="text-sm mt-1"></p>
@@ -999,6 +1022,13 @@
                     if (oldAddress) oldAddress.classList.add('hidden');
                     if (oldCoords) oldCoords.classList.add('hidden');
                     if (oldDist) oldDist.classList.add('hidden');
+                    
+                    // Hapus icon map-pin lama (yang warna biru/lainnya) yang mungkin tertinggal
+                    const panel = document.getElementById('location-panel');
+                    const strayPins = panel.querySelectorAll('[data-lucide="map-pin"], .lucide-map-pin');
+                    strayPins.forEach(pin => {
+                        if (!pin.closest('#new-weather-header')) pin.classList.add('hidden');
+                    });
 
                     // Hide the now-redundant cards from the scroll view
                     const tempCard = document.querySelector('[onclick="showMetricInsight(\'temp\')"]');
@@ -1212,29 +1242,37 @@
                     const maxTemp = Math.round(data.daily.temperature_2m_max[i]);
                     const minTemp = Math.round(data.daily.temperature_2m_min[i]);
                     const code = data.daily.weathercode[i];
+                    const rainSum = data.daily.precipitation_sum[i];
 
                     // Calculate bar dimensions based on the overall range
                     const leftOffset = ((minTemp - overallMinTemp) / totalRange) * 100;
                     const barWidth = ((maxTemp - minTemp) / totalRange) * 100;
 
+                    // Dynamic Icon Color
+                    let iconColor = "text-white";
+                    if(code <= 1) iconColor = "text-yellow-400";
+                    else if(code >= 51) iconColor = "text-blue-400";
+                    else if(code === 3) iconColor = "text-slate-400";
+
                     const item = document.createElement('div');
-                    // A cleaner, row-based design inspired by iOS Weather
-                    item.className = "flex items-center justify-between py-3.5 px-2 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors group";
+                    // Improved Aesthetics: Card-like row, better spacing, hover effect
+                    item.className = "flex items-center justify-between py-3 px-3 mx-2 mb-1 rounded-xl cursor-pointer hover:bg-white/10 transition-all duration-200 group border border-transparent hover:border-white/5";
                     item.onclick = () => openDetailModal(i); // Tambahkan event klik
 
                     item.innerHTML = `
-                        <div class="w-[25%] text-sm font-medium text-white truncate pr-2 group-hover:font-bold">${dayName}</div>
-                        <div class="w-[15%] flex justify-center">
-                            <i data-lucide="${getWeatherIcon(code)}" class="w-6 h-6 text-white drop-shadow-lg"></i>
+                        <div class="w-[22%] text-sm font-semibold text-slate-200 group-hover:text-white transition-colors truncate">${dayName}</div>
+                        <div class="w-[18%] flex flex-col items-center justify-center">
+                            <i data-lucide="${getWeatherIcon(code)}" class="w-6 h-6 ${iconColor} drop-shadow-md transition-transform group-hover:scale-110"></i>
+                            ${rainSum > 0.5 ? `<span class="text-[9px] font-bold text-blue-300 mt-0.5">${Math.round(rainSum)}mm</span>` : ''}
                         </div>
-                        <div class="w-[60%] flex items-center gap-2 text-xs">
-                            <span class="text-slate-400 w-8 text-right">${minTemp}°</span>
-                            <div class="flex-1 h-1.5 bg-slate-800/80 rounded-full relative overflow-hidden shadow-inner">
-                                <div class="absolute h-full bg-gradient-to-r from-cyan-500 via-yellow-400 to-orange-500 rounded-full"
+                        <div class="w-[60%] flex items-center gap-3 pl-1">
+                            <span class="text-slate-400 text-xs font-medium w-6 text-right">${minTemp}°</span>
+                            <div class="flex-1 h-2 bg-slate-700/50 rounded-full relative overflow-hidden shadow-inner ring-1 ring-white/5">
+                                <div class="absolute h-full rounded-full bg-gradient-to-r from-sky-400 via-yellow-300 to-red-400 opacity-90 shadow-[0_0_8px_rgba(251,191,36,0.3)]"
                                      style="left: ${leftOffset.toFixed(2)}%; width: ${barWidth.toFixed(2)}%;">
                                 </div>
                             </div>
-                            <span class="text-white w-8 text-left font-medium">${maxTemp}°</span>
+                            <span class="text-white text-xs font-bold w-6 text-left">${maxTemp}°</span>
                         </div>
                     `;
                     list.appendChild(item);
@@ -1340,7 +1378,12 @@
         const solunarTranslations = { id: "Aktivitas Ikan", en: "Fish Activity", jp: "魚の活性" };
 
         function openDetailModal(dayIndex) {
-            closeLocationPanel();
+            // closeLocationPanel(); // JANGAN tutup panel utama agar bisa kembali
+            
+            // Sembunyikan tombol back panel utama sementara agar tidak tumpang tindih
+            const mainBackBtn = document.getElementById('panel-close-btn');
+            if(mainBackBtn) mainBackBtn.classList.add('hidden');
+
             if(!currentWeatherData || !currentWeatherData.hourly) return;
             
             currentDayIndex = dayIndex;
@@ -1551,20 +1594,26 @@
             // --- FIX: Tombol Close Floating (Pindah ke Body) ---
             let closeBtn = document.getElementById('weather-floating-close');
             if (!closeBtn) {
-                // Cari tombol asli di dalam modal
+                // Buat tombol baru jika belum ada
+                closeBtn = document.createElement('button');
+                closeBtn.id = 'weather-floating-close';
+                closeBtn.onclick = closeDetailModal;
+                document.body.appendChild(closeBtn);
+                
+                // Bersihkan tombol lama di dalam modal jika ada
                 const originalBtn = modal.querySelector('button[onclick*="closeDetailModal"]');
-                if (originalBtn) {
-                    closeBtn = originalBtn;
-                    closeBtn.id = 'weather-floating-close';
-                    document.body.appendChild(closeBtn); // Pindah ke body agar bebas dari transform modal
-                    
-                    closeBtn.style.position = 'fixed';
-                    closeBtn.style.top = '20px';
-                    closeBtn.style.right = '20px';
-                    closeBtn.style.zIndex = '2147483647'; // Pastikan tombol close selalu di atas
-                    closeBtn.className = "bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-full p-2 hover:bg-red-500/20 transition-all text-white";
-                }
+                if (originalBtn) originalBtn.remove();
             }
+            
+            // Update Style menjadi Tombol Back di Kiri Atas (Konsisten)
+            closeBtn.style.position = 'fixed';
+            closeBtn.style.top = '16px';
+            closeBtn.style.left = '16px';
+            closeBtn.style.right = 'auto'; 
+            closeBtn.style.zIndex = '2147483647';
+            closeBtn.className = "p-2 bg-black/20 hover:bg-black/40 rounded-full text-white backdrop-blur-sm transition-colors";
+            closeBtn.innerHTML = '<i data-lucide="chevron-left" class="w-6 h-6"></i>';
+
             if (closeBtn) {
                 closeBtn.classList.remove('hidden');
             }
@@ -1765,6 +1814,10 @@
             document.getElementById('weatherDetailModal').classList.add('translate-y-full');
             const closeBtn = document.getElementById('weather-floating-close');
             if(closeBtn) closeBtn.classList.add('hidden');
+            
+            // Munculkan kembali tombol back panel utama
+            const mainBackBtn = document.getElementById('panel-close-btn');
+            if(mainBackBtn) mainBackBtn.classList.remove('hidden');
         }
 
         // --- FAVORITE SYSTEM ---
