@@ -1315,7 +1315,7 @@ function updateWeatherUI(data) {
                     if (icon === 'sun') icon = 'moon';
                     if (icon === 'cloud-sun') icon = 'cloud-moon';
                 } else { // Day
-                    if (icon === 'sun' || icon === 'cloud-sun') iconColorClass = 'text-yellow-300';
+                    if (icon === 'sun') iconColorClass = 'text-yellow-300';
                 }
 
                 item.className = "flex flex-col items-center justify-between py-2 shrink-0 w-14 border-b-2 border-transparent hover:bg-white/5 rounded-lg transition-colors";
@@ -1326,7 +1326,18 @@ function updateWeatherUI(data) {
                 // Add Rain Probability if significant
                 const popHtml = (event.pop >= 30) ? `<div class="text-[9px] font-bold text-blue-200 flex items-center justify-center gap-0.5 mt-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" class="text-blue-400"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>${event.pop}%</div>` : '';
                 
-                item.innerHTML = `<div class="text-xs ${textWeight}">${timeText}</div><i data-lucide="${icon}" class="w-6 h-6 ${iconColorClass} drop-shadow-lg my-1"></i><div class="text-lg font-bold text-white leading-none">${event.temp}°</div>${popHtml}`;
+                // FIX: Dual Color Icon for Cloud-Sun (Sun Yellow, Cloud White)
+                let iconHtml = `<i data-lucide="${icon}" class="w-6 h-6 ${iconColorClass} drop-shadow-lg my-1"></i>`;
+                if (icon === 'cloud-sun') {
+                    iconHtml = `
+                        <div class="relative w-6 h-6 my-1">
+                            <i data-lucide="sun" class="absolute -top-0.5 -right-0.5 w-4 h-4 text-yellow-300 fill-yellow-300/20"></i>
+                            <i data-lucide="cloud" class="absolute bottom-0 left-0 w-5 h-5 text-white fill-white/10"></i>
+                        </div>
+                    `;
+                }
+
+                item.innerHTML = `<div class="text-xs ${textWeight}">${timeText}</div>${iconHtml}<div class="text-lg font-bold text-white leading-none">${event.temp}°</div>${popHtml}`;
             } else { // Sunrise or Sunset
                 const isSunrise = event.type === 'sunrise';
                 item.className = "flex flex-col items-center justify-end py-2 shrink-0 w-20 text-center"; // Lebih lebar untuk teks
@@ -1379,7 +1390,7 @@ function updateWeatherUI(data) {
 
             // Dynamic Icon Color
             let iconColor = "text-white";
-            if(code <= 2) iconColor = "text-yellow-400";
+            if(code === 0) iconColor = "text-yellow-400";
             else if(code >= 51) iconColor = "text-blue-400";
             else if(code === 3) iconColor = "text-slate-400";
 
@@ -1388,10 +1399,21 @@ function updateWeatherUI(data) {
             item.className = "flex items-center justify-between py-3 px-3 mx-2 mb-1 rounded-xl cursor-pointer hover:bg-white/10 transition-all duration-200 group border border-transparent hover:border-white/5";
             item.onclick = () => openDetailModal(i); // Tambahkan event klik
 
+            // FIX: Dual Color Icon for Cloud-Sun (Sun Yellow, Cloud White)
+            let iconHtml = `<i data-lucide="${getWeatherIcon(code)}" class="w-6 h-6 ${iconColor} drop-shadow-md transition-transform group-hover:scale-110"></i>`;
+            if (getWeatherIcon(code) === 'cloud-sun') {
+                iconHtml = `
+                    <div class="relative w-6 h-6 group-hover:scale-110 transition-transform">
+                        <i data-lucide="sun" class="absolute -top-1 -right-1 w-4 h-4 text-yellow-400 fill-yellow-400/20"></i>
+                        <i data-lucide="cloud" class="absolute bottom-0 left-0 w-5 h-5 text-white fill-white/10"></i>
+                    </div>
+                `;
+            }
+
             item.innerHTML = `
                 <div class="w-[22%] text-sm font-semibold text-slate-200 group-hover:text-white transition-colors truncate">${dayName}</div>
                 <div class="w-[18%] flex flex-col items-center justify-center">
-                    <i data-lucide="${getWeatherIcon(code)}" class="w-6 h-6 ${iconColor} drop-shadow-md transition-transform group-hover:scale-110"></i>
+                    ${iconHtml}
                     ${rainSum > 0.5 ? `<span class="text-[9px] font-bold text-blue-300 mt-0.5">${Math.round(rainSum)}mm</span>` : ''}
                 </div>
                 <div class="w-[60%] flex items-center gap-3 pl-1">
