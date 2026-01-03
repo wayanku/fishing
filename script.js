@@ -1237,6 +1237,8 @@
             if(!dt.weather[code]) {
                 if(code > 3) desc = dt.weather[2]; // Berawan
                 if(code > 50) desc = dt.weather[61]; // Hujan
+                if(code >= 70 && code <= 79) desc = dt.weather[71]; // Salju
+                if(code >= 85 && code <= 86) desc = dt.weather[71]; // Salju
                 if(code > 80) desc = dt.weather[95]; // Badai
             }
 
@@ -1321,6 +1323,9 @@
 
             if (hourlyContainer && data.hourly && data.hourly.time && data.daily) {
                 
+                // Helper: Cek Salju (Codes: 71, 73, 75, 77, 85, 86)
+                const getPrecipType = (c) => [71, 73, 75, 77, 85, 86].includes(c) ? "Salju" : "Hujan";
+                
                 // --- NEW: PRECIPITATION CHART LOGIC (Next Hour) ---
                 if (data.minutely_15 && data.minutely_15.precipitation && precipChartContainer) {
                     const pTimes = data.minutely_15.time;
@@ -1346,7 +1351,8 @@
                         precipChartContainer.classList.remove('hidden');
                         
                         // Generate Text Status
-                        let statusText = "Hujan ringan untuk beberapa saat.";
+                        const pTypeChart = getPrecipType(wx.weathercode);
+                        let statusText = `${pTypeChart} ringan untuk beberapa saat.`;
                         const currentVal = nextSlots[0].v;
                         
                         if (currentVal > 0) {
@@ -1355,9 +1361,9 @@
                             if (stopIdx !== -1) {
                                 const stopTime = new Date(nextSlots[stopIdx].t);
                                 const diffMin = Math.max(1, Math.ceil((stopTime - now) / 60000));
-                                statusText = `Hujan berhenti dalam ${diffMin} menit.`;
+                                statusText = `${pTypeChart} berhenti dalam ${diffMin} menit.`;
                             } else {
-                                statusText = "Hujan berlanjut untuk 2 jam ke depan.";
+                                statusText = `${pTypeChart} berlanjut untuk 2 jam ke depan.`;
                             }
                         } else {
                             // Tidak Hujan -> Cari kapan mulai
@@ -1365,7 +1371,7 @@
                             if (startRainIdx !== -1) {
                                 const startTime = new Date(nextSlots[startRainIdx].t);
                                 const diffMin = Math.max(1, Math.ceil((startTime - now) / 60000));
-                                statusText = `Hujan dimulai dalam ${diffMin} menit.`;
+                                statusText = `${pTypeChart} dimulai dalam ${diffMin} menit.`;
                             }
                         }
 
@@ -1375,7 +1381,7 @@
                             const heightPct = Math.min((s.v / maxP) * 100, 100);
                             const timeLabel = s.t.slice(11, 16); // HH:MM
                             const barColor = s.v > 0 ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-slate-700/30';
-                            return `<div class="flex flex-col items-center justify-end h-20 w-full gap-1"><div class="w-full mx-0.5 rounded-t-sm ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${timeLabel}</span></div>`;
+                            return `<div class="flex flex-col items-center justify-end h-20 w-full gap-1"><div class="w-1.5 rounded-full ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${timeLabel}</span></div>`;
                         }).join('');
 
                         precipChartContainer.innerHTML = `<div class="bg-slate-800/50 rounded-xl border border-white/10 p-4 backdrop-blur-sm"><p class="text-sm font-bold text-white mb-3 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-20 border-b border-white/5 pb-1">${barsHtml}</div></div>`;
@@ -1395,9 +1401,6 @@
                     const hourlyCode = data.hourly.weathercode;
                     const nowIdx = new Date().getHours();
                     
-                    // Helper: Cek Salju (Codes: 71, 73, 75, 77, 85, 86)
-                    const getPrecipType = (c) => [71, 73, 75, 77, 85, 86].includes(c) ? "Salju" : "Hujan";
-
                     // NEW: Use Minutely Data for better precision
                     let minutelyUsed = false;
                     if (data.minutely_15 && data.minutely_15.precipitation) {
@@ -1408,19 +1411,21 @@
                         if (startIdx === -1) startIdx = 0;
                         
                         const currentP = pVals[startIdx] || 0;
+                        const pType = getPrecipType(currentCode);
+
                         if (currentP > 0) { // Sedang Hujan
                             let stopIdx = -1;
                             for(let i=startIdx; i<pVals.length; i++) { if(pVals[i] === 0) { stopIdx = i; break; } }
                             if(stopIdx !== -1) {
                                 const diffMin = Math.ceil((new Date(pTimes[stopIdx]) - now) / 60000);
-                                if(diffMin <= 120) { smartText = `Hujan berhenti dalam ${diffMin} menit.`; minutelyUsed = true; }
+                                if(diffMin <= 120) { smartText = `${pType} berhenti dalam ${diffMin} menit.`; minutelyUsed = true; }
                             }
                         } else { // Tidak Hujan
                             let startRainIdx = -1;
                             for(let i=startIdx; i<pVals.length; i++) { if(pVals[i] > 0) { startRainIdx = i; break; } }
                             if(startRainIdx !== -1) {
                                 const diffMin = Math.ceil((new Date(pTimes[startRainIdx]) - now) / 60000);
-                                if(diffMin <= 120) { smartText = `Hujan dimulai dalam ${diffMin} menit.`; minutelyUsed = true; }
+                                if(diffMin <= 120) { smartText = `${pType} dimulai dalam ${diffMin} menit.`; minutelyUsed = true; }
                             }
                         }
                     }
