@@ -1608,11 +1608,11 @@
             // Update Style menjadi Tombol Back di Kiri Atas (Konsisten)
             closeBtn.style.position = 'fixed';
             closeBtn.style.top = '16px';
-            closeBtn.style.left = '16px';
-            closeBtn.style.right = 'auto'; 
+            closeBtn.style.left = 'auto';
+            closeBtn.style.right = '16px'; 
             closeBtn.style.zIndex = '2147483647';
             closeBtn.className = "p-2 bg-black/20 hover:bg-black/40 rounded-full text-white backdrop-blur-sm transition-colors";
-            closeBtn.innerHTML = '<i data-lucide="chevron-left" class="w-6 h-6"></i>';
+            closeBtn.innerHTML = '<i data-lucide="x" class="w-6 h-6"></i>';
 
             if (closeBtn) {
                 closeBtn.classList.remove('hidden');
