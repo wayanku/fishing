@@ -13,6 +13,60 @@ let wxCode = 0;
 let stars = [];
 let moonPhase = 0.5; // 0.0 - 1.0
 
+// --- NEW: Inject SVG Filters & CSS for Realistic Clouds ---
+function initCloudAssets() {
+    if(document.getElementById('cloud-assets')) return;
+
+    const assets = document.createElement('div');
+    assets.id = 'cloud-assets';
+    assets.innerHTML = `
+        <div id="sky-gradient" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-10; pointer-events:none;"></div>
+        <svg width="0" height="0" style="position:absolute; z-index:-1;">
+            <filter id="filter-base">
+                <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="5" seed="8517" />     
+                <feDisplacementMap in="SourceGraphic" scale="120" />
+            </filter>
+            <filter id="filter-back">
+                <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="3" seed="8517" />     
+                <feDisplacementMap in="SourceGraphic" scale="120" />
+            </filter>
+            <filter id="filter-mid">
+                <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="3" seed="8517"/>
+                <feDisplacementMap in="SourceGraphic" scale="120" />
+            </filter>
+            <filter id="filter-front">
+                <feTurbulence type="fractalNoise" baseFrequency="0.009" numOctaves="4" seed="8517"/>
+                <feDisplacementMap in="SourceGraphic" scale="50" />
+            </filter>
+        </svg>
+        <style>
+            .cloud-wrapper {
+                position: fixed;
+                z-index: 2147483638; /* Behind Rain Canvas (39) */
+                pointer-events: none;
+            }
+            .cloud-layer { position: absolute; border-radius: 50%; }
+            .c-base {
+                width: 600px; height: 100px; top: -10px; left: -100px;
+                filter: url(#filter-base); box-shadow: 200px 170px 19px 40px rgba(255, 255, 255, 0.9);
+            }
+            .c-back {
+                width: 500px; height: 30px; top: -10px; left: -100px;
+                filter: url(#filter-back); box-shadow: 200px 200px 10px 40px rgba(215, 215, 215, 0.3);
+            }
+            .c-mid {
+                width: 580px; height: 35px; top: -20px; left: -100px;
+                filter: url(#filter-mid); box-shadow: 210px 250px 28px 30px rgba(66, 105, 146, 0.2);
+            }
+            .c-front {
+                width: 450px; height: 40px; top: -30px; left: -120px;
+                filter: url(#filter-front); box-shadow: 210px 272px 30px 0px rgba(0, 0, 0, 0.4);
+            }
+        </style>
+    `;
+    document.body.appendChild(assets);
+}
+
 function resizeCanvas() {
     if(canvas && ctx) {
         canvas.width = window.innerWidth;
@@ -36,6 +90,7 @@ function initStars() {
 
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+initCloudAssets(); // Initialize filters
 
 class RainDrop {
     constructor() {
@@ -94,60 +149,62 @@ class WindLine {
     }
 }
 
-// --- NEW: Cloud Class untuk Awan Bergerak ---
+// --- MODIFIED: Cloud Class using DOM Elements (Realistic Style) ---
 class Cloud {
-    constructor() {
+    constructor(isDark = false) {
+        this.element = document.createElement('div');
+        this.element.className = 'cloud-wrapper' + (isDark ? ' cloud-dark' : '');
+        
+        // Create 4 layers for realistic effect
+        ['c-base', 'c-back', 'c-mid', 'c-front'].forEach(cls => {
+            const l = document.createElement('div');
+            l.className = `cloud-layer ${cls}`;
+            this.element.appendChild(l);
+        });
+
+        document.body.appendChild(this.element);
         this.reset();
-        this.x = Math.random() * canvas.width; // Posisi awal acak
+        
+        // Randomize initial position to avoid popping in
+        this.x = Math.random() * window.innerWidth;
+        this.updatePosition();
     }
 
     reset() {
-        this.x = -300;
-        this.y = Math.random() * (canvas.height * 0.35); // Area langit atas
-        this.speed = 0.15 + Math.random() * 0.25; // Gerakan lambat
-        this.scale = 0.6 + Math.random() * 0.8; // Variasi ukuran
-        this.opacity = 0.6 + Math.random() * 0.3; 
+        this.x = -600; // Start off-screen left (wider clouds now)
+        this.y = Math.random() * (window.innerHeight * 0.3); // Top 30%
+        this.speed = 0.15 + Math.random() * 0.25; // Slow movement
+        this.scale = 0.4 + Math.random() * 0.5; // Scale down (original is huge)
+        this.opacity = 0.8 + Math.random() * 0.2;
         
-        this.puffs = [];
-        // Buat bentuk awan yang lebih kompleks (elongated)
-        const count = 5 + Math.floor(Math.random() * 6);
-        for(let i=0; i<count; i++) {
-            this.puffs.push({
-                x: (Math.random() - 0.5) * 200 * this.scale,
-                y: (Math.random() - 0.5) * 50 * this.scale,
-                r: (40 + Math.random() * 30) * this.scale
-            });
-        }
+        this.element.style.opacity = this.opacity;
+        this.element.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
     }
 
     update() {
-        if(!canvas) return;
         this.x += this.speed;
-        if(this.x > canvas.width + 300) this.reset();
+        if(this.x > window.innerWidth + 300) this.reset();
+        this.updatePosition();
+    }
+
+    updatePosition() {
+        this.element.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
     }
 
     draw() {
-        if(!ctx) return;
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        
-        // Efek Blur agar terlihat seperti kapas/asap (Natural)
-        ctx.filter = 'blur(20px)'; 
-        ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
-        
-        ctx.beginPath();
-        this.puffs.forEach(p => {
-            ctx.moveTo(p.x + p.r, p.y);
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        });
-        ctx.fill();
-        
-        ctx.restore();
+        // No-op: Drawing is handled by DOM/CSS
+    }
+
+    remove() {
+        if(this.element && this.element.parentNode) {
+            this.element.parentNode.removeChild(this.element);
+        }
     }
 }
 
 function drawSkyBackground() {
     if (!ctx || !canvas) return;
+    // if (!ctx || !canvas) return; // Tidak perlu canvas context untuk background div
     
     // --- NEW: Gradasi Langit Natural (iPhone Style) ---
     const h = new Date().getHours();
@@ -179,6 +236,9 @@ function drawSkyBackground() {
     grd.addColorStop(1, bot);
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // FIX: Terapkan gradasi ke DIV background, bukan Canvas (agar canvas transparan & awan terlihat)
+    const sky = document.getElementById('sky-gradient');
+    if(sky) sky.style.background = `linear-gradient(to bottom, ${top}, ${bot})`;
 }
 
 function drawCelestialBodies() {
@@ -265,8 +325,8 @@ function animate() {
     drawSkyBackground();
     drawCelestialBodies();
 
-    // 2. Draw Clouds (Awan)
-    clouds.forEach(c => { c.update(); c.draw(); });
+    // 2. Update Clouds (DOM)
+    clouds.forEach(c => c.update());
 
     // 3. Draw Particles (Hujan/Salju)
     particles = particles.filter(p => !p.isDead);
@@ -290,7 +350,6 @@ function startWeatherEffect(type) {
     
     stopWeatherEffect();
     currentWxType = type;
-    clouds = []; // Reset awan
 
     // Pastikan canvas muncul di BELAKANG panel text (2147483640) tapi DI ATAS peta
     canvas.style.zIndex = "2147483639"; 
@@ -306,9 +365,12 @@ function startWeatherEffect(type) {
     
     // Tambahkan Awan jika cuaca mendukung (Berawan/Hujan/Salju)
     // Kode: 1,2,3 (Cloudy), 45,48 (Fog), 51+ (Rain/Snow)
-    if ([1, 2, 3, 45, 48].includes(wxCode) || wxCode >= 51) {
-        const cloudCount = (wxCode >= 51 || wxCode === 3) ? 8 : 5; // Lebih banyak jika hujan/mendung
-        for(let i=0; i<cloudCount; i++) clouds.push(new Cloud());
+    const isDark = (['storm', 'rain'].includes(type) || wxCode >= 51 || wxCode === 3 || !wxIsDay);
+    
+    if ([1, 2, 3, 45, 48].includes(wxCode) || wxCode >= 51 || ['rain', 'storm', 'snow'].includes(type)) {
+        // Lebih banyak awan jika hujan/badai
+        const cloudCount = (wxCode >= 51 || wxCode === 3 || ['rain', 'storm'].includes(type)) ? 8 : 5; 
+        for(let i=0; i<cloudCount; i++) clouds.push(new Cloud(isDark));
     }
 
     if (!animationFrameId) animate();
@@ -317,6 +379,8 @@ function startWeatherEffect(type) {
 function stopWeatherEffect() {
     if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     particles = [];
+    // Clean up DOM clouds
+    clouds.forEach(c => c.remove());
     clouds = [];
     storm = null;
     currentWxType = null;
