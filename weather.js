@@ -55,10 +55,11 @@ function initCloudAssets() {
                 left: -700px;
                 z-index: 2147483638; /* FIX: Agar awan muncul di atas peta */
                 pointer-events: none;
+                will-change: transform; /* FIX: Optimasi GPU agar tidak patah-patah di HP */
             }
             @keyframes drift {
-                from { left: -700px; }
-                to { left: 110vw; }
+                from { transform: translate3d(0, 0, 0); }
+                to { transform: translate3d(calc(110vw + 700px), 0, 0); }
             }
             .cloud { position: absolute; border-radius: 50%; } /* FIX: Samakan nama class dengan JS */
             
