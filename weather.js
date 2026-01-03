@@ -1,7 +1,7 @@
 
 // --- HIGH-PERFORMANCE WEATHER ANIMATION (CANVAS) ---
-const canvas = document.getElementById('weather-canvas');
-const ctx = canvas ? canvas.getContext('2d') : null;
+let canvas = document.getElementById('weather-canvas');
+let ctx = canvas ? canvas.getContext('2d') : null;
 let particles = [];
 let clouds = []; // Array untuk awan
 let animationFrameId = null;
@@ -21,7 +21,7 @@ function initCloudAssets() {
     const assets = document.createElement('div');
     assets.id = 'cloud-assets';
     assets.innerHTML = `
-        <div id="sky-gradient" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-10; pointer-events:none;"></div>
+        <div id="sky-gradient" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:2147483637; pointer-events:none; transition: background 1s ease;"></div>
         <svg width="0" height="0" style="position:absolute; z-index:-1;">
             <filter id="filter-base">
                 <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="5" seed="8517" />     
@@ -46,22 +46,54 @@ function initCloudAssets() {
                 z-index: 2147483638; /* Behind Rain Canvas (39) */
                 pointer-events: none;
             }
+            /* Container Awan (Sesuai snippet Anda) */
+            .cloud-group {
+                position: absolute;
+                width: 600px;
+                height: 300px;
+                animation: drift 60s linear infinite;
+                left: -700px;
+            }
+            @keyframes drift {
+                from { left: -700px; }
+                to { left: 110vw; }
+            }
             .cloud-layer { position: absolute; border-radius: 50%; }
+            
+            /* --- STYLES AWAN REALISTIS (CERAH/PUTIH) --- */
             .c-base {
-                width: 600px; height: 100px; top: -10px; left: -100px;
-                filter: url(#filter-base); box-shadow: 200px 170px 19px 40px rgba(255, 255, 255, 0.9);
+                width: 600px; height: 100px;
+                filter: url(#filter-base); 
+                box-shadow: 200px 170px 25px 45px rgba(255, 255, 255, 0.9);
             }
             .c-back {
-                width: 500px; height: 30px; top: -10px; left: -100px;
-                filter: url(#filter-back); box-shadow: 200px 200px 10px 40px rgba(215, 215, 215, 0.3);
+                width: 500px; height: 40px;
+                filter: url(#filter-back); 
+                box-shadow: 200px 200px 15px 45px rgba(240, 240, 240, 0.4);
             }
             .c-mid {
-                width: 580px; height: 35px; top: -20px; left: -100px;
-                filter: url(#filter-mid); box-shadow: 210px 250px 28px 30px rgba(66, 105, 146, 0.2);
+                width: 580px; height: 45px;
+                filter: url(#filter-mid); 
+                box-shadow: 210px 250px 30px 35px rgba(255, 255, 255, 0.3);
             }
             .c-front {
-                width: 450px; height: 40px; top: -30px; left: -120px;
-                filter: url(#filter-front); box-shadow: 210px 272px 30px 0px rgba(0, 0, 0, 0.4);
+                width: 450px; height: 50px;
+                filter: url(#filter-front); 
+                box-shadow: 210px 270px 35px 5px rgba(255, 255, 255, 0.4);
+            }
+
+            /* --- STYLES KHUSUS MENDUNG / DARK MODE (Bentuk sama, Warna Gelap) --- */
+            .cloud-dark .c-base {
+                box-shadow: 200px 170px 25px 45px rgba(60, 65, 75, 0.9) !important;
+            }
+            .cloud-dark .c-back {
+                box-shadow: 200px 200px 15px 45px rgba(30, 35, 45, 0.4) !important;
+            }
+            .cloud-dark .c-mid {
+                box-shadow: 210px 250px 30px 35px rgba(80, 90, 100, 0.3) !important;
+            }
+            .cloud-dark .c-front {
+                box-shadow: 210px 270px 35px 5px rgba(100, 110, 120, 0.4) !important;
             }
         </style>
     `;
@@ -89,9 +121,23 @@ function initStars() {
     }
 }
 
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-initCloudAssets(); // Initialize filters
+// --- FIX: Initialize after DOM Ready to ensure body & canvas exist ---
+function initWeatherSystem() {
+    canvas = document.getElementById('weather-canvas');
+    ctx = canvas ? canvas.getContext('2d') : null;
+    initCloudAssets();
+    resizeCanvas();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWeatherSystem);
+} else {
+    initWeatherSystem();
+}
+
+window.addEventListener('resize', () => {
+    resizeCanvas();
+});
 
 class RainDrop {
     constructor() {
@@ -168,42 +214,35 @@ class WindLine {
 class Cloud {
     constructor(isDark = false) {
         this.element = document.createElement('div');
-        this.element.className = 'cloud-wrapper' + (isDark ? ' cloud-dark' : '');
-        
+        this.element.className = 'cloud-group' + (isDark ? ' cloud-dark' : '');
+
         // Create 4 layers for realistic effect
         ['c-base', 'c-back', 'c-mid', 'c-front'].forEach(cls => {
             const l = document.createElement('div');
-            l.className = `cloud-layer ${cls}`;
+            l.className = `cloud ${cls}`;
             this.element.appendChild(l);
         });
 
         document.body.appendChild(this.element);
-        this.reset();
         
-        // Randomize initial position to avoid popping in
-        this.x = Math.random() * window.innerWidth;
-        this.updatePosition();
-    }
+        // Randomize Position & Animation
+        this.y = 5 + Math.random() * 40;
+        this.element.style.top = `${this.y}%`;
 
-    reset() {
-        this.x = -600; // Start off-screen left (wider clouds now)
-        this.y = Math.random() * (window.innerHeight * 0.3); // Top 30%
-        this.speed = 0.15 + Math.random() * 0.25; // Slow movement
-        this.scale = 0.4 + Math.random() * 0.5; // Scale down (original is huge)
-        this.opacity = 0.8 + Math.random() * 0.2;
-        
-        this.element.style.opacity = this.opacity;
-        this.element.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
+        // Random Speed (Duration) & Start Position (Delay)
+        const duration = 50 + Math.random() * 40; // 50s - 90s
+        const delay = -Math.random() * 100; // Start mid-animation (agar awan langsung tersebar)
+        this.element.style.animationDuration = `${duration}s`;
+        this.element.style.animationDelay = `${delay}s`;
+
+        const scale = 0.6 + Math.random() * 0.4;
+        const opacity = 0.7 + Math.random() * 0.3;
+        this.element.style.transform = `scale(${scale})`;
+        this.element.style.opacity = opacity;
     }
 
     update() {
-        this.x += this.speed;
-        if(this.x > window.innerWidth + 300) this.reset();
-        this.updatePosition();
-    }
-
-    updatePosition() {
-        this.element.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) scale(${this.scale})`;
+        // Movement handled by CSS animation 'drift'
     }
 
     draw() {
@@ -238,11 +277,8 @@ function drawSkyBackground() {
         else { top = "#020617"; bot = "#1e293b"; } 
     }
 
-    const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grd.addColorStop(0, top);
-    grd.addColorStop(1, bot);
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // FIX: Jangan gambar di canvas (biarkan transparan untuk awan), update div background saja
+    // ctx.fillRect(0, 0, canvas.width, canvas.height); <--- HAPUS INI
     
     const sky = document.getElementById('sky-gradient');
     if(sky) sky.style.background = `linear-gradient(to bottom, ${top}, ${bot})`;
@@ -374,7 +410,7 @@ function startWeatherEffect(type) {
     // Kode: 1,2,3 (Cloudy), 45,48 (Fog), 51+ (Rain/Snow)
     const isDark = (['storm', 'rain'].includes(type) || wxCode >= 51 || wxCode === 3 || !wxIsDay);
     
-    if ([1, 2, 3, 45, 48].includes(wxCode) || wxCode >= 51 || ['rain', 'storm', 'snow'].includes(type)) {
+    if ([1, 2, 3, 45, 48].includes(wxCode) || wxCode >= 51 || ['rain', 'storm', 'snow', 'cloudy'].includes(type)) {
         // Lebih banyak awan jika hujan/badai
         const cloudCount = (wxCode >= 51 || wxCode === 3 || ['rain', 'storm'].includes(type)) ? 8 : 5; 
         for(let i=0; i<cloudCount; i++) clouds.push(new Cloud(isDark));
@@ -391,6 +427,11 @@ function stopWeatherEffect() {
     clouds = [];
     storm = null;
     currentWxType = null;
+    
+    // Reset Sky Gradient agar peta terlihat kembali saat panel ditutup
+    const sky = document.getElementById('sky-gradient');
+    if(sky) sky.style.background = 'transparent';
+
     if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
     if(canvas) canvas.style.zIndex = "-1"; // Reset z-index saat stop
 }
@@ -493,6 +534,7 @@ function checkWeatherAnimation(code, windSpeed = 0, isDay = true) {
     if([95, 96, 99].includes(code)) type = 'storm';
     else if([71, 73, 75, 77, 85, 86].includes(code)) type = 'snow';
     else if([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) type = 'rain';
+    else if([1, 2, 3, 45, 48].includes(code)) type = 'cloudy'; // NEW: Tipe khusus berawan
     else if(windSpeed > 20) type = 'wind';
     
     startWeatherEffect(type);
