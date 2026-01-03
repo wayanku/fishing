@@ -1,18 +1,38 @@
+
 // --- HIGH-PERFORMANCE WEATHER ANIMATION (CANVAS) ---
 const canvas = document.getElementById('weather-canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 let particles = [];
 let animationFrameId = null;
 let wxInterval = null;
 let currentWxType = null;
 let storm = null;
+let wxIsDay = true;
+let wxCode = 0;
+let stars = [];
+let moonPhase = 0.5; // 0.0 - 1.0
 
 function resizeCanvas() {
-    if(canvas) {
+    if(canvas && ctx) {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        initStars();
     }
 }
+
+function initStars() {
+    stars = [];
+    for(let i=0; i<150; i++) {
+        stars.push({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * (window.innerHeight * 0.6), // Top 60%
+            size: Math.random() * 2,
+            alpha: 0.2 + Math.random() * 0.8,
+            twinkle: Math.random() * 0.05
+        });
+    }
+}
+
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
@@ -30,6 +50,7 @@ class RainDrop {
         }
     }
     update() {
+        if (!canvas) return;
         this.y += this.speed;
         if (this.y > canvas.height) {
             if (this.splash) particles.push(new Splash(this.x));
@@ -37,6 +58,7 @@ class RainDrop {
         }
     }
     draw() {
+        if (!ctx) return;
         ctx.beginPath(); ctx.moveTo(this.x, this.y);
         ctx.lineTo(this.x + this.length * 0.25, this.y + this.length); // Tilt
         ctx.strokeStyle = `rgba(147, 197, 253, ${this.opacity})`; ctx.lineWidth = this.width; ctx.stroke();
@@ -44,9 +66,10 @@ class RainDrop {
 }
 
 class Splash {
-    constructor(x) { this.x = x; this.y = canvas.height; this.radius = 20 + Math.random() * 20; this.maxRadius = this.radius * 1.5; this.life = 0; this.maxLife = 20; this.isDead = false; }
+    constructor(x) { this.x = x; this.y = canvas ? canvas.height : 0; this.radius = 20 + Math.random() * 20; this.maxRadius = this.radius * 1.5; this.life = 0; this.maxLife = 20; this.isDead = false; }
     update() { this.life++; if (this.life >= this.maxLife) this.isDead = true; }
     draw() {
+        if (!ctx) return;
         const p = this.life / this.maxLife;
         ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * p, Math.PI, 2 * Math.PI, false);
         ctx.strokeStyle = `rgba(147, 197, 253, ${0.8 * (1 - p)})`; ctx.lineWidth = 2; ctx.stroke();
@@ -54,25 +77,132 @@ class Splash {
 }
 
 class SnowFlake {
-    constructor() { this.x = Math.random() * canvas.width; this.y = -Math.random() * 20; this.size = 10 + Math.random() * 15; this.speed = 1 + Math.random() * 2; this.sway = 0.5 + Math.random() * 0.5; this.swaySpeed = 0.02 + Math.random() * 0.01; this.angle = 0; }
-    update() { this.y += this.speed; this.angle += this.swaySpeed; this.x += Math.sin(this.angle) * this.sway; if (this.y > canvas.height) { this.y = -20; this.x = Math.random() * canvas.width; } }
-    draw() { ctx.font = `${this.size}px Arial`; ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + this.size / 30})`; ctx.fillText('❄', this.x, this.y); }
+    constructor() { if(!canvas) return; this.x = Math.random() * canvas.width; this.y = -Math.random() * 20; this.size = 10 + Math.random() * 15; this.speed = 1 + Math.random() * 2; this.sway = 0.5 + Math.random() * 0.5; this.swaySpeed = 0.02 + Math.random() * 0.01; this.angle = 0; }
+    update() { if(!canvas) return; this.y += this.speed; this.angle += this.swaySpeed; this.x += Math.sin(this.angle) * this.sway; if (this.y > canvas.height) { this.y = -20; this.x = Math.random() * canvas.width; } }
+    draw() { if(!ctx) return; ctx.font = `${this.size}px Arial`; ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + this.size / 30})`; ctx.fillText('❄', this.x, this.y); }
 }
 
 class WindLine {
-    constructor() { this.x = -150; this.y = Math.random() * canvas.height; this.length = 150; this.speed = 15 + Math.random() * 10; }
-    update() { this.x += this.speed; if (this.x > canvas.width + 50) { this.x = -150; this.y = Math.random() * canvas.height; } }
+    constructor() { if(!canvas) return; this.x = -150; this.y = Math.random() * canvas.height; this.length = 150; this.speed = 15 + Math.random() * 10; }
+    update() { if(!canvas) return; this.x += this.speed; if (this.x > canvas.width + 50) { this.x = -150; this.y = Math.random() * canvas.height; } }
     draw() {
+        if (!ctx) return;
         const g = ctx.createLinearGradient(this.x, this.y, this.x + this.length, this.y);
         g.addColorStop(0, 'rgba(255, 255, 255, 0)'); g.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)'); g.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.length, this.y); ctx.stroke();
     }
 }
 
+function drawSkyBackground() {
+    if (!ctx || !canvas) return;
+    // Dynamic Gradient based on Weather & Time
+    let topColor, bottomColor;
+
+    if (wxIsDay) {
+        if (wxCode <= 1) { // Clear
+            topColor = "#3b82f6"; bottomColor = "#93c5fd";
+        } else if (wxCode <= 3) { // Cloudy
+            topColor = "#64748b"; bottomColor = "#94a3b8";
+        } else { // Rain/Storm
+            topColor = "#334155"; bottomColor = "#475569";
+        }
+    } else {
+        if (wxCode <= 1) { // Clear Night
+            topColor = "#0f172a"; bottomColor = "#1e293b";
+        } else { // Cloudy/Rain Night
+            topColor = "#020617"; bottomColor = "#1e293b";
+        }
+    }
+
+    const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grd.addColorStop(0, topColor);
+    grd.addColorStop(1, bottomColor);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawCelestialBodies() {
+    if (!ctx) return;
+    // Draw Stars (Night only, if not heavy storm)
+    if (!wxIsDay && wxCode < 60) {
+        ctx.fillStyle = "white";
+        stars.forEach(star => {
+            ctx.globalAlpha = star.alpha;
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fill();
+            // Twinkle effect
+            star.alpha += star.twinkle;
+            if (star.alpha > 1 || star.alpha < 0.2) star.twinkle *= -1;
+        });
+        ctx.globalAlpha = 1.0;
+    }
+
+    // Draw Sun (Day & Clear/Partly Cloudy)
+    if (wxIsDay && wxCode <= 3) {
+        // Sun Position: Top Left (as requested for Moon, keeping consistent or mirrored)
+        // Let's put Sun Top Left as well to match the "corner" request
+        const sunX = 60; 
+        const sunY = 80;
+        
+        // Glow
+        const grd = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 60);
+        grd.addColorStop(0, "rgba(253, 224, 71, 0.8)");
+        grd.addColorStop(1, "rgba(253, 224, 71, 0)");
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(sunX, sunY, 60, 0, Math.PI * 2); ctx.fill();
+
+        // Core
+        ctx.fillStyle = "#facc15";
+        ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Draw Moon (Night)
+    if (!wxIsDay) {
+        const moonX = 60; // Top Left
+        const moonY = 80;
+        const radius = 25;
+
+        // Moon Glow
+        const grd = ctx.createRadialGradient(moonX, moonY, radius, moonX, moonY, radius * 3);
+        grd.addColorStop(0, "rgba(255, 255, 255, 0.2)");
+        grd.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(moonX, moonY, radius * 3, 0, Math.PI * 2); ctx.fill();
+
+        // Draw Base Moon (White)
+        ctx.fillStyle = "#f8fafc";
+        ctx.beginPath(); ctx.arc(moonX, moonY, radius, 0, Math.PI * 2); ctx.fill();
+
+        // Draw Phase Shadow (Dark Circle Overlay)
+        // FIX: Gunakan clipping & fill gelap agar tidak bolong transparan
+        ctx.save();
+        ctx.beginPath(); ctx.arc(moonX, moonY, radius, 0, Math.PI * 2); ctx.clip(); // Clip ke bentuk bulan
+
+        // Hitung posisi bayangan
+        // 0.0 (New) -> Bayangan di Tengah (Menutup)
+        // 0.5 (Full) -> Bayangan Jauh (Terbuka)
+        let shadowOffset;
+        if (moonPhase < 0.5) shadowOffset = (moonPhase / 0.5) * 2.8 * radius; // Waxing
+        else shadowOffset = ((1.0 - moonPhase) / 0.5) * 2.8 * radius; // Waning
+
+        ctx.fillStyle = "rgba(15, 23, 42, 0.95)"; // Warna gelap menyerupai langit malam
+        ctx.beginPath();
+        ctx.arc(moonX + shadowOffset, moonY, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
 function animate() {
     animationFrameId = requestAnimationFrame(animate);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 1. Draw Sky & Celestial Bodies
+    drawSkyBackground();
+    drawCelestialBodies();
 
+    // 2. Draw Particles
     particles = particles.filter(p => !p.isDead);
     for (const p of particles) { p.update(); p.draw(); }
 
@@ -85,24 +215,18 @@ function animate() {
         }
     }
 
-    // Add a gradient mask at the top to create a "hidden screen" effect
-    const isLight = document.body.classList.contains('light-mode');
-    const maskColor = isLight ? '248, 250, 252' : '2, 6, 23';
-    const topMask = ctx.createLinearGradient(0, 0, 0, 80); // 80px fade area
-    topMask.addColorStop(0, `rgba(${maskColor}, 1)`);
-    topMask.addColorStop(0.5, `rgba(${maskColor}, 0.8)`);
-    topMask.addColorStop(1, `rgba(${maskColor}, 0)`);
-    ctx.fillStyle = topMask;
-    ctx.fillRect(0, 0, canvas.width, 80);
+    // REMOVED: Top Gradient Mask to allow clear view of sky/stars
 }
 
 function startWeatherEffect(type) {
     if(currentWxType === type) return;
+    if(!canvas) return;
+    
     stopWeatherEffect();
     currentWxType = type;
 
-    // Pastikan canvas muncul di atas panel full-screen
-    canvas.style.zIndex = "2147483647";
+    // Pastikan canvas muncul di BELAKANG panel text (2147483640) tapi DI ATAS peta
+    canvas.style.zIndex = "2147483639"; 
     canvas.style.pointerEvents = "none";
 
     if (type === 'rain') for (let i = 0; i < 150; i++) particles.push(new RainDrop());
@@ -121,8 +245,8 @@ function stopWeatherEffect() {
     particles = [];
     storm = null;
     currentWxType = null;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    canvas.style.zIndex = "0"; // Reset z-index saat stop
+    if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if(canvas) canvas.style.zIndex = "-1"; // Reset z-index saat stop
 }
 
 // --- WEATHER VARIABLES ---
@@ -204,7 +328,7 @@ async function fetchUserWeather(lat, lng) {
             }
             
             // Cek Animasi Cuaca di lokasi user
-            // checkWeatherAnimation(currentUserWeatherCode, currentUserWindSpeed); // Disabled: Jangan auto-start di peta
+            // Disabled: Jangan auto-start di peta
         }
     } catch(e) {
         const infoEl = document.getElementById('user-weather-info');
@@ -212,14 +336,19 @@ async function fetchUserWeather(lat, lng) {
     }
 }
 
-function checkWeatherAnimation(code, windSpeed = 0) {
+function checkWeatherAnimation(code, windSpeed = 0, isDay = true) {
+    // Update Globals for Background
+    wxCode = code;
+    wxIsDay = isDay;
+
     // Priority: Storm > Snow > Rain > Wind
-    if([95, 96, 99].includes(code)) { startWeatherEffect('storm'); return; }
-    if([71, 73, 75, 77, 85, 86].includes(code)) { startWeatherEffect('snow'); return; }
-    if([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) { startWeatherEffect('rain'); return; }
-    if(windSpeed > 20) { startWeatherEffect('wind'); return; }
+    let type = 'clear'; // Default to clear (shows sky/sun/moon)
+    if([95, 96, 99].includes(code)) type = 'storm';
+    else if([71, 73, 75, 77, 85, 86].includes(code)) type = 'snow';
+    else if([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) type = 'rain';
+    else if(windSpeed > 20) type = 'wind';
     
-    stopWeatherEffect();
+    startWeatherEffect(type);
 }
 
 async function showLocationPanel(latlng) {
@@ -260,7 +389,9 @@ async function showLocationPanel(latlng) {
     panel.style.setProperty('max-width', 'none', 'important'); // Override batasan lebar di laptop
     panel.style.setProperty('margin', '0', 'important');
     panel.style.setProperty('overflow-y', 'auto', 'important');
-    panel.style.background = 'linear-gradient(to bottom, #0f172a, #1e293b)'; // Default Dark Gradient
+    panel.style.setProperty('background', 'transparent', 'important'); // Make transparent so canvas shows
+    panel.style.setProperty('backdrop-filter', 'none', 'important'); // Hapus efek blur
+    panel.style.setProperty('-webkit-backdrop-filter', 'none', 'important'); // Support Safari
     panel.style.setProperty('padding-bottom', '80px', 'important'); // Tambahan padding bawah agar konten paling bawah tidak mentok
     
     // FIX: Hapus lengkungan pada elemen anak (konten dalam panel)
@@ -270,6 +401,13 @@ async function showLocationPanel(latlng) {
         child.style.setProperty('height', 'auto', 'important'); // Biarkan konten memanjang
         child.style.setProperty('min-height', '100%', 'important');
         child.classList.remove('rounded-t-[2rem]', 'rounded-t-3xl', 'rounded-2xl', 'rounded-3xl', 'overflow-hidden');
+        
+        // FIX: Paksa background transparan agar canvas langit terlihat
+        child.style.setProperty('background', 'transparent', 'important');
+        child.style.setProperty('background-color', 'transparent', 'important');
+        child.style.setProperty('backdrop-filter', 'none', 'important'); // Hapus efek blur pada anak elemen
+        child.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+        child.style.setProperty('box-shadow', 'none', 'important');
     });
 
     // --- CLEANUP: Hapus elemen navigasi ganda (Garis & Tombol X) ---
@@ -528,6 +666,14 @@ async function showLocationPanel(latlng) {
     }
 }
 
+function getMoonPhaseValue(date) {
+    const lp = 2551443; 
+    const now = new Date(date.getTime());
+    const new_moon = new Date(1970, 0, 7, 20, 35, 0);
+    const phase = ((now.getTime() - new_moon.getTime()) / 1000) % lp;
+    return phase / lp;
+}
+
 // Fungsi Update UI Cuaca (Dipisah agar bisa dipanggil saat ganti bahasa)
 function updateWeatherUI(data) {
     if(!data || !data.current_weather) return;
@@ -535,21 +681,13 @@ function updateWeatherUI(data) {
     const lang = localStorage.getItem('appLang') || 'id';
     const dt = dynamicTranslations[lang];
 
-    // --- NEW: Dynamic Background based on Weather ---
+    // --- NEW: Dynamic Background handled by Canvas now ---
     const panel = document.getElementById('location-panel');
     const code = data.current_weather.weathercode;
     const isDay = data.current_weather.is_day;
-    
-    let bgGradient = "linear-gradient(to bottom, #0f172a, #1e293b)"; // Default Night/Dark
-    if (isDay) {
-        if (code <= 1) bgGradient = "linear-gradient(to bottom, #3b82f6, #2563eb)"; // Cerah (Biru Terang)
-        else if (code <= 3) bgGradient = "linear-gradient(to bottom, #64748b, #475569)"; // Berawan (Abu-abu)
-        else if (code >= 51) bgGradient = "linear-gradient(to bottom, #4f46e5, #312e81)"; // Hujan (Indigo Gelap)
-    } else {
-        if (code >= 51) bgGradient = "linear-gradient(to bottom, #1e1b4b, #0f172a)"; // Malam Hujan
-    }
-    // Apply with transition
-    panel.style.background = bgGradient;
+    panel.style.setProperty('background', 'transparent', 'important'); // Ensure transparency
+    panel.style.setProperty('backdrop-filter', 'none', 'important'); // Ensure no blur
+    panel.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
     
     // --- NEW: Create and Populate iPhone-style Header ---
     const panelContent = document.querySelector('#location-panel > div'); // Target the main content div of the panel
@@ -628,7 +766,8 @@ function updateWeatherUI(data) {
     // Cek Animasi Cuaca untuk lokasi yang dipilih
     // Hanya jalankan animasi jika panel cuaca sedang terbuka
     if (!document.getElementById('location-panel').classList.contains('translate-y-full')) {
-        checkWeatherAnimation(code, wx.windspeed);
+        moonPhase = getMoonPhaseValue(new Date()); // Update moon phase
+        checkWeatherAnimation(code, wx.windspeed, isDay);
     }
 
     // Ambil data ombak jam sekarang
@@ -1580,7 +1719,7 @@ function showMetricInsight(type) {
     // Trigger Animation saat diklik
     if(currentWeatherData && currentWeatherData.current_weather) {
         const wx = currentWeatherData.current_weather;
-        if(type === 'weather') checkWeatherAnimation(wx.weathercode, wx.windspeed);
+        if(type === 'weather') checkWeatherAnimation(wx.weathercode, wx.windspeed, wx.is_day);
         else if(type === 'wind') startWeatherEffect('wind');
         else if(type === 'temp' && [71, 73, 75, 77, 85, 86].includes(wx.weathercode)) startWeatherEffect('snow');
     }
