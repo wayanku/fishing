@@ -498,6 +498,40 @@ function checkWeatherAnimation(code, windSpeed = 0, isDay = true) {
     startWeatherEffect(type);
 }
 
+// --- NEW: Responsive Styles for PC/Desktop ---
+function injectResponsiveStyles() {
+    if (document.getElementById('weather-responsive-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'weather-responsive-styles';
+    style.innerHTML = `
+        @media (min-width: 1024px) {
+            /* Wrapper Konten Utama di Tengah (Agar tidak terlalu lebar di monitor ultrawide) */
+            #location-panel > div {
+                max-width: 1400px !important;
+                margin: 0 auto !important;
+                padding: 0 2rem !important;
+            }
+            /* Grid Detail (Angin, Ombak, dll) jadi 4 Kolom */
+            .weather-grid-container {
+                display: grid !important;
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 1.5rem !important;
+            }
+            /* Forecast 7 Hari jadi 2 Kolom (Kiri-Kanan) */
+            #forecast-list {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1rem !important;
+                align-items: start !important;
+            }
+            /* Header Lebih Besar */
+            #new-weather-header { padding: 3rem 0 !important; }
+            #header-temp { font-size: 8rem !important; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 async function showLocationPanel(latlng) {
     const panel = document.getElementById('location-panel');
     
@@ -569,6 +603,8 @@ async function showLocationPanel(latlng) {
         child.style.setProperty('max-height', 'none', 'important'); // CRITICAL: Hapus batasan tinggi wrapper
         child.style.setProperty('height', 'auto', 'important'); // Biarkan konten memanjang
         child.style.setProperty('min-height', '100%', 'important');
+        child.style.setProperty('width', '100%', 'important'); // NEW: Paksa lebar penuh
+        child.style.setProperty('max-width', 'none', 'important'); // NEW: Hapus batasan lebar mobile
         child.classList.remove('rounded-t-[2rem]', 'rounded-t-3xl', 'rounded-2xl', 'rounded-3xl', 'overflow-hidden');
         
         // FIX: Paksa background transparan agar canvas langit terlihat
@@ -582,6 +618,12 @@ async function showLocationPanel(latlng) {
     // FIX: Style Kartu Grid (Angin, Ombak, dll) agar kontras di siang hari
     // Berikan latar belakang gelap transparan pada kartu agar teks putih terbaca jelas
     const detailCards = panel.querySelectorAll('[onclick*="showMetricInsight"]');
+    
+    // --- NEW: Tag Container for Responsive Grid ---
+    if(detailCards.length > 0 && detailCards[0].parentElement) {
+        detailCards[0].parentElement.classList.add('weather-grid-container');
+    }
+
     detailCards.forEach(card => {
         card.style.setProperty('background-color', 'rgba(15, 23, 42, 0.4)', 'important'); 
         card.style.setProperty('backdrop-filter', 'blur(4px)', 'important');
@@ -590,6 +632,8 @@ async function showLocationPanel(latlng) {
         card.style.setProperty('border-radius', '1rem', 'important'); // Rounded-xl
         card.style.setProperty('box-shadow', '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 'important');
     });
+
+    injectResponsiveStyles(); // Apply PC Styles
 
     // --- CLEANUP: Hapus elemen navigasi ganda (Garis & Tombol X) ---
     // 1. Sembunyikan garis drag handle (biasanya div kecil di tengah atas)
@@ -990,32 +1034,25 @@ function updateWeatherUI(data) {
 
     if (!hourlyContainer && existingScroll) {
         const referenceNode = dotsContainer || existingScroll;
+        const parentNode = referenceNode.parentNode;
 
-        // --- MODIFIED: Buat Wrapper Card untuk Prakiraan 24 Jam ---
-        const hourlyCard = document.createElement('div');
-        hourlyCard.className = "mx-0 mb-8 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
-        
-        if(referenceNode.parentNode) {
-            referenceNode.parentNode.insertBefore(hourlyCard, referenceNode.nextSibling);
-        }
-
-        // 1. Summary Container (Header Kartu)
+        // 1. Summary Container (Card Terpisah)
         hourlySummaryContainer = document.createElement('div');
         hourlySummaryContainer.id = 'hourly-summary-container';
-        hourlySummaryContainer.className = "px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium border-b border-white/5 bg-white/5";
-        hourlyCard.appendChild(hourlySummaryContainer);
+        hourlySummaryContainer.className = "mx-0 mb-2 px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg";
+        if(parentNode) parentNode.insertBefore(hourlySummaryContainer, referenceNode.nextSibling);
 
-        // 2. Precip Chart Container (Grafik Hujan)
+        // 2. Precip Chart Container (Card Terpisah)
         precipChartContainer = document.createElement('div');
         precipChartContainer.id = 'precip-chart-container';
-        precipChartContainer.className = "px-4 py-2 hidden border-b border-white/5";
-        hourlyCard.appendChild(precipChartContainer);
+        precipChartContainer.className = "mx-0 mb-2 px-4 py-2 hidden bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg";
+        if(parentNode) parentNode.insertBefore(precipChartContainer, hourlySummaryContainer.nextSibling);
 
-        // 3. Hourly Forecast Container (List Scrollable)
+        // 3. Hourly Forecast Container (Card Terpisah)
         hourlyContainer = document.createElement('div');
         hourlyContainer.id = 'hourly-forecast-container';
-        hourlyContainer.className = "flex items-stretch gap-x-4 overflow-x-auto no-scrollbar p-4";
-        hourlyCard.appendChild(hourlyContainer);
+        hourlyContainer.className = "flex items-stretch gap-x-4 overflow-x-auto no-scrollbar p-4 mx-0 mb-8 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg";
+        if(parentNode) parentNode.insertBefore(hourlyContainer, precipChartContainer.nextSibling);
     }
 
     if (hourlyContainer && data.hourly && data.hourly.time && data.daily) {
@@ -1081,7 +1118,7 @@ function updateWeatherUI(data) {
                     return `<div class="flex flex-col items-center justify-end h-20 w-full gap-1"><div class="w-1.5 rounded-full ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${timeLabel}</span></div>`;
                 }).join('');
 
-                precipChartContainer.innerHTML = `<div class="bg-slate-800/30 rounded-lg border border-white/5 p-3 backdrop-blur-sm"><p class="text-xs font-bold text-white mb-2 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-16 border-b border-white/5 pb-1">${barsHtml}</div></div>`;
+                precipChartContainer.innerHTML = `<p class="text-xs font-bold text-white mb-2 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-16 border-b border-white/5 pb-1">${barsHtml}</div>`;
             } else {
                 precipChartContainer.classList.add('hidden');
             }
