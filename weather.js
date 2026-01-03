@@ -133,9 +133,23 @@ class Splash {
 }
 
 class SnowFlake {
-    constructor() { if(!canvas) return; this.x = Math.random() * canvas.width; this.y = -Math.random() * 20; this.size = 10 + Math.random() * 15; this.speed = 1 + Math.random() * 2; this.sway = 0.5 + Math.random() * 0.5; this.swaySpeed = 0.02 + Math.random() * 0.01; this.angle = 0; }
-    update() { if(!canvas) return; this.y += this.speed; this.angle += this.swaySpeed; this.x += Math.sin(this.angle) * this.sway; if (this.y > canvas.height) { this.y = -20; this.x = Math.random() * canvas.width; } }
-    draw() { if(!ctx) return; ctx.font = `${this.size}px Arial`; ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + this.size / 30})`; ctx.fillText('❄', this.x, this.y); }
+    constructor() { 
+        if(!canvas) return; 
+        // FIX: Perluas area spawn (lebar layar + 800px) agar saat berayun (400px) layar tidak kosong
+        this.initialX = Math.random() * (canvas.width + 800) - 400;
+        this.initialY = Math.random() * canvas.height;
+        this.radius = Math.random() * 3 + 0.5;
+        this.color = ['#ccc', '#eee', '#fff', '#ddd'][Math.floor(Math.random() * 4)];
+        this.radians = Math.random() * 80;
+        this.velocity = 0.005;
+    }
+    update() { 
+        if(!canvas) return; 
+        this.radians += this.velocity;
+        this.x = this.initialX + Math.cos(this.radians) * 400;
+        this.y = this.initialY + Math.tan(this.radians) * 600;
+    }
+    draw() { if(!ctx) return; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); ctx.closePath(); }
 }
 
 class WindLine {
@@ -356,7 +370,7 @@ function startWeatherEffect(type) {
     canvas.style.pointerEvents = "none";
 
     if (type === 'rain') for (let i = 0; i < 150; i++) particles.push(new RainDrop());
-    else if (type === 'snow') for (let i = 0; i < 50; i++) particles.push(new SnowFlake());
+    else if (type === 'snow') for (let i = 0; i < 1500; i++) particles.push(new SnowFlake()); // Tambah jumlah partikel
     else if (type === 'wind') for (let i = 0; i < 10; i++) particles.push(new WindLine());
     else if (type === 'storm') {
         for (let i = 0; i < 200; i++) particles.push(new RainDrop());
