@@ -53,12 +53,14 @@ function initCloudAssets() {
                 height: 300px;
                 animation: drift 60s linear infinite;
                 left: -700px;
+                z-index: 2147483638; /* FIX: Agar awan muncul di atas peta */
+                pointer-events: none;
             }
             @keyframes drift {
                 from { left: -700px; }
                 to { left: 110vw; }
             }
-            .cloud-layer { position: absolute; border-radius: 50%; }
+            .cloud { position: absolute; border-radius: 50%; } /* FIX: Samakan nama class dengan JS */
             
             /* --- STYLES AWAN REALISTIS (CERAH/PUTIH) --- */
             .c-base {
