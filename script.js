@@ -1,3 +1,4 @@
+
         // --- SAFETY CHECK: OFFLINE MODE FALLBACK ---
         // Mencegah aplikasi crash jika library tidak termuat karena offline
         if (typeof lucide === 'undefined') {
@@ -882,7 +883,7 @@
             panel.style.setProperty('max-width', 'none', 'important'); // Override batasan lebar di laptop
             panel.style.setProperty('margin', '0', 'important');
             panel.style.setProperty('overflow-y', 'auto', 'important');
-            panel.style.setProperty('background-color', '#0f172a', 'important'); // Pastikan background solid (Slate-900)
+            panel.style.background = 'linear-gradient(to bottom, #0f172a, #1e293b)'; // Default Dark Gradient
             panel.style.setProperty('padding-bottom', '80px', 'important'); // Tambahan padding bawah agar konten paling bawah tidak mentok
             
             // FIX: Hapus lengkungan pada elemen anak (konten dalam panel)
@@ -1065,7 +1066,7 @@
             // 3. Fetch Weather & Marine Data (Open-Meteo API)
             try {
                 // Mengambil Weather + Marine (Wave Height) + Sun (Sunrise/Sunset)
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode,wave_height,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure,visibility&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset,uv_index_max&timezone=auto`);
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode,wave_height,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure,visibility,apparent_temperature,dewpoint_2m,cloudcover,windgusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset,uv_index_max&minutely_15=precipitation&timezone=auto`);
                 const data = await res.json();
                 currentWeatherData = data; // Simpan data untuk detail view
                 updateWeatherUI(data);
@@ -1156,6 +1157,22 @@
             
             const lang = localStorage.getItem('appLang') || 'id';
             const dt = dynamicTranslations[lang];
+
+            // --- NEW: Dynamic Background based on Weather ---
+            const panel = document.getElementById('location-panel');
+            const code = data.current_weather.weathercode;
+            const isDay = data.current_weather.is_day;
+            
+            let bgGradient = "linear-gradient(to bottom, #0f172a, #1e293b)"; // Default Night/Dark
+            if (isDay) {
+                if (code <= 1) bgGradient = "linear-gradient(to bottom, #3b82f6, #2563eb)"; // Cerah (Biru Terang)
+                else if (code <= 3) bgGradient = "linear-gradient(to bottom, #64748b, #475569)"; // Berawan (Abu-abu)
+                else if (code >= 51) bgGradient = "linear-gradient(to bottom, #4f46e5, #312e81)"; // Hujan (Indigo Gelap)
+            } else {
+                if (code >= 51) bgGradient = "linear-gradient(to bottom, #1e1b4b, #0f172a)"; // Malam Hujan
+            }
+            // Apply with transition
+            panel.style.background = bgGradient;
             
             // --- NEW: Create and Populate iPhone-style Header ---
             const panelContent = document.querySelector('#location-panel > div'); // Target the main content div of the panel
@@ -1213,7 +1230,6 @@
             arrow.style.transform = `rotate(${wx.winddirection}deg)`;
             
             // Kode cuaca sederhana (WMO code)
-            const code = wx.weathercode;
             
             // Mapping Kode ke Deskripsi
             let desc = dt.weather[code] || dt.weather[0]; // Default Cerah
@@ -1265,6 +1281,7 @@
             // --- NEW: HOURLY FORECAST (iPhone Style) ---
             // Cari atau buat container baru DI BAWAH weather-scroll agar fitur lama (AI Score dll) tetap ada
             let hourlySummaryContainer = document.getElementById('hourly-summary-container');
+            let precipChartContainer = document.getElementById('precip-chart-container'); // Container Grafik Hujan
             let hourlyContainer = document.getElementById('hourly-forecast-container');
             const existingScroll = document.getElementById('weather-scroll');
             const dotsContainer = document.getElementById('scroll-dots');
@@ -1282,6 +1299,14 @@
                     }
                 }
 
+                // Buat container untuk Grafik Hujan (Next Hour)
+                if (!precipChartContainer) {
+                    precipChartContainer = document.createElement('div');
+                    precipChartContainer.id = 'precip-chart-container';
+                    precipChartContainer.className = "px-4 mb-4 hidden"; // Default hidden
+                    hourlySummaryContainer.parentNode.insertBefore(precipChartContainer, hourlySummaryContainer);
+                }
+
                 // Buat container untuk forecast per jam
                 hourlyContainer = document.createElement('div');
                 hourlyContainer.id = 'hourly-forecast-container';
@@ -1295,15 +1320,129 @@
             }
 
             if (hourlyContainer && data.hourly && data.hourly.time && data.daily) {
+                
+                // --- NEW: PRECIPITATION CHART LOGIC (Next Hour) ---
+                if (data.minutely_15 && data.minutely_15.precipitation && precipChartContainer) {
+                    const pTimes = data.minutely_15.time;
+                    const pVals = data.minutely_15.precipitation;
+                    const now = new Date();
+                    
+                    // Cari index waktu terdekat (mundur 15 menit agar mencakup interval saat ini)
+                    let startIdx = pTimes.findIndex(t => new Date(t) > new Date(now.getTime() - 15*60000));
+                    if (startIdx === -1) startIdx = 0;
+
+                    // Ambil data untuk 2 jam ke depan (8 slot x 15 menit)
+                    const nextSlots = [];
+                    let hasRain = false;
+                    for(let i=0; i<8; i++) { 
+                        if(startIdx + i < pVals.length) {
+                            const val = pVals[startIdx + i];
+                            if(val > 0) hasRain = true;
+                            nextSlots.push({ t: pTimes[startIdx + i], v: val });
+                        }
+                    }
+
+                    if (hasRain) {
+                        precipChartContainer.classList.remove('hidden');
+                        
+                        // Generate Text Status
+                        let statusText = "Hujan ringan untuk beberapa saat.";
+                        const currentVal = nextSlots[0].v;
+                        
+                        if (currentVal > 0) {
+                            // Sedang Hujan -> Cari kapan berhenti
+                            const stopIdx = nextSlots.findIndex(s => s.v === 0);
+                            if (stopIdx !== -1) {
+                                const stopTime = new Date(nextSlots[stopIdx].t);
+                                const diffMin = Math.max(1, Math.ceil((stopTime - now) / 60000));
+                                statusText = `Hujan berhenti dalam ${diffMin} menit.`;
+                            } else {
+                                statusText = "Hujan berlanjut untuk 2 jam ke depan.";
+                            }
+                        } else {
+                            // Tidak Hujan -> Cari kapan mulai
+                            const startRainIdx = nextSlots.findIndex(s => s.v > 0);
+                            if (startRainIdx !== -1) {
+                                const startTime = new Date(nextSlots[startRainIdx].t);
+                                const diffMin = Math.max(1, Math.ceil((startTime - now) / 60000));
+                                statusText = `Hujan dimulai dalam ${diffMin} menit.`;
+                            }
+                        }
+
+                        // Generate Chart HTML
+                        const maxP = Math.max(...nextSlots.map(s => s.v), 1); // Scaling
+                        let barsHtml = nextSlots.map(s => {
+                            const heightPct = Math.min((s.v / maxP) * 100, 100);
+                            const timeLabel = s.t.slice(11, 16); // HH:MM
+                            const barColor = s.v > 0 ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-slate-700/30';
+                            return `<div class="flex flex-col items-center justify-end h-20 w-full gap-1"><div class="w-full mx-0.5 rounded-t-sm ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${timeLabel}</span></div>`;
+                        }).join('');
+
+                        precipChartContainer.innerHTML = `<div class="bg-slate-800/50 rounded-xl border border-white/10 p-4 backdrop-blur-sm"><p class="text-sm font-bold text-white mb-3 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-20 border-b border-white/5 pb-1">${barsHtml}</div></div>`;
+                    } else {
+                        precipChartContainer.classList.add('hidden');
+                    }
+                }
+
                 hourlyContainer.innerHTML = ''; // Clear only the new container
 
                 // NEW: Populate Summary Text
                 if (hourlySummaryContainer) {
                     const currentCode = wx.weathercode;
-                    const maxWind = data.daily.windspeed_10m_max[0];
-                    let summaryText = `${dt.weather[currentCode] || 'Cuaca bervariasi'}. `;
+                    
+                    // Smart Summary Logic
+                    let smartText = "";
+                    const hourlyCode = data.hourly.weathercode;
+                    const nowIdx = new Date().getHours();
+                    
+                    // Helper: Cek Salju (Codes: 71, 73, 75, 77, 85, 86)
+                    const getPrecipType = (c) => [71, 73, 75, 77, 85, 86].includes(c) ? "Salju" : "Hujan";
 
-                    summaryText += `Embusan angin hari ini hingga <strong>${maxWind} km/j</strong>.`;
+                    // NEW: Use Minutely Data for better precision
+                    let minutelyUsed = false;
+                    if (data.minutely_15 && data.minutely_15.precipitation) {
+                        const pVals = data.minutely_15.precipitation;
+                        const pTimes = data.minutely_15.time;
+                        const now = new Date();
+                        let startIdx = pTimes.findIndex(t => new Date(t) > new Date(now.getTime() - 15*60000));
+                        if (startIdx === -1) startIdx = 0;
+                        
+                        const currentP = pVals[startIdx] || 0;
+                        if (currentP > 0) { // Sedang Hujan
+                            let stopIdx = -1;
+                            for(let i=startIdx; i<pVals.length; i++) { if(pVals[i] === 0) { stopIdx = i; break; } }
+                            if(stopIdx !== -1) {
+                                const diffMin = Math.ceil((new Date(pTimes[stopIdx]) - now) / 60000);
+                                if(diffMin <= 120) { smartText = `Hujan berhenti dalam ${diffMin} menit.`; minutelyUsed = true; }
+                            }
+                        } else { // Tidak Hujan
+                            let startRainIdx = -1;
+                            for(let i=startIdx; i<pVals.length; i++) { if(pVals[i] > 0) { startRainIdx = i; break; } }
+                            if(startRainIdx !== -1) {
+                                const diffMin = Math.ceil((new Date(pTimes[startRainIdx]) - now) / 60000);
+                                if(diffMin <= 120) { smartText = `Hujan dimulai dalam ${diffMin} menit.`; minutelyUsed = true; }
+                            }
+                        }
+                    }
+
+                    if (!minutelyUsed) {
+                        if (currentCode >= 51) { // Sedang Hujan/Salju
+                            const pType = getPrecipType(currentCode);
+                            let stopIdx = -1;
+                            for(let i=nowIdx; i<nowIdx+12; i++) { if(hourlyCode[i] < 51) { stopIdx = i; break; } }
+                            if(stopIdx !== -1) smartText = `${pType} diperkirakan reda sekitar jam ${stopIdx}:00.`;
+                            else smartText = `${pType} diperkirakan berlanjut hingga malam.`;
+                        } else { // Sedang Cerah/Berawan
+                            let startIdx = -1;
+                            let nextType = "Hujan";
+                            for(let i=nowIdx; i<nowIdx+12; i++) { if(hourlyCode[i] >= 51) { startIdx = i; nextType = getPrecipType(hourlyCode[i]); break; } }
+                            if(startIdx !== -1) smartText = `Cerah saat ini. ${nextType} diperkirakan mulai jam ${startIdx}:00.`;
+                            else smartText = `Cuaca cenderung stabil untuk 12 jam ke depan.`;
+                        }
+                    }
+                    
+                    const maxWind = data.daily.windspeed_10m_max[0];
+                    let summaryText = `${smartText} Angin hingga <strong>${maxWind} km/j</strong>.`;
                     hourlySummaryContainer.innerHTML = `<p>${summaryText}</p>`;
                 }
 
@@ -1325,6 +1464,7 @@
                         date: date,
                         temp: Math.round(data.hourly.temperature_2m[hourIndex]),
                         code: data.hourly.weathercode[hourIndex],
+                        pop: data.hourly.precipitation_probability[hourIndex], // Chance of Rain
                         isNow: i === 0
                     });
                 }
@@ -1374,7 +1514,11 @@
                         const timeText = event.isNow ? (lang === 'en' ? 'Now' : 'Kini') : `${hour.toString().padStart(2, '0')}`;
                         const textWeight = event.isNow ? 'font-bold text-white' : 'font-medium text-slate-300';
                         if (event.isNow) item.classList.replace('border-transparent', 'border-blue-500');
-                        item.innerHTML = `<div class="text-xs ${textWeight}">${timeText}</div><i data-lucide="${icon}" class="w-6 h-6 ${iconColorClass} drop-shadow-lg my-1.5"></i><div class="text-lg font-bold text-white">${event.temp}°</div>`;
+                        
+                        // Add Rain Probability if significant
+                        const popHtml = (event.pop >= 30) ? `<div class="text-[9px] font-bold text-blue-200 flex items-center justify-center gap-0.5 mt-1"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" class="text-blue-400"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>${event.pop}%</div>` : '';
+                        
+                        item.innerHTML = `<div class="text-xs ${textWeight}">${timeText}</div><i data-lucide="${icon}" class="w-6 h-6 ${iconColorClass} drop-shadow-lg my-1"></i><div class="text-lg font-bold text-white leading-none">${event.temp}°</div>${popHtml}`;
                     } else { // Sunrise or Sunset
                         const isSunrise = event.type === 'sunrise';
                         item.className = "flex flex-col items-center justify-end py-2 shrink-0 w-20 text-center"; // Lebih lebar untuk teks
@@ -1568,16 +1712,83 @@
             document.getElementById('det-humidity').innerText = `${humidity}%`;
             document.getElementById('det-pressure').innerText = `${pressure} hPa`;
             document.getElementById('det-uv').innerText = uv;
+            
+            // --- NEW: Extra Weather Details ---
+            const feelsLike = currentWeatherData.hourly.apparent_temperature ? Math.round(currentWeatherData.hourly.apparent_temperature[noonIdx]) : '-';
+            const dewPoint = currentWeatherData.hourly.dewpoint_2m ? Math.round(currentWeatherData.hourly.dewpoint_2m[noonIdx]) : '-';
+            const cloudCover = currentWeatherData.hourly.cloudcover ? currentWeatherData.hourly.cloudcover[noonIdx] : '-';
+            const windGust = currentWeatherData.hourly.windgusts_10m ? currentWeatherData.hourly.windgusts_10m[noonIdx] : '-';
+            const visibility = currentWeatherData.hourly.visibility ? (currentWeatherData.hourly.visibility[noonIdx] / 1000).toFixed(1) : '-';
+
+            const extraDetailsHtml = `
+                <div class="grid grid-cols-3 gap-2 mb-4 mt-2">
+                    <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-bold">Terasa Spt</p>
+                        <p class="text-sm font-bold text-white">${feelsLike}°</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-bold">Awan</p>
+                        <p class="text-sm font-bold text-white">${cloudCover}%</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-bold">Gust Angin</p>
+                        <p class="text-sm font-bold text-white">${windGust} <span class="text-[9px]">km/h</span></p>
+                    </div>
+                    <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-bold">Titik Embun</p>
+                        <p class="text-sm font-bold text-white">${dewPoint}°</p>
+                    </div>
+                    <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+                        <p class="text-[9px] text-slate-400 uppercase font-bold">Visibilitas</p>
+                        <p class="text-sm font-bold text-white">${visibility} <span class="text-[9px]">km</span></p>
+                    </div>
+                </div>
+            `;
 
             // Render Summary Text
             const dailyCode = currentWeatherData.daily.weathercode[dayIndex];
             const isSnow = [71, 73, 75, 77, 85, 86].includes(dailyCode);
             const rainSum = currentWeatherData.daily.precipitation_sum[dayIndex];
             
-            let summary = `<div class="flex items-center gap-2"><i data-lucide="info" class="text-blue-400 w-4 h-4"></i> <p>Total presipitasi: ${rainSum}mm. `;
+            let summary = extraDetailsHtml + `<div class="flex items-center gap-2"><i data-lucide="info" class="text-blue-400 w-4 h-4"></i> <p>Total presipitasi: ${rainSum}mm. `;
             if(rainSum > 5) summary += "Siapkan jas hujan.";
             else summary += "Cuaca relatif kering.";
             summary += "</p></div>";
+            
+            // --- NEW: Astro Visualization (Sun Position) ---
+            const nowTime = new Date().getTime();
+            const riseTime = new Date(currentWeatherData.daily.sunrise[dayIndex]).getTime();
+            const setTime = new Date(currentWeatherData.daily.sunset[dayIndex]).getTime();
+            let sunPct = -1; // Default hidden
+            
+            // Only show for Today
+            if (new Date().toDateString() === dateObj.toDateString()) {
+                if(nowTime > riseTime && nowTime < setTime) sunPct = (nowTime - riseTime) / (setTime - riseTime);
+                else if (nowTime >= setTime) sunPct = 1;
+                else sunPct = 0;
+            }
+            
+            if(sunPct >= 0) {
+                const sunRotate = (sunPct * 180) - 90; // -90 (left) to 90 (right)
+                summary += `
+                    <div class="relative h-20 w-full overflow-hidden mt-6 mb-2 bg-slate-800/30 rounded-xl border border-white/5 pt-4">
+                        <p class="absolute top-2 left-0 w-full text-center text-[10px] text-slate-400 uppercase font-bold tracking-widest">Posisi Matahari</p>
+                        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-24 border-t-2 border-dashed border-yellow-500/20 rounded-t-full"></div>
+                        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-24">
+                            <div class="w-full h-full origin-bottom transition-transform duration-1000" style="transform: rotate(${sunRotate}deg)">
+                                <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-yellow-400 rounded-full shadow-[0_0_25px_rgba(250,204,21,0.6)] flex items-center justify-center">
+                                    <div class="w-2 h-2 bg-white rounded-full opacity-50"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute bottom-1 w-full flex justify-between px-6 text-[9px] font-mono text-slate-500">
+                            <span>${currentWeatherData.daily.sunrise[dayIndex].split('T')[1]}</span>
+                            <span>${currentWeatherData.daily.sunset[dayIndex].split('T')[1]}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
             document.getElementById('rain-summary').innerHTML = summary;
 
             // --- NEW: Calculate Solunar Data ---
