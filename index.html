@@ -375,6 +375,24 @@
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('bathymetry')" id="toggle-bathymetry"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
+
+                        <!-- Sonar Toggle (New Feature) -->
+                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-emerald-500/20 p-2 rounded-lg text-emerald-400"><i data-lucide="radar" class="w-5 h-5"></i></div>
+                                <div><p class="font-bold text-sm text-white">Peta Laut (Chart)</p><p class="text-[10px] text-slate-400">Kontur Kedalaman & Navigasi</p></div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('sonar')" id="toggle-sonar"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                        </div>
+
+                        <!-- Live Ship Radar Toggle -->
+                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-red-500/20 p-2 rounded-lg text-red-400"><i data-lucide="ship" class="w-5 h-5"></i></div>
+                                <div><p class="font-bold text-sm text-white">Live Radar Kapal</p><p class="text-[10px] text-slate-400">Posisi kapal real-time (AIS)</p></div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('ship_radar')" id="toggle-ship_radar"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                        </div>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-4 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-white/5">
                         <i data-lucide="info" class="w-3 h-3 inline mr-1"></i> 
