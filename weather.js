@@ -527,6 +527,21 @@ function injectResponsiveStyles() {
             /* Header Lebih Besar */
             #new-weather-header { padding: 3rem 0 !important; }
             #header-temp { font-size: 8rem !important; }
+
+            /* --- NEW: Responsive Navigation Bar (Floating Dock Style) --- */
+            /* Membuat menu navigasi bawah melayang & rapi di tengah layar PC */
+            nav, 
+            div.fixed.bottom-0.w-full.z-50:not(#location-panel), 
+            div.fixed.bottom-0.w-full.bg-slate-900:not(#location-panel) {
+                max-width: 500px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                bottom: 24px !important;
+                border-radius: 24px !important;
+                border: 1px solid rgba(255,255,255,0.1) !important;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+                width: auto !important;
+            }
         }
     `;
     document.head.appendChild(style);
@@ -1036,23 +1051,28 @@ function updateWeatherUI(data) {
         const referenceNode = dotsContainer || existingScroll;
         const parentNode = referenceNode.parentNode;
 
-        // 1. Summary Container (Card Terpisah)
+        // --- MODIFIED: Gabungkan kembali ke dalam satu Wrapper Card ---
+        const hourlyCard = document.createElement('div');
+        hourlyCard.className = "mx-0 mb-8 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
+        if(parentNode) parentNode.insertBefore(hourlyCard, referenceNode.nextSibling);
+
+        // 1. Summary Container (Header Kartu)
         hourlySummaryContainer = document.createElement('div');
         hourlySummaryContainer.id = 'hourly-summary-container';
-        hourlySummaryContainer.className = "mx-0 mb-2 px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg";
-        if(parentNode) parentNode.insertBefore(hourlySummaryContainer, referenceNode.nextSibling);
+        hourlySummaryContainer.className = "px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium border-b border-white/5";
+        hourlyCard.appendChild(hourlySummaryContainer);
 
-        // 2. Precip Chart Container (Card Terpisah)
+        // 2. Precip Chart Container (Grafik Hujan)
         precipChartContainer = document.createElement('div');
         precipChartContainer.id = 'precip-chart-container';
-        precipChartContainer.className = "mx-0 mb-2 px-4 py-2 hidden bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg";
-        if(parentNode) parentNode.insertBefore(precipChartContainer, hourlySummaryContainer.nextSibling);
+        precipChartContainer.className = "px-4 py-2 hidden border-b border-white/5";
+        hourlyCard.appendChild(precipChartContainer);
 
-        // 3. Hourly Forecast Container (Card Terpisah)
+        // 3. Hourly Forecast Container (List Scrollable)
         hourlyContainer = document.createElement('div');
         hourlyContainer.id = 'hourly-forecast-container';
-        hourlyContainer.className = "flex items-stretch gap-x-4 overflow-x-auto no-scrollbar p-4 mx-0 mb-8 bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/10 shadow-lg";
-        if(parentNode) parentNode.insertBefore(hourlyContainer, precipChartContainer.nextSibling);
+        hourlyContainer.className = "flex items-stretch gap-x-4 overflow-x-auto no-scrollbar p-4";
+        hourlyCard.appendChild(hourlyContainer);
     }
 
     if (hourlyContainer && data.hourly && data.hourly.time && data.daily) {
@@ -2104,3 +2124,6 @@ function showMetricInsight(type) {
     iconEl.setAttribute('data-lucide', icon);
     lucide.createIcons();
 }
+
+// Apply responsive styles immediately on load
+injectResponsiveStyles();
