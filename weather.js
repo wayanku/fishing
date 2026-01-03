@@ -1903,3 +1903,4 @@ function showMetricInsight(type) {
     iconEl.setAttribute('data-lucide', icon);
     lucide.createIcons();
 }
+
