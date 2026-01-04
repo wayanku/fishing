@@ -94,17 +94,17 @@ function initCloudAssets() {
             .cloud-storm .c-mid { box-shadow: 210px 250px 30px 35px rgba(105, 115, 125, 0.4) !important; }
             .cloud-storm .c-front { box-shadow: 210px 270px 35px 5px rgba(125, 135, 145, 0.5) !important; }
 
-            /* NIGHT: Biru Malam Terang (Agar terlihat di langit gelap) */
-            .cloud-night .c-base { box-shadow: 200px 170px 25px 45px rgba(100, 116, 139, 0.8) !important; }
-            .cloud-night .c-back { box-shadow: 200px 200px 15px 45px rgba(71, 85, 105, 0.4) !important; }
-            .cloud-night .c-mid { box-shadow: 210px 250px 30px 35px rgba(148, 163, 184, 0.3) !important; }
-            .cloud-night .c-front { box-shadow: 210px 270px 35px 5px rgba(203, 213, 225, 0.4) !important; }
+            /* NIGHT: Deep Blue / Slate (Biru Gelap Natural - Tidak Ungu) */
+            .cloud-night .c-base { box-shadow: 200px 170px 25px 45px rgba(30, 41, 59, 0.9) !important; } /* Slate-800 */
+            .cloud-night .c-back { box-shadow: 200px 200px 15px 45px rgba(15, 23, 42, 0.5) !important; } /* Slate-900 */
+            .cloud-night .c-mid { box-shadow: 210px 250px 30px 35px rgba(51, 65, 85, 0.4) !important; } /* Slate-700 */
+            .cloud-night .c-front { box-shadow: 210px 270px 35px 5px rgba(71, 85, 105, 0.5) !important; } /* Slate-600 */
 
-            /* SUNSET: Soft Peach/Purple Natural (Tidak Terlalu Kuning/Pink Mencolok) */
-            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(255, 200, 180, 0.85) !important; }
-            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(160, 150, 180, 0.5) !important; }
-            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(255, 180, 160, 0.4) !important; }
-            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(255, 220, 200, 0.5) !important; }
+            /* SUNSET: Dark Blue & Orange (Transisi Sore ke Malam) */
+            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(30, 58, 138, 0.85) !important; } /* Blue-900 */
+            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(124, 45, 18, 0.5) !important; } /* Orange-900 */
+            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(234, 88, 12, 0.3) !important; } /* Orange-600 */
+            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(59, 130, 246, 0.4) !important; } /* Blue-500 */
         </style>
     `;
     document.body.appendChild(assets);
@@ -281,25 +281,70 @@ class Cloud {
     }
 }
 
+// Helper: Interpolasi Warna Hex (untuk transisi halus)
+function lerpColor(a, b, amount) {
+    const ah = parseInt(a.replace(/#/g, ''), 16),
+          bh = parseInt(b.replace(/#/g, ''), 16),
+          ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff,
+          br = bh >> 16, bg = bh >> 8 & 0xff, bb = bh & 0xff,
+          rr = ar + amount * (br - ar),
+          rg = ag + amount * (bg - ag),
+          rb = ab + amount * (bb - ab);
+    return '#' + ((1 << 24) + (Math.round(rr) << 16) + (Math.round(rg) << 8) + Math.round(rb)).toString(16).slice(1);
+}
+
 function drawSkyBackground() {
     if (!ctx || !canvas) return;
     
-    // --- NEW: Gradasi Langit Natural (iPhone Style) ---
-    const h = wxLocalHour; 
+    // --- MODIFIED: Transisi Halus per Menit (Deep Blue Style) ---
+    // Hitung jam dalam desimal (misal 17.5 untuk 17:30)
+    const minutes = new Date().getMinutes();
+    const floatHour = wxLocalHour + (minutes / 60);
+    
+    // Definisi Keyframe Warna Langit (Jam -> Warna Top, Warna Bot)
+    // Menggunakan Biru Gelap (Deep Blue) untuk malam, menghindari Ungu
+    const skyKeys = [
+        { h: 0, top: "#020617", bot: "#0f172a" },   // Midnight: Slate-950 -> Slate-900
+        { h: 4, top: "#020617", bot: "#1e293b" },   // Pre-Dawn: Slate-950 -> Slate-800
+        { h: 5, top: "#0f172a", bot: "#1e3a8a" },   // Dawn: Slate-900 -> Blue-900 (Deep Blue)
+        { h: 6, top: "#1e40af", bot: "#fdba74" },   // Sunrise: Blue-800 -> Orange-300
+        { h: 8, top: "#3b82f6", bot: "#bae6fd" },   // Morning
+        { h: 12, top: "#0ea5e9", bot: "#cffafe" },  // Noon
+        { h: 16, top: "#2563eb", bot: "#bfdbfe" },  // Late Afternoon
+        { h: 17, top: "#1d4ed8", bot: "#fdba74" },  // Pre-Sunset: Blue-700 -> Orange-300
+        { h: 18, top: "#1e3a8a", bot: "#9a3412" },  // Sunset: Blue-900 -> Red-Orange-800 (Darker)
+        { h: 19, top: "#172554", bot: "#0f172a" },  // Dusk: Blue-950 -> Slate-900 (Deep Dark Blue)
+        { h: 24, top: "#020617", bot: "#0f172a" }   // Loop back to Midnight
+    ];
+
     let top, bot;
 
     if (wxCode >= 95) { // Badai (Sangat Gelap)
         top = "#020617"; bot = "#1e1b4b"; 
     } else if (wxCode >= 51 || wxCode === 3) { // Hujan / Mendung Tebal
-        if(h >= 6 && h < 18) { top = "#475569"; bot = "#94a3b8"; } // Siang Kelabu
+        if(floatHour >= 6 && floatHour < 18) { top = "#475569"; bot = "#94a3b8"; } // Siang Kelabu
         else { top = "#0f172a"; bot = "#334155"; } // Malam Kelabu
     } else {
-        // Cuaca Cerah / Berawan Ringan
-        if (h >= 5 && h < 7) { top = "#3b82f6"; bot = "#fed7aa"; } // Sunrise: Biru -> Soft Orange (Orange-200)
-        else if (h >= 7 && h < 10) { top = "#3b82f6"; bot = "#bae6fd"; } 
-        else if (h >= 10 && h < 16) { top = "#0077b6"; bot = "#90e0ef"; } // Siang: Deep Blue -> Cyan Cerah (Lebih Fresh)
-        else if (h >= 16 && h < 19) { top = "#3730a3"; bot = "#fdba74"; } // Sunset: Indigo Gelap -> Soft Orange (Orange-300)
-        else { top = "#020617"; bot = "#1e293b"; } 
+        // Interpolasi Warna Berdasarkan Waktu
+        // Cari segmen waktu saat ini
+        let start = skyKeys[0];
+        let end = skyKeys[skyKeys.length - 1];
+        
+        for (let i = 0; i < skyKeys.length - 1; i++) {
+            if (floatHour >= skyKeys[i].h && floatHour < skyKeys[i+1].h) {
+                start = skyKeys[i];
+                end = skyKeys[i+1];
+                break;
+            }
+        }
+
+        // Hitung persentase perjalanan waktu di antara dua keyframe
+        const range = end.h - start.h;
+        const progress = (floatHour - start.h) / range;
+
+        // Campurkan warna
+        top = lerpColor(start.top, end.top, progress);
+        bot = lerpColor(start.bot, end.bot, progress);
     }
 
     // OPTIMISASI: Hanya update DOM jika warna berubah (Mencegah Lag/Patah-patah)
@@ -315,12 +360,16 @@ function drawCelestialBodies() {
     if (!ctx) return;
     // Draw Stars (Night only, if not heavy storm)
     const h = wxLocalHour; // Gunakan jam lokal lokasi
-    const isNightTime = h >= 19 || h < 5; // Jam malam visual
+    
+    // --- MODIFIED: Transisi Bintang Perlahan (Sore->Malam & Malam->Pagi) ---
+    let starOpacity = 0;
+    if (h >= 19 || h < 5) starOpacity = 1.0; // Malam Penuh (Bintang Terang)
+    else if (h === 18 || h === 5) starOpacity = 0.5; // Senja/Subuh (Bintang Samar)
 
-    if (isNightTime && wxCode < 60) {
+    if (starOpacity > 0 && wxCode < 60) {
         ctx.fillStyle = "white";
         stars.forEach(star => {
-            ctx.globalAlpha = star.alpha;
+            ctx.globalAlpha = star.alpha * starOpacity; // Terapkan efek pudar
             ctx.beginPath();
             ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
             ctx.fill();
@@ -330,6 +379,8 @@ function drawCelestialBodies() {
         });
         ctx.globalAlpha = 1.0;
     }
+
+    const isNightTime = h >= 18 || h < 6; // Update definisi malam (termasuk jam 18 & 05) untuk Matahari/Bulan
 
     // Draw Sun (Day & Clear/Partly Cloudy)
     if (!isNightTime && wxCode <= 3) {
@@ -592,12 +643,6 @@ function injectResponsiveStyles() {
                 margin: 0 auto !important;
                 padding: 0 2rem !important;
             }
-            /* Grid Detail (Angin, Ombak, dll) jadi 4 Kolom */
-            .weather-grid-container {
-                display: grid !important;
-                grid-template-columns: repeat(4, 1fr) !important;
-                gap: 1.5rem !important;
-            }
             /* Forecast 7 Hari jadi 2 Kolom (Kiri-Kanan) */
             #forecast-list {
                 display: grid !important;
@@ -623,6 +668,50 @@ function injectResponsiveStyles() {
                 box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
                 width: auto !important;
             }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// --- NEW: Card Styles (White Text & Fixed Layout) ---
+function injectCardStyles() {
+    if (document.getElementById('weather-card-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'weather-card-styles';
+    style.innerHTML = `
+        /* Horizontal Scroll Layout (Hemat Tempat) */
+        .weather-grid-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            margin-bottom: 1rem;
+            padding-bottom: 4px; /* Ruang untuk scrollbar tipis */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none;  /* IE 10+ */
+        }
+        .weather-grid-container::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+        /* Card Consistency (Agar tidak melompat saat loading) */
+        .weather-card-fixed {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+            min-width: 100px !important; /* Lebar minimum agar tidak gepeng */
+            width: 100px !important;
+            min-height: 100px !important;
+            height: 100% !important;
+            padding: 8px !important;
+            text-align: center !important;
+        }
+        /* Force White Text & Icons */
+        .weather-card-fixed, .weather-card-fixed * { color: #ffffff !important; }
+        
+        /* Styling Judul (Kecil) */
+        .weather-card-fixed .text-xs, .weather-card-fixed p:first-child {
+            opacity: 0.9 !important; font-weight: 600 !important;
+            text-transform: uppercase !important; font-size: 10px !important;
+            margin-bottom: 4px !important;
         }
     `;
     document.head.appendChild(style);
@@ -724,6 +813,7 @@ async function showLocationPanel(latlng) {
     }
 
     detailCards.forEach(card => {
+        card.classList.add('weather-card-fixed'); // Tambahkan class layout tetap
         // LIQUID GLASS STYLE: Lebih transparan (0.3), Blur lebih kuat (16px)
         card.style.setProperty('background-color', 'rgba(15, 23, 42, 0.3)', 'important'); 
         card.style.setProperty('backdrop-filter', 'blur(16px)', 'important');
@@ -733,6 +823,7 @@ async function showLocationPanel(latlng) {
         card.style.setProperty('box-shadow', '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 'important');
     });
 
+    injectCardStyles(); // Apply Card Styles
     injectResponsiveStyles(); // Apply PC Styles
 
     // --- CLEANUP: Hapus elemen navigasi ganda (Garis & Tombol X) ---
@@ -1017,6 +1108,10 @@ function updateWeatherUI(data) {
     panel.style.setProperty('backdrop-filter', 'none', 'important'); // Ensure no blur
     panel.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
     
+    // --- NEW: Hitung Jam Lokal Lokasi Terpilih ---
+    const timeZone = data.timezone || 'UTC';
+    const localTimeStr = new Date().toLocaleTimeString('en-GB', { timeZone: timeZone, hour: '2-digit', minute: '2-digit' });
+
     // --- NEW: Create and Populate iPhone-style Header ---
     const panelContent = document.querySelector('#location-panel > div'); // Target the main content div of the panel
     if (panelContent) {
@@ -1024,15 +1119,16 @@ function updateWeatherUI(data) {
         if (!header) {
             header = document.createElement('div');
             header.id = 'new-weather-header';
-            header.className = 'flex flex-col items-center text-white pt-4 pb-6 px-4 text-center drop-shadow-md';
+            // FIX: Tambah jarak atas (pt-16) dan jarak bawah ke grid (pb-10) agar lebih lega
+            header.className = 'flex flex-col items-center text-white pt-16 pb-10 px-4 text-center drop-shadow-md';
             header.innerHTML = `
-                <div class="flex items-center justify-center gap-2 w-full mb-1">
-                    <i data-lucide="map-pin" class="w-5 h-5 text-white/80 shrink-0"></i>
-                    <h2 id="header-location" class="text-2xl font-bold tracking-tight text-center leading-tight line-clamp-2"></h2>
-                </div>
-                <p id="header-temp" class="text-7xl font-thin -my-1" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;"></p>
-                <p id="header-desc" class="font-semibold"></p>
-                <p id="header-minmax" class="text-sm mt-1"></p>
+                <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2 drop-shadow-lg"></h2>
+                <p class="text-sm font-medium text-slate-200 mt-1 mb-2 opacity-90 tracking-wide"><span id="header-time">--:--</span></p>
+                
+                <p id="header-temp" class="text-8xl font-thin -my-2 tracking-tighter drop-shadow-2xl" style="font-family: -apple-system, sans-serif;"></p>
+                
+                <p id="header-desc" class="text-xl font-medium mt-1 drop-shadow-md"></p>
+                <p id="header-minmax" class="text-sm font-medium opacity-80"></p>
             `;
             // Insert header at the top of the panel content
             panelContent.prepend(header);
@@ -1062,6 +1158,7 @@ function updateWeatherUI(data) {
         // Populate new header with data
         document.getElementById('header-temp').innerText = `${Math.round(data.current_weather.temperature)}°`;
         document.getElementById('header-minmax').innerText = `Tertinggi: ${Math.round(data.daily.temperature_2m_max[0])}° Terendah: ${Math.round(data.daily.temperature_2m_min[0])}°`;
+        document.getElementById('header-time').innerText = localTimeStr;
     }
 
     const wx = data.current_weather;
