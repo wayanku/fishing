@@ -1132,24 +1132,37 @@ function updateWeatherUI(data) {
         const referenceNode = dotsContainer || existingScroll;
         const parentNode = referenceNode.parentNode;
 
-        // --- MODIFIED: Gabungkan kembali ke dalam satu Wrapper Card ---
-        const hourlyCard = document.createElement('div');
-        hourlyCard.className = "mx-0 mb-8 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
-        if(parentNode) parentNode.insertBefore(hourlyCard, referenceNode.nextSibling);
+        // --- MODIFIED: Pisahkan menjadi kartu-kartu terpisah ---
+        const cardClass = "mx-0 mb-3 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
 
-        // 1. Summary Container (Header Kartu)
+        // 1. Summary Card
+        const summaryCard = document.createElement('div');
+        summaryCard.id = 'summary-card';
+        summaryCard.className = cardClass;
+        if(parentNode) parentNode.insertBefore(summaryCard, referenceNode.nextSibling);
+
         hourlySummaryContainer = document.createElement('div');
         hourlySummaryContainer.id = 'hourly-summary-container';
-        hourlySummaryContainer.className = "px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium border-b border-white/5";
-        hourlyCard.appendChild(hourlySummaryContainer);
+        hourlySummaryContainer.className = "px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium";
+        summaryCard.appendChild(hourlySummaryContainer);
 
-        // 2. Precip Chart Container (Grafik Hujan)
+        // 2. Precip Chart Card (Hidden by default)
+        const precipCard = document.createElement('div');
+        precipCard.id = 'precip-card';
+        precipCard.className = cardClass + " hidden";
+        if(parentNode) parentNode.insertBefore(precipCard, summaryCard.nextSibling);
+
         precipChartContainer = document.createElement('div');
         precipChartContainer.id = 'precip-chart-container';
-        precipChartContainer.className = "px-4 py-2 hidden border-b border-white/5";
-        hourlyCard.appendChild(precipChartContainer);
+        precipChartContainer.className = "px-4 py-2";
+        precipCard.appendChild(precipChartContainer);
 
-        // 3. Hourly Forecast Container (List Scrollable)
+        // 3. Hourly Forecast Card
+        const hourlyCard = document.createElement('div');
+        hourlyCard.id = 'hourly-card';
+        hourlyCard.className = cardClass;
+        if(parentNode) parentNode.insertBefore(hourlyCard, precipCard.nextSibling);
+
         hourlyContainer = document.createElement('div');
         hourlyContainer.id = 'hourly-forecast-container';
         hourlyContainer.className = "flex items-stretch gap-x-4 overflow-x-auto no-scrollbar p-4";
@@ -1184,6 +1197,8 @@ function updateWeatherUI(data) {
 
             if (hasRain) {
                 precipChartContainer.classList.remove('hidden');
+                const pCard = document.getElementById('precip-card');
+                if(pCard) pCard.classList.remove('hidden');
                 
                 // Generate Text Status
                 const pTypeChart = getPrecipType(wx.weathercode);
@@ -1222,6 +1237,8 @@ function updateWeatherUI(data) {
                 precipChartContainer.innerHTML = `<p class="text-xs font-bold text-white mb-2 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-16 border-b border-white/5 pb-1">${barsHtml}</div>`;
             } else {
                 precipChartContainer.classList.add('hidden');
+                const pCard = document.getElementById('precip-card');
+                if(pCard) pCard.classList.add('hidden');
             }
         }
 
@@ -2093,17 +2110,24 @@ function showMetricInsight(type) {
     const textEl = document.getElementById('insight-text');
     const iconEl = document.getElementById('insight-icon');
 
-    // --- NEW: Reposition the insight panel ---
-    // The user wants the insight box to appear above the hourly forecast.
-    // We find the hourly summary container and insert the insight panel right before it.
-    const hourlySummary = document.getElementById('hourly-summary-container');
-    if (hourlySummary && hourlySummary.parentNode) {
-        hourlySummary.parentNode.insertBefore(panel, hourlySummary);
+    // --- NEW: Reposition the insight panel (Standalone Card) ---
+    // Apply card styles
+    panel.className = "mx-0 mb-3 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden p-4 hidden";
+    
+    // Insert BEFORE the summary card
+    const summaryCard = document.getElementById('summary-card');
+    if (summaryCard && summaryCard.parentNode) {
+        summaryCard.parentNode.insertBefore(panel, summaryCard);
+    } else {
+        // Fallback logic
+        const hourlySummary = document.getElementById('hourly-summary-container');
+        if (hourlySummary && hourlySummary.parentNode && hourlySummary.parentNode.parentNode) {
+             hourlySummary.parentNode.parentNode.insertBefore(panel, hourlySummary.parentNode);
+        }
     }
     
     // Ensure panel is visible
     panel.classList.remove('hidden');
-    panel.classList.add('mb-3'); // Add margin to separate it from the content below
     
     // Default values if data not loaded
     if(!currentWeatherData || !currentWeatherData.current_weather) {
