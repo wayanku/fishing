@@ -86,19 +86,25 @@ function initCloudAssets() {
                 box-shadow: 210px 270px 35px 5px rgba(255, 255, 255, 0.4);
             }
 
-            /* --- STYLES KHUSUS MENDUNG / DARK MODE (Bentuk sama, Warna Gelap) --- */
-            .cloud-dark .c-base {
-                box-shadow: 200px 170px 25px 45px rgba(60, 65, 75, 0.9) !important;
-            }
-            .cloud-dark .c-back {
-                box-shadow: 200px 200px 15px 45px rgba(30, 35, 45, 0.4) !important;
-            }
-            .cloud-dark .c-mid {
-                box-shadow: 210px 250px 30px 35px rgba(80, 90, 100, 0.3) !important;
-            }
-            .cloud-dark .c-front {
-                box-shadow: 210px 270px 35px 5px rgba(100, 110, 120, 0.4) !important;
-            }
+            /* --- STYLES KHUSUS (Malam, Sunset, Badai) --- */
+            
+            /* STORM: Abu-abu Gelap Natural (Tidak Hitam Pekat) */
+            .cloud-storm .c-base { box-shadow: 200px 170px 25px 45px rgba(85, 95, 105, 0.95) !important; }
+            .cloud-storm .c-back { box-shadow: 200px 200px 15px 45px rgba(55, 65, 75, 0.5) !important; }
+            .cloud-storm .c-mid { box-shadow: 210px 250px 30px 35px rgba(105, 115, 125, 0.4) !important; }
+            .cloud-storm .c-front { box-shadow: 210px 270px 35px 5px rgba(125, 135, 145, 0.5) !important; }
+
+            /* NIGHT: Biru Malam Terang (Agar terlihat di langit gelap) */
+            .cloud-night .c-base { box-shadow: 200px 170px 25px 45px rgba(100, 116, 139, 0.8) !important; }
+            .cloud-night .c-back { box-shadow: 200px 200px 15px 45px rgba(71, 85, 105, 0.4) !important; }
+            .cloud-night .c-mid { box-shadow: 210px 250px 30px 35px rgba(148, 163, 184, 0.3) !important; }
+            .cloud-night .c-front { box-shadow: 210px 270px 35px 5px rgba(203, 213, 225, 0.4) !important; }
+
+            /* SUNSET: Soft Peach/Purple Natural (Tidak Terlalu Kuning/Pink Mencolok) */
+            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(255, 200, 180, 0.85) !important; }
+            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(160, 150, 180, 0.5) !important; }
+            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(255, 180, 160, 0.4) !important; }
+            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(255, 220, 200, 0.5) !important; }
         </style>
     `;
     document.body.appendChild(assets);
@@ -221,9 +227,15 @@ class WindLine {
 
 // --- MODIFIED: Cloud Class using DOM Elements (Realistic Style) ---
 class Cloud {
-    constructor(isDark = false) {
+    constructor(type = 'day') {
         this.element = document.createElement('div');
-        this.element.className = 'cloud-group' + (isDark ? ' cloud-dark' : '');
+        
+        let typeClass = '';
+        if(type === 'storm') typeClass = ' cloud-storm';
+        else if(type === 'night') typeClass = ' cloud-night';
+        else if(type === 'sunset') typeClass = ' cloud-sunset';
+
+        this.element.className = 'cloud-group' + typeClass;
 
         // Create 4 layers for realistic effect
         ['c-base', 'c-back', 'c-mid', 'c-front'].forEach(cls => {
@@ -283,10 +295,10 @@ function drawSkyBackground() {
         else { top = "#0f172a"; bot = "#334155"; } // Malam Kelabu
     } else {
         // Cuaca Cerah / Berawan Ringan
-        if (h >= 5 && h < 7) { top = "#1e3a8a"; bot = "#fbbf24"; } 
+        if (h >= 5 && h < 7) { top = "#3b82f6"; bot = "#fed7aa"; } // Sunrise: Biru -> Soft Orange (Orange-200)
         else if (h >= 7 && h < 10) { top = "#3b82f6"; bot = "#bae6fd"; } 
         else if (h >= 10 && h < 16) { top = "#0ea5e9"; bot = "#7dd3fc"; } 
-        else if (h >= 16 && h < 19) { top = "#4338ca"; bot = "#f97316"; } 
+        else if (h >= 16 && h < 19) { top = "#3730a3"; bot = "#fdba74"; } // Sunset: Indigo Gelap -> Soft Orange (Orange-300)
         else { top = "#020617"; bot = "#1e293b"; } 
     }
 
@@ -423,13 +435,20 @@ function startWeatherEffect(type) {
     
     // Tambahkan Awan jika cuaca mendukung (Berawan/Hujan/Salju)
     // Kode: 1,2,3 (Cloudy), 45,48 (Fog), 51+ (Rain/Snow)
-    // FIX: Mendung biasa (Code 3) tetap putih jika tidak hujan, kecuali malam
-    const isDark = (['storm', 'rain'].includes(type) || wxCode >= 51 || !wxIsDay);
+    
+    // Tentukan Tipe Awan (Warna)
+    let cloudType = 'day';
+    const h = wxLocalHour;
+
+    if (h >= 19 || h < 5) cloudType = 'night';
+    else if ((h >= 5 && h < 7) || (h >= 17 && h < 19)) cloudType = 'sunset';
+
+    if (['storm', 'rain'].includes(type) || wxCode >= 51) cloudType = 'storm';
     
     if ([1, 2, 3, 45, 48].includes(wxCode) || wxCode >= 51 || ['rain', 'storm', 'snow', 'cloudy'].includes(type)) {
         // Lebih banyak awan jika hujan/badai
         const cloudCount = (wxCode >= 51 || wxCode === 3 || ['rain', 'storm'].includes(type)) ? 8 : 5; 
-        for(let i=0; i<cloudCount; i++) clouds.push(new Cloud(isDark));
+        for(let i=0; i<cloudCount; i++) clouds.push(new Cloud(cloudType));
     }
     
     // FIX: Force render background immediately to prevent transparency
@@ -1251,13 +1270,21 @@ function updateWeatherUI(data) {
                     const pType = getPrecipType(currentCode);
                     let stopIdx = -1;
                     for(let i=nowIdx; i<nowIdx+12; i++) { if(hourlyCode[i] < 51) { stopIdx = i; break; } }
-                    if(stopIdx !== -1) smartText = `${pType} diperkirakan reda sekitar jam ${stopIdx}:00.`;
+                    if(stopIdx !== -1) {
+                        const h = stopIdx % 24;
+                        const dayLabel = stopIdx >= 24 ? "besok " : "";
+                        smartText = `${pType} diperkirakan reda sekitar ${dayLabel}jam ${h}:00.`;
+                    }
                     else smartText = `${pType} diperkirakan berlanjut hingga malam.`;
                 } else { // Sedang Cerah/Berawan
                     let startIdx = -1;
                     let nextType = "Hujan";
                     for(let i=nowIdx; i<nowIdx+12; i++) { if(hourlyCode[i] >= 51) { startIdx = i; nextType = getPrecipType(hourlyCode[i]); break; } }
-                    if(startIdx !== -1) smartText = `Cerah saat ini. ${nextType} diperkirakan mulai jam ${startIdx}:00.`;
+                    if(startIdx !== -1) {
+                        const h = startIdx % 24;
+                        const dayLabel = startIdx >= 24 ? "besok " : "";
+                        smartText = `Cerah saat ini. ${nextType} diperkirakan mulai ${dayLabel}jam ${h}:00.`;
+                    }
                     else smartText = `Cuaca cenderung stabil untuk 12 jam ke depan.`;
                 }
             }
