@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fishing-spot-v3';
+const CACHE_NAME = 'fishing-spot-v4';
 const ASSETS = [
     './',
     './index.html',
@@ -42,9 +42,7 @@ self.addEventListener('fetch', (event) => {
     // Mencegah error 403 RainViewer dan menghemat memori
     if (
         url.hostname.includes('rainviewer.com') ||
-        url.hostname.includes('openstreetmap.org') ||
-        url.hostname.includes('google.com') ||
-        url.hostname.includes('arcgisonline.com') ||
+        url.hostname.includes('openstreetmap.org') || // OSM tidak dipakai, tapi biarkan untuk jaga-jaga
         url.hostname.includes('openweathermap.org') ||
         url.hostname.includes('windy.com') ||
         url.hostname.includes('open-meteo.com') ||     // FIX: Jangan cache data cuaca
