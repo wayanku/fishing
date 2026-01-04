@@ -297,7 +297,7 @@ function drawSkyBackground() {
         // Cuaca Cerah / Berawan Ringan
         if (h >= 5 && h < 7) { top = "#3b82f6"; bot = "#fed7aa"; } // Sunrise: Biru -> Soft Orange (Orange-200)
         else if (h >= 7 && h < 10) { top = "#3b82f6"; bot = "#bae6fd"; } 
-        else if (h >= 10 && h < 16) { top = "#0ea5e9"; bot = "#7dd3fc"; } 
+        else if (h >= 10 && h < 16) { top = "#0077b6"; bot = "#90e0ef"; } // Siang: Deep Blue -> Cyan Cerah (Lebih Fresh)
         else if (h >= 16 && h < 19) { top = "#3730a3"; bot = "#fdba74"; } // Sunset: Indigo Gelap -> Soft Orange (Orange-300)
         else { top = "#020617"; bot = "#1e293b"; } 
     }
@@ -684,6 +684,8 @@ async function showLocationPanel(latlng) {
     panel.style.setProperty('position', 'fixed', 'important');
     panel.style.setProperty('z-index', '2147483640', 'important'); // Max Z-Index (Dikurangi agar animasi cuaca bisa di atasnya)
     panel.style.setProperty('border-radius', '0', 'important');
+    panel.style.setProperty('border', 'none', 'important'); // FIX: Hapus border panel (garis atas/bawah)
+    panel.style.setProperty('box-shadow', 'none', 'important'); // FIX: Hapus shadow panel
     panel.style.setProperty('max-height', 'none', 'important');
     panel.style.setProperty('max-width', 'none', 'important'); // Override batasan lebar di laptop
     panel.style.setProperty('margin', '0', 'important');
@@ -696,6 +698,7 @@ async function showLocationPanel(latlng) {
     // FIX: Hapus lengkungan pada elemen anak (konten dalam panel)
     Array.from(panel.children).forEach(child => {
         child.style.setProperty('border-radius', '0', 'important');
+        child.style.setProperty('border', 'none', 'important'); // FIX: Hapus border anak elemen
         child.style.setProperty('max-height', 'none', 'important'); // CRITICAL: Hapus batasan tinggi wrapper
         child.style.setProperty('height', 'auto', 'important'); // Biarkan konten memanjang
         child.style.setProperty('min-height', '100%', 'important');
@@ -721,10 +724,11 @@ async function showLocationPanel(latlng) {
     }
 
     detailCards.forEach(card => {
-        card.style.setProperty('background-color', 'rgba(15, 23, 42, 0.85)', 'important'); 
-        card.style.setProperty('backdrop-filter', 'blur(4px)', 'important');
-        card.style.setProperty('-webkit-backdrop-filter', 'blur(4px)', 'important');
-        card.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.1)', 'important');
+        // LIQUID GLASS STYLE: Lebih transparan (0.3), Blur lebih kuat (16px)
+        card.style.setProperty('background-color', 'rgba(15, 23, 42, 0.3)', 'important'); 
+        card.style.setProperty('backdrop-filter', 'blur(16px)', 'important');
+        card.style.setProperty('-webkit-backdrop-filter', 'blur(16px)', 'important');
+        card.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.2)', 'important');
         card.style.setProperty('border-radius', '1rem', 'important'); // Rounded-xl
         card.style.setProperty('box-shadow', '0 4px 6px -1px rgba(0, 0, 0, 0.1)', 'important');
     });
@@ -1133,7 +1137,8 @@ function updateWeatherUI(data) {
         const parentNode = referenceNode.parentNode;
 
         // --- MODIFIED: Pisahkan Precip Chart, tapi Gabungkan Summary ke Hourly ---
-        const cardClass = "mx-0 mb-3 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
+        // LIQUID GLASS STYLE: bg-slate-900/30 (Transparan), backdrop-blur-xl (Blur Kuat)
+        const cardClass = "mx-0 mb-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg overflow-hidden";
 
         // 1. Precip Chart Card (Hidden by default) - Separate
         const precipCard = document.createElement('div');
@@ -1412,7 +1417,7 @@ function updateWeatherUI(data) {
         }
 
         const list = document.getElementById('forecast-list');
-        list.className = "mx-0 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 p-2 shadow-lg"; // Style Kartu 7 Hari (Lebar Penuh)
+        list.className = "mx-0 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg"; // Style Kartu 7 Hari (Liquid Glass)
         list.innerHTML = ''; // Clear
 
         // --- RESTORED: Judul Header Kartu 7 Hari (Internal) ---
@@ -2107,7 +2112,7 @@ function showMetricInsight(type) {
 
     // --- NEW: Reposition the insight panel (Standalone Card) ---
     // Apply card styles
-    panel.className = "mx-0 mb-3 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden p-4 hidden";
+    panel.className = "mx-0 mb-3 bg-slate-900/40 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg overflow-hidden p-4 hidden";
     
     // Insert BEFORE the precip card (or hourly card if precip missing)
     const precipCard = document.getElementById('precip-card');
