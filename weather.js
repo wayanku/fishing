@@ -16,6 +16,7 @@ let moonPhase = 0.5; // 0.0 - 1.0
 let wxLocalHour = new Date().getHours(); // Jam lokal lokasi terpilih
 let lastSkyGradient = ''; // Cache untuk mencegah redraw background berlebihan
 let isAudioUnlocked = false; // Status untuk autoplay audio di HP
+let pendingAudio = null; // Sinkronisasi audio & animasi
 
 
 // --- NEW: Inject SVG Filters & CSS for Realistic Clouds ---
@@ -817,6 +818,12 @@ function animate() {
     }
 
     // REMOVED: Top Gradient Mask to allow clear view of sky/stars
+
+    // --- NEW: Sync Audio Start with Animation Frame ---
+    if (pendingAudio && isAudioUnlocked) {
+        weatherAudio.playRain(pendingAudio.volume);
+        pendingAudio = null;
+    }
 }
 
 function startWeatherEffect(type) {
@@ -832,7 +839,7 @@ function startWeatherEffect(type) {
     
     if (type === 'rain') {
         for (let i = 0; i < 350; i++) particles.push(new RainDrop());
-        if(isAudioUnlocked) weatherAudio.playRain(0.5); // Volume normal untuk hujan
+        pendingAudio = { volume: 0.5 }; // Sinkronisasi: Queue audio
     }
     else if (type === 'snow') for (let i = 0; i < 200; i++) particles.push(new SnowFlake());
     else if (type === 'wind') for (let i = 0; i < 10; i++) particles.push(new WindLine());
@@ -840,7 +847,7 @@ function startWeatherEffect(type) {
         for (let i = 0; i < 500; i++) particles.push(new RainDrop()); // Badai lebih padat
         lightningBolts = []; // Reset bolts
         storm = { flashOpacity: 0 };
-        if(isAudioUnlocked) weatherAudio.playRain(0.7); // Volume lebih keras untuk badai
+        pendingAudio = { volume: 0.7 }; // Sinkronisasi: Queue audio
     }
     
     // Tambahkan Awan jika cuaca mendukung (Berawan/Hujan/Salju)
@@ -884,6 +891,7 @@ function startWeatherEffect(type) {
 
 function stopWeatherEffect() {
     if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+    pendingAudio = null; // Reset pending audio
     particles = [];
     lightningBolts = []; // Clear lightning
     // Clean up DOM clouds
