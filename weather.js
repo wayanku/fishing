@@ -100,11 +100,11 @@ function initCloudAssets() {
             .cloud-night .c-mid { box-shadow: 210px 250px 30px 35px rgba(71, 85, 105, 0.4) !important; } /* Slate-600 */
             .cloud-night .c-front { box-shadow: 210px 270px 35px 5px rgba(100, 116, 139, 0.5) !important; } /* Slate-500 */
 
-            /* SUNSET: Abu-abu dengan Sentuhan Kuning/Orange Halus (Tidak Mencolok) */
-            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(100, 116, 139, 0.9) !important; } /* Slate-500 (Shadowed part) */
-            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(253, 224, 71, 0.3) !important; } /* Yellow-300 (Faint glow) */
-            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(71, 85, 105, 0.5) !important; } /* Slate-600 (Darker shadow) */
-            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(252, 211, 77, 0.4) !important; } /* Amber-400 (Soft highlight) */
+            /* SUNSET: Abu-abu Gelap dengan Highlight Oranye Lembut (Natural) */
+            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(71, 85, 105, 0.9) !important; } /* Slate-600 (Base gelap) */
+            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(250, 204, 21, 0.2) !important; } /* Yellow-400 (Sedikit Kuning) */
+            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(51, 65, 85, 0.5) !important; } /* Slate-700 (Shadow) */
+            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(251, 146, 60, 0.25) !important; } /* Orange-400 (Tetap Orange) */
         </style>
     `;
     document.body.appendChild(assets);
@@ -424,8 +424,11 @@ function drawCelestialBodies() {
         ctx.fillStyle = grd;
         ctx.beginPath(); ctx.arc(sunX, sunY, 60, 0, Math.PI * 2); ctx.fill();
 
-        // Core
-        ctx.fillStyle = "#facc15";
+        // Core (Yellow Only - No Orange)
+        const coreGrd = ctx.createRadialGradient(sunX, sunY, 5, sunX, sunY, 25);
+        coreGrd.addColorStop(0, "#fef3c7"); // amber-100 (Pusat kuning sangat terang)
+        coreGrd.addColorStop(1, "#facc15"); // yellow-500 (Kuning Murni)
+        ctx.fillStyle = coreGrd;
         ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI * 2); ctx.fill();
     }
 
