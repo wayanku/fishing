@@ -2041,8 +2041,6 @@
                     lucide.createIcons();
                 } catch(e) {
                     alert("Gagal memuat data gempa.");
-                    toggle.checked = false;
-                    updateLayerStorage();
                 }
                 return;
             }
@@ -2290,15 +2288,11 @@
                     lucide.createIcons();
                 } else {
                     alert("Data cuaca tidak tersedia saat ini.");
-                    toggle.checked = false;
-                    updateLayerStorage();
                 }
 
             } catch(e) {
                 console.error(e);
                 alert("Gagal memuat peta cuaca. Cek koneksi internet.");
-                toggle.checked = false;
-                updateLayerStorage();
             }
         }
 
