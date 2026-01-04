@@ -293,6 +293,15 @@ function lerpColor(a, b, amount) {
     return '#' + ((1 << 24) + (Math.round(rr) << 16) + (Math.round(rg) << 8) + Math.round(rb)).toString(16).slice(1);
 }
 
+// Helper: Convert Hex to RGB (untuk transparansi)
+function hexToRgb(hex) {
+    const bigint = parseInt(hex.replace('#', ''), 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `${r}, ${g}, ${b}`;
+}
+
 function drawSkyBackground() {
     if (!ctx || !canvas) return;
     
@@ -387,12 +396,25 @@ function drawSkyBackground() {
 function drawCelestialBodies() {
     if (!ctx) return;
     // Draw Stars (Night only, if not heavy storm)
-    const h = wxLocalHour; // Gunakan jam lokal lokasi
+    const h = wxLocalHour; 
+    
+    // --- MODIFIED: Hitung Waktu Presisi (Float) untuk Transisi Halus ---
+    const now = new Date();
+    const minutes = now.getMinutes();
+    const floatHour = wxLocalHour + (minutes / 60);
+
+    // Tentukan Siang/Malam secara Dinamis berdasarkan Sunset/Sunrise API
+    let isNightTime = h >= 18 || h < 6; // Default fallback
+    if (currentWeatherData && currentWeatherData.daily && currentWeatherData.daily.sunset[0]) {
+        const sunriseH = new Date(currentWeatherData.daily.sunrise[0]).getHours() + new Date(currentWeatherData.daily.sunrise[0]).getMinutes()/60;
+        const sunsetH = new Date(currentWeatherData.daily.sunset[0]).getHours() + new Date(currentWeatherData.daily.sunset[0]).getMinutes()/60;
+        isNightTime = (floatHour < sunriseH || floatHour >= sunsetH);
+    }
     
     // --- MODIFIED: Transisi Bintang Perlahan (Sore->Malam & Malam->Pagi) ---
     let starOpacity = 0;
-    if (h >= 19 || h < 5) starOpacity = 1.0; // Malam Penuh (Bintang Terang)
-    else if (h === 18 || h === 5) starOpacity = 0.5; // Senja/Subuh (Bintang Samar)
+    if (isNightTime) starOpacity = 1.0; // Malam
+    // Transisi halus saat senja/fajar bisa ditambahkan di sini jika perlu
 
     if (starOpacity > 0 && wxCode < 60) {
         ctx.fillStyle = "white";
@@ -408,26 +430,49 @@ function drawCelestialBodies() {
         ctx.globalAlpha = 1.0;
     }
 
-    const isNightTime = h >= 18 || h < 6; // Update definisi malam (termasuk jam 18 & 05) untuk Matahari/Bulan
-
     // Draw Sun (Day & Clear/Partly Cloudy)
     if (!isNightTime && wxCode <= 3) {
-        // Sun Position: Top Left (as requested for Moon, keeping consistent or mirrored)
-        // Let's put Sun Top Left as well to match the "corner" request
         const sunX = 60; 
         const sunY = 80;
         
+        // --- NEW: Transisi Warna Matahari (Kuning -> Orange saat Sunset) ---
+        let colorCore = "#facc15"; // Yellow-500 (Siang)
+        let colorCenter = "#fef3c7"; // Amber-100 (Pusat)
+        let glowHex = "#fde047"; // Yellow-300 (Glow)
+
+        if (currentWeatherData && currentWeatherData.daily && currentWeatherData.daily.sunset[0]) {
+            const sunriseH = new Date(currentWeatherData.daily.sunrise[0]).getHours() + new Date(currentWeatherData.daily.sunrise[0]).getMinutes()/60;
+            const sunsetH = new Date(currentWeatherData.daily.sunset[0]).getHours() + new Date(currentWeatherData.daily.sunset[0]).getMinutes()/60;
+
+            // Transisi Sunrise (Orange -> Kuning) - 2 Jam setelah terbit
+            if (floatHour >= sunriseH && floatHour < sunriseH + 2) {
+                const p = (floatHour - sunriseH) / 2;
+                colorCore = lerpColor("#fb923c", "#facc15", p); // Orange -> Yellow
+                colorCenter = lerpColor("#fdba74", "#fef3c7", p);
+                glowHex = lerpColor("#fb923c", "#fde047", p);
+            }
+            // Transisi Sunset (Kuning -> Orange) - 2.5 Jam sebelum terbenam
+            else if (floatHour > sunsetH - 2.5 && floatHour <= sunsetH) {
+                const p = (floatHour - (sunsetH - 2.5)) / 2.5;
+                colorCore = lerpColor("#facc15", "#fb923c", p); // Yellow -> Orange Soft
+                colorCenter = lerpColor("#fef3c7", "#fdba74", p); // Amber -> Orange Muda
+                glowHex = lerpColor("#fde047", "#fb923c", p);
+            }
+        }
+
+        const glowRgb = hexToRgb(glowHex);
+
         // Glow
         const grd = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 60);
-        grd.addColorStop(0, "rgba(253, 224, 71, 0.8)");
-        grd.addColorStop(1, "rgba(253, 224, 71, 0)");
+        grd.addColorStop(0, `rgba(${glowRgb}, 0.8)`);
+        grd.addColorStop(1, `rgba(${glowRgb}, 0)`);
         ctx.fillStyle = grd;
         ctx.beginPath(); ctx.arc(sunX, sunY, 60, 0, Math.PI * 2); ctx.fill();
 
-        // Core (Yellow Only - No Orange)
+        // Core (Dynamic Color)
         const coreGrd = ctx.createRadialGradient(sunX, sunY, 5, sunX, sunY, 25);
-        coreGrd.addColorStop(0, "#fef3c7"); // amber-100 (Pusat kuning sangat terang)
-        coreGrd.addColorStop(1, "#facc15"); // yellow-500 (Kuning Murni)
+        coreGrd.addColorStop(0, colorCenter); 
+        coreGrd.addColorStop(1, colorCore); 
         ctx.fillStyle = coreGrd;
         ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI * 2); ctx.fill();
     }
