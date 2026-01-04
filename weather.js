@@ -1211,15 +1211,15 @@ function updateWeatherUI(data) {
             header = document.createElement('div');
             header.id = 'new-weather-header';
             // FIX: Tambah jarak atas (pt-16) dan jarak bawah ke grid (pb-10) agar lebih lega
-            header.className = 'flex flex-col items-center text-white pt-16 pb-10 px-4 text-center drop-shadow-md';
+            header.className = 'flex flex-col items-center text-white pt-16 pb-10 px-4 text-center';
             header.innerHTML = `
-                <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2 drop-shadow-lg"></h2>
-                <p class="text-sm font-medium text-slate-200 mt-1 mb-2 opacity-90 tracking-wide"><span id="header-time">--:--</span></p>
+                <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2" style="text-shadow: 0 2px 4px rgb(0 0 0 / 0.5);"></h2>
+                <p class="text-sm font-medium text-slate-200 mt-1 mb-2 opacity-90 tracking-wide" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);"><span id="header-time">--:--</span></p>
                 
-                <p id="header-temp" class="text-8xl font-thin -my-2 tracking-tighter drop-shadow-2xl" style="font-family: -apple-system, sans-serif;"></p>
+                <p id="header-temp" class="text-8xl font-thin -my-2 tracking-tighter" style="font-family: -apple-system, sans-serif; text-shadow: 0 3px 8px rgb(0 0 0 / 0.5);"></p>
                 
-                <p id="header-desc" class="text-xl font-medium mt-1 drop-shadow-md"></p>
-                <p id="header-minmax" class="text-sm font-medium opacity-80"></p>
+                <p id="header-desc" class="text-xl font-medium mt-1" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);"></p>
+                <p id="header-minmax" class="text-sm font-medium opacity-80" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);"></p>
             `;
             // Insert header at the top of the panel content
             panelContent.prepend(header);
@@ -1644,11 +1644,8 @@ function updateWeatherUI(data) {
             const barWidth = ((maxTemp - minTemp) / totalRange) * 100;
 
             // Dynamic Icon Color
-            let iconColor = "text-white";
-            if(code === 0) iconColor = "text-yellow-400";
-            else if(code >= 51) iconColor = "text-blue-400";
-            else if(code === 3) iconColor = "text-slate-400";
-
+            const iconColor = "text-white"; // FIX: Force all icons to be white for consistency
+            
             // Gradient Bar Colors
             const c1 = getTempColor(minTemp);
             const c2 = getTempColor(maxTemp);
@@ -1663,7 +1660,7 @@ function updateWeatherUI(data) {
             if (getWeatherIcon(code) === 'cloud-sun') {
                 iconHtml = `
                     <div class="relative w-6 h-6 group-hover:scale-110 transition-transform">
-                        <i data-lucide="sun" class="absolute -top-1 -right-1 w-4 h-4 text-yellow-400 fill-yellow-400/20"></i>
+                        <i data-lucide="sun" class="absolute -top-1 -right-1 w-4 h-4 text-white fill-white/20"></i>
                         <i data-lucide="cloud" class="absolute bottom-0 left-0 w-5 h-5 text-white fill-white/10"></i>
                     </div>
                 `;
@@ -1676,7 +1673,7 @@ function updateWeatherUI(data) {
                     ${rainSum > 0.5 ? `<span class="text-[9px] font-bold text-blue-300 mt-0.5">${Math.round(rainSum)}mm</span>` : ''}
                 </div>
                 <div class="w-[60%] flex items-center gap-3 pl-1">
-                    <span class="text-slate-400 text-xs font-medium w-6 text-right">${minTemp}°</span>
+                    <span class="text-slate-200 text-xs font-medium w-6 text-right">${minTemp}°</span>
                     <div class="flex-1 h-1.5 bg-slate-700/50 rounded-full relative overflow-hidden">
                         <div class="absolute h-full rounded-full opacity-90"
                              style="left: ${leftOffset.toFixed(2)}%; width: ${barWidth.toFixed(2)}%; background: linear-gradient(to right, ${c1}, ${c2});">
