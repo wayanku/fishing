@@ -2097,7 +2097,6 @@ function showMetricInsight(type) {
     if(currentWeatherData && currentWeatherData.current_weather) {
         const wx = currentWeatherData.current_weather;
         if(type === 'weather') checkWeatherAnimation(wx.weathercode, wx.windspeed, wx.is_day);
-        else if(type === 'wind') startWeatherEffect('wind');
         else if(type === 'temp' && [71, 73, 75, 77, 85, 86].includes(wx.weathercode)) startWeatherEffect('snow');
     }
 
