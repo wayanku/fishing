@@ -18,6 +18,7 @@ let wxLocalHour = new Date().getHours(); // Jam lokal lokasi terpilih
 let lastSkyGradient = ''; // Cache untuk mencegah redraw background berlebihan
 let isAudioUnlocked = false; // Status untuk autoplay audio di HP
 let pendingAudio = null; // Sinkronisasi audio & animasi
+let audioFrameCounter = 0; // Counter delay audio agar tidak mendahului visual
 
 
 // --- NEW: Inject SVG Filters & CSS for Realistic Clouds ---
@@ -477,8 +478,12 @@ class Cloud {
 
         this.element.className = 'cloud-group' + typeClass;
 
-        // Create 4 layers for realistic effect
-        ['c-base', 'c-back', 'c-mid', 'c-front'].forEach(cls => {
+        // --- OPTIMIZATION: Reduce layers on mobile ---
+        // Di HP, gunakan 2 layer saja agar rendering instan. Di PC tetap 4 layer.
+        const isMobile = window.innerWidth < 768;
+        const layers = isMobile ? ['c-base', 'c-front'] : ['c-base', 'c-back', 'c-mid', 'c-front'];
+
+        layers.forEach(cls => {
             const l = document.createElement('div');
             l.className = `cloud ${cls}`;
             this.element.appendChild(l);
@@ -488,7 +493,6 @@ class Cloud {
         
         // Randomize Position & Animation
         // FIX: Posisi awan lebih tinggi di HP agar tidak menutupi peta
-        const isMobile = window.innerWidth < 768;
         const minTop = isMobile ? -20 : 5;
         const maxTop = isMobile ? 10 : 40;
         this.y = minTop + Math.random() * (maxTop - minTop);
@@ -835,8 +839,13 @@ function animate() {
 
     // --- NEW: Sync Audio Start with Animation Frame ---
     if (pendingAudio && isAudioUnlocked) {
-        weatherAudio.playRain(pendingAudio.volume);
-        pendingAudio = null;
+        audioFrameCounter++;
+        // Tunggu ~30 frame (0.5 detik) agar animasi visual Hujan/Badai sudah stabil terlihat di layar
+        if (audioFrameCounter > 30) {
+            weatherAudio.playRain(pendingAudio.volume);
+            pendingAudio = null;
+            audioFrameCounter = 0;
+        }
     }
 }
 
@@ -846,22 +855,30 @@ function startWeatherEffect(type) {
     
     stopWeatherEffect();
     currentWxType = type;
+    const isMobile = window.innerWidth < 768; // Deteksi HP untuk optimasi performa
 
     // Pastikan canvas muncul di BELAKANG panel text (2147483640) tapi DI ATAS peta
     canvas.style.zIndex = "2147483639"; 
     canvas.style.pointerEvents = "none";
     
     if (type === 'rain') {
-        for (let i = 0; i < 350; i++) particles.push(new RainDrop());
+        const count = isMobile ? 150 : 350; // Kurangi jumlah partikel di HP agar loading cepat
+        for (let i = 0; i < count; i++) particles.push(new RainDrop());
         pendingAudio = { volume: 0.5 }; // Sinkronisasi: Queue audio
+        audioFrameCounter = 0;
     }
-    else if (type === 'snow') for (let i = 0; i < 200; i++) particles.push(new SnowFlake());
+    else if (type === 'snow') {
+        const count = isMobile ? 100 : 200;
+        for (let i = 0; i < count; i++) particles.push(new SnowFlake());
+    }
     else if (type === 'wind') for (let i = 0; i < 10; i++) particles.push(new WindLine());
     else if (type === 'storm') {
-        for (let i = 0; i < 500; i++) particles.push(new RainDrop()); // Badai lebih padat
+        const count = isMobile ? 250 : 500; // Kurangi kepadatan badai di HP
+        for (let i = 0; i < count; i++) particles.push(new RainDrop()); // Badai lebih padat
         lightningBolts = []; // Reset bolts
         storm = { flashOpacity: 0 };
         pendingAudio = { volume: 0.7 }; // Sinkronisasi: Queue audio
+        audioFrameCounter = 0;
     }
     
     // Tambahkan Awan jika cuaca mendukung (Berawan/Hujan/Salju)
@@ -893,7 +910,11 @@ function startWeatherEffect(type) {
     
     if ([1, 2, 3, 45, 48].includes(wxCode) || wxCode >= 51 || ['rain', 'storm', 'snow', 'cloudy'].includes(type)) {
         // Lebih banyak awan jika hujan/badai
-        const cloudCount = (wxCode >= 51 || wxCode === 3 || ['rain', 'storm'].includes(type)) ? 8 : 5; 
+        let cloudCount = (wxCode >= 51 || wxCode === 3 || ['rain', 'storm'].includes(type)) ? 8 : 5; 
+        
+        // --- OPTIMIZATION: Reduce cloud count on mobile ---
+        if (isMobile) cloudCount = Math.max(3, Math.floor(cloudCount / 2));
+
         for(let i=0; i<cloudCount; i++) clouds.push(new Cloud(cloudType));
     }
     
@@ -906,6 +927,7 @@ function startWeatherEffect(type) {
 function stopWeatherEffect() {
     if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     pendingAudio = null; // Reset pending audio
+    audioFrameCounter = 0;
     particles = [];
     lightningBolts = []; // Clear lightning
     // Clean up DOM clouds
@@ -1157,12 +1179,20 @@ async function showLocationPanel(latlng) {
         
         const wx = currentWeatherData.current_weather;
         if(wx.time) wxLocalHour = parseInt(wx.time.split('T')[1].split(':')[0]); // Update jam dari cache
+        
+        // --- NEW: Force Draw Sky Immediately ---
+        drawSkyBackground(); // Gambar langit langsung, jangan tunggu animasi
+        
         checkWeatherAnimation(wx.weathercode, wx.windspeed, wx.is_day);
     } else {
         // Lokasi baru / belum ada data: Gunakan estimasi waktu sistem & cerah
         wxLocalHour = sysHour; // Reset ke jam sistem sementara loading
         wxIsDay = initIsDay;
         wxCode = 0;
+        
+        // --- NEW: Force Draw Sky Immediately ---
+        drawSkyBackground(); // Gambar langit langsung
+        
         startWeatherEffect('clear');
     }
 
