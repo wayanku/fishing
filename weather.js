@@ -839,6 +839,12 @@ function animate() {
 
     // --- NEW: Sync Audio Start with Animation Frame ---
     if (pendingAudio && isAudioUnlocked) {
+        // SAFETY CHECK: Pastikan audio hanya main jika cuaca Hujan atau Badai
+        if (currentWxType !== 'rain' && currentWxType !== 'storm') {
+            pendingAudio = null;
+            return;
+        }
+
         audioFrameCounter++;
         // Tunggu ~30 frame (0.5 detik) agar animasi visual Hujan/Badai sudah stabil terlihat di layar
         if (audioFrameCounter > 30) {
@@ -933,7 +939,7 @@ function stopWeatherEffect() {
     // Clean up DOM clouds
     clouds.forEach(c => c.remove());
     clouds = [];
-    if(isAudioUnlocked) weatherAudio.muteAll(); // Hentikan semua audio (Hujan & Petir)
+    weatherAudio.muteAll(); // Hentikan semua audio (Hujan & Petir) tanpa syarat flag
     storm = null;
     currentWxType = null;
     
