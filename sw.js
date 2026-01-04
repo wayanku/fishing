@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fishing-spot-v4';
+const CACHE_NAME = 'fishing-spot-v5';
 const ASSETS = [
     './',
     './index.html',
@@ -47,7 +47,8 @@ self.addEventListener('fetch', (event) => {
         url.hostname.includes('windy.com') ||
         url.hostname.includes('open-meteo.com') ||     // FIX: Jangan cache data cuaca
         url.hostname.includes('script.google.com') ||  // FIX: Jangan cache data spot
-        url.hostname.includes('ipapi.co')              // FIX: Jangan cache lokasi IP
+        url.hostname.includes('ipapi.co') ||             // FIX: Jangan cache lokasi IP
+        url.hostname.includes('raw.githubusercontent.com') // FIX: Jangan cache file audio
     ) {
         return; // Biarkan browser menangani request ini secara langsung (Network Only)
     }
