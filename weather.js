@@ -222,18 +222,18 @@ const weatherAudio = {
     },
 
     muteAll: function() {
-        // FIX: Hapus cek 'isReady' untuk mencegah race condition saat audio diinisialisasi.
-        // Cek 'this.rain' untuk memastikan audio object sudah dibuat sebelum diakses.
-        clearInterval(this.fadeInterval);
-        if (this.rain) {
-            this.rain.volume = 0;
-            this.rain.pause();
-            this.rain.currentTime = 0;
+        if (this.isReady) {
+            clearInterval(this.fadeInterval);
+            if (this.rain) {
+                this.rain.volume = 0;
+                this.rain.pause();
+                this.rain.currentTime = 0;
+            }
+            this.thunder.forEach(t => {
+                t.pause();
+                t.currentTime = 0;
+            });
         }
-        this.thunder.forEach(t => {
-            t.pause();
-            t.currentTime = 0;
-        });
     },
 
     playThunder: function() {
@@ -1145,9 +1145,6 @@ function injectCardStyles() {
 }
 
 async function showLocationPanel(latlng) {
-    // FIX: Hentikan efek sebelumnya secara pre-emptive untuk mencegah audio bocor saat klik pertama.
-    stopWeatherEffect();
-
     const panel = document.getElementById('location-panel');
     
     const lang = localStorage.getItem('appLang') || 'id';
