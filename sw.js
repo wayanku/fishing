@@ -1,7 +1,8 @@
-const CACHE_NAME = 'fishing-spot-v2';
+const CACHE_NAME = 'fishing-spot-v3';
 const ASSETS = [
     './',
     './index.html',
+    './style.css',
     './script.js',
     './weather.js'
 ];
@@ -45,7 +46,10 @@ self.addEventListener('fetch', (event) => {
         url.hostname.includes('google.com') ||
         url.hostname.includes('arcgisonline.com') ||
         url.hostname.includes('openweathermap.org') ||
-        url.hostname.includes('windy.com')
+        url.hostname.includes('windy.com') ||
+        url.hostname.includes('open-meteo.com') ||     // FIX: Jangan cache data cuaca
+        url.hostname.includes('script.google.com') ||  // FIX: Jangan cache data spot
+        url.hostname.includes('ipapi.co')              // FIX: Jangan cache lokasi IP
     ) {
         return; // Biarkan browser menangani request ini secara langsung (Network Only)
     }
