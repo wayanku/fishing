@@ -1775,23 +1775,49 @@ function updateWeatherUI(data) {
         
         // --- NEW: PRECIPITATION CHART LOGIC (Next Hour) ---
         if (data.minutely_15 && data.minutely_15.precipitation && precipChartContainer) {
-            const pTimes = data.minutely_15.time;
+            const pTimes = data.minutely_15.time.map(t => new Date(t).getTime());
             const pVals = data.minutely_15.precipitation;
             const now = new Date();
+            const nowTime = now.getTime();
             
-            // Cari index waktu terdekat (mundur 10 menit agar mencakup interval saat ini)
-            let startIdx = pTimes.findIndex(t => new Date(t) > new Date(now.getTime() - 10*60000));
-            if (startIdx === -1) startIdx = 0;
-
-            // Ambil data untuk 2 jam ke depan (8 slot x 15 menit)
+            // Generate 6 slots (Now, +10, +20, +30, +40, +50) -> Total 50 mins range
             const nextSlots = [];
             let hasRain = false;
-            for(let i=0; i<8; i++) { 
-                if(startIdx + i < pVals.length) {
-                    const val = pVals[startIdx + i];
-                    if(val > 0) hasRain = true;
-                    nextSlots.push({ t: pTimes[startIdx + i], v: val });
+            
+            for(let i=0; i<6; i++) {
+                const targetTime = nowTime + (i * 10 * 60 * 1000);
+                
+                // Find index in original data (Interpolation)
+                let idx = pTimes.findIndex(t => t >= targetTime);
+                
+                let val = 0;
+                if (idx === -1) {
+                    val = pVals[pVals.length - 1] || 0;
+                } else if (idx === 0) {
+                    val = pVals[0] || 0;
+                } else {
+                    // Linear Interpolation
+                    const t2 = pTimes[idx];
+                    const t1 = pTimes[idx - 1];
+                    const v2 = pVals[idx];
+                    const v1 = pVals[idx - 1];
+                    
+                    if (t2 === t1) {
+                        val = v1;
+                    } else {
+                        const factor = (targetTime - t1) / (t2 - t1);
+                        val = v1 + (v2 - v1) * factor;
+                    }
                 }
+                
+                // Clamp & Round
+                val = Math.max(0, Math.round(val * 100) / 100);
+                if(val > 0.05) hasRain = true;
+                
+                // Label: "Kini", "10m", "20m"...
+                let label = i === 0 ? "Kini" : `${i*10}m`;
+                
+                nextSlots.push({ t: targetTime, v: val, label: label });
             }
 
             if (hasRain) {
@@ -1804,22 +1830,20 @@ function updateWeatherUI(data) {
                 let statusText = `${pTypeChart} ringan untuk beberapa saat.`;
                 const currentVal = nextSlots[0].v;
                 
-                if (currentVal > 0) {
+                if (currentVal > 0.05) {
                     // Sedang Hujan -> Cari kapan berhenti
-                    const stopIdx = nextSlots.findIndex(s => s.v === 0);
+                    const stopIdx = nextSlots.findIndex(s => s.v <= 0.05);
                     if (stopIdx !== -1) {
-                        const stopTime = new Date(nextSlots[stopIdx].t);
-                        const diffMin = Math.max(1, Math.ceil((stopTime - now) / 60000));
+                        const diffMin = stopIdx * 10;
                         statusText = `${pTypeChart} berhenti dalam ${diffMin} menit.`;
                     } else {
-                        statusText = `${pTypeChart} berlanjut untuk 2 jam ke depan.`;
+                        statusText = `${pTypeChart} berlanjut untuk 1 jam ke depan.`;
                     }
                 } else {
                     // Tidak Hujan -> Cari kapan mulai
-                    const startRainIdx = nextSlots.findIndex(s => s.v > 0);
+                    const startRainIdx = nextSlots.findIndex(s => s.v > 0.05);
                     if (startRainIdx !== -1) {
-                        const startTime = new Date(nextSlots[startRainIdx].t);
-                        const diffMin = Math.max(1, Math.ceil((startTime - now) / 60000));
+                        const diffMin = startRainIdx * 10;
                         statusText = `${pTypeChart} dimulai dalam ${diffMin} menit.`;
                     }
                 }
@@ -1828,9 +1852,8 @@ function updateWeatherUI(data) {
                 const maxP = Math.max(...nextSlots.map(s => s.v), 1); // Scaling
                 let barsHtml = nextSlots.map(s => {
                     const heightPct = Math.min((s.v / maxP) * 100, 100);
-                    const timeLabel = s.t.slice(11, 16); // HH:MM
-                    const barColor = s.v > 0 ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-slate-700/30';
-                    return `<div class="flex flex-col items-center justify-end h-20 w-full gap-1"><div class="w-1.5 rounded-full ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${timeLabel}</span></div>`;
+                    const barColor = s.v > 0.05 ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-slate-700/30';
+                    return `<div class="flex flex-col items-center justify-end h-20 w-full gap-1"><div class="w-1.5 rounded-full ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${s.label}</span></div>`;
                 }).join('');
 
                 precipChartContainer.innerHTML = `<p class="text-xs font-bold text-white mb-2 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-16 border-b border-white/5 pb-1">${barsHtml}</div>`;
