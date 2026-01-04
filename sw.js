@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fishing-spot-v9';
+const CACHE_NAME = 'fishing-spot-v7';
 const ASSETS = [
     './',
     './index.html',
@@ -38,31 +38,38 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(event.request.url);
 
-    // --- FIX: JANGAN CACHE TILE PETA & API ---
-    // Mencegah error 403 RainViewer dan menghemat memori
-    if (
-        url.hostname.includes('rainviewer.com') ||
-        url.hostname.includes('openstreetmap.org') || // OSM tidak dipakai, tapi biarkan untuk jaga-jaga
-        url.hostname.includes('openweathermap.org') ||
-        url.hostname.includes('windy.com') ||
-        url.hostname.includes('open-meteo.com') ||     // FIX: Jangan cache data cuaca
-        url.hostname.includes('google.com') ||         // FIX: Jangan cache map tiles & script
-        url.hostname.includes('arcgisonline.com') ||   // FIX: Jangan cache map laut
-        url.hostname.includes('ipapi.co') ||             // FIX: Jangan cache lokasi IP
-        url.hostname.includes('raw.githubusercontent.com') // FIX: Jangan cache file audio
-    ) {
-        return; // Biarkan browser menangani request ini secara langsung (Network Only)
+    // --- FIX: AUDIO BYPASS ---
+    // File audio dari GitHub harus bypass SW agar Range Requests (seek/loop) berfungsi di iOS/Chrome
+    if (url.hostname.includes('raw.githubusercontent.com')) {
+        return;
     }
 
     event.respondWith(
         caches.match(event.request).then((cached) => {
-            // Jika ada di cache, pakai itu. Jika tidak, ambil dari internet.
-            return cached || fetch(event.request).then((response) => {
-                return caches.open(CACHE_NAME).then((cache) => {
-                    // Simpan aset baru yang berhasil diambil ke cache (misal: gambar, icon)
-                    cache.put(event.request, response.clone());
-                    return response;
-                });
+            // 1. Jika ada di cache (termasuk Peta Offline), gunakan itu!
+            if (cached) return cached;
+
+            // 2. Jika tidak ada, ambil dari internet
+            return fetch(event.request).then((response) => {
+                // 3. Cek apakah URL ini boleh dicache secara otomatis (Dynamic Caching)?
+                // Kita mengecualikan Tile Peta & API agar tidak memenuhi memori HP user saat browsing biasa.
+                const shouldCache = !url.hostname.includes('rainviewer.com') &&
+                                    !url.hostname.includes('openstreetmap.org') &&
+                                    !url.hostname.includes('openweathermap.org') &&
+                                    !url.hostname.includes('windy.com') &&
+                                    !url.hostname.includes('open-meteo.com') &&
+                                    !url.hostname.includes('google.com') &&        // Tile Peta (Kecuali offline)
+                                    !url.hostname.includes('arcgisonline.com') &&  // Tile Peta (Kecuali offline)
+                                    !url.hostname.includes('ipapi.co');
+
+                if (shouldCache) {
+                    const responseToCache = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseToCache);
+                    });
+                }
+                
+                return response;
             });
         }).catch(() => {
             // Jika offline total dan file tidak ada di cache, bisa return fallback page disini
