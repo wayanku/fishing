@@ -177,7 +177,7 @@ const weatherAudio = {
                 }).catch(error => {
                     // Autoplay was prevented. Audio will not play until next interaction.
                     console.warn("Audio unlock failed on load, will be silent until user interacts.", error);
-                });;
+                });
             }
 
         } catch (e) {
