@@ -906,7 +906,7 @@ async function showLocationPanel(latlng) {
     // 3. Fetch Weather & Marine Data (Open-Meteo API)
     try {
         // Mengambil Weather + Marine (Wave Height) + Sun (Sunrise/Sunset)
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode,wave_height,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure,visibility,apparent_temperature,dewpoint_2m,cloudcover,windgusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset,uv_index_max&minutely_15=precipitation&timezone=auto`);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode,wave_height,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure,visibility,apparent_temperature,dewpoint_2m,cloudcover,windgusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset,uv_index_max&minutely_15=precipitation&timezone=auto&forecast_days=14`);
         const data = await res.json();
         currentWeatherData = data; // Simpan data untuk detail view
         updateWeatherUI(data);
@@ -1423,18 +1423,27 @@ function updateWeatherUI(data) {
         // --- RESTORED: Judul Header Kartu 7 Hari (Internal) ---
         const titleDiv = document.createElement('div');
         titleDiv.className = "px-2 py-2 mb-2 flex items-center gap-2 border-b border-white/5";
-        const titleText = lang === 'en' ? '7-Day Forecast' : (lang === 'jp' ? '7日間予報' : 'Prakiraan 7 Hari');
+        const titleText = lang === 'en' ? '10-Day Forecast' : (lang === 'jp' ? '10日間予報' : 'Prakiraan 10 Hari');
         titleDiv.innerHTML = `<i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i> <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">${titleText}</span>`;
         list.appendChild(titleDiv);
 
         // Pre-calculate overall min/max temps for consistent bar scaling (iPhone style)
-        const allMinTemps = data.daily.temperature_2m_min.slice(0, 7);
-        const allMaxTemps = data.daily.temperature_2m_max.slice(0, 7);
+        const allMinTemps = data.daily.temperature_2m_min.slice(0, 10);
+        const allMaxTemps = data.daily.temperature_2m_max.slice(0, 10);
         const overallMinTemp = Math.min(...allMinTemps);
         const overallMaxTemp = Math.max(...allMaxTemps);
         const totalRange = (overallMaxTemp - overallMinTemp) || 1; // Avoid division by zero
         
-        for(let i=0; i<7; i++) {
+        // Helper Warna Suhu (iPhone Style Gradient)
+        const getTempColor = (t) => {
+            if (t < 10) return '#3b82f6'; // Blue
+            if (t < 20) return '#22d3ee'; // Cyan
+            if (t < 28) return '#4ade80'; // Green
+            if (t < 32) return '#facc15'; // Yellow
+            return '#f97316'; // Orange/Red
+        };
+
+        for(let i=0; i<Math.min(data.daily.time.length, 10); i++) {
             const date = new Date(data.daily.time[i]);
             const dayName = i === 0 ? (lang === 'en' ? 'Today' : (lang === 'jp' ? '今日' : 'Hari Ini')) : dt.days[date.getDay()];
             const maxTemp = Math.round(data.daily.temperature_2m_max[i]);
@@ -1452,9 +1461,13 @@ function updateWeatherUI(data) {
             else if(code >= 51) iconColor = "text-blue-400";
             else if(code === 3) iconColor = "text-slate-400";
 
+            // Gradient Bar Colors
+            const c1 = getTempColor(minTemp);
+            const c2 = getTempColor(maxTemp);
+
             const item = document.createElement('div');
             // Improved Aesthetics: Card-like row, better spacing, hover effect
-            item.className = "flex items-center justify-between py-3 px-3 mx-2 mb-1 rounded-xl cursor-pointer hover:bg-white/10 transition-all duration-200 group border border-transparent hover:border-white/5";
+            item.className = "flex items-center justify-between py-3 px-3 mx-2 mb-0 rounded-lg cursor-pointer hover:bg-white/5 transition-all duration-200 group border-b border-white/5 last:border-0";
             item.onclick = () => openDetailModal(i); // Tambahkan event klik
 
             // FIX: Dual Color Icon for Cloud-Sun (Sun Yellow, Cloud White)
@@ -1476,9 +1489,9 @@ function updateWeatherUI(data) {
                 </div>
                 <div class="w-[60%] flex items-center gap-3 pl-1">
                     <span class="text-slate-400 text-xs font-medium w-6 text-right">${minTemp}°</span>
-                    <div class="flex-1 h-2 bg-slate-700/50 rounded-full relative overflow-hidden shadow-inner ring-1 ring-white/5">
-                        <div class="absolute h-full rounded-full bg-gradient-to-r from-sky-400 via-yellow-300 to-red-400 opacity-90 shadow-[0_0_8px_rgba(251,191,36,0.3)]"
-                             style="left: ${leftOffset.toFixed(2)}%; width: ${barWidth.toFixed(2)}%;">
+                    <div class="flex-1 h-1.5 bg-slate-700/50 rounded-full relative overflow-hidden">
+                        <div class="absolute h-full rounded-full opacity-90"
+                             style="left: ${leftOffset.toFixed(2)}%; width: ${barWidth.toFixed(2)}%; background: linear-gradient(to right, ${c1}, ${c2});">
                         </div>
                     </div>
                     <span class="text-white text-xs font-bold w-6 text-left">${maxTemp}°</span>
