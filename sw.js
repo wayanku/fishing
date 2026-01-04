@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fishing-spot-v5';
+const CACHE_NAME = 'fishing-spot-v7';
 const ASSETS = [
     './',
     './index.html',
@@ -46,7 +46,8 @@ self.addEventListener('fetch', (event) => {
         url.hostname.includes('openweathermap.org') ||
         url.hostname.includes('windy.com') ||
         url.hostname.includes('open-meteo.com') ||     // FIX: Jangan cache data cuaca
-        url.hostname.includes('script.google.com') ||  // FIX: Jangan cache data spot
+        url.hostname.includes('google.com') ||         // FIX: Jangan cache map tiles & script
+        url.hostname.includes('arcgisonline.com') ||   // FIX: Jangan cache map laut
         url.hostname.includes('ipapi.co') ||             // FIX: Jangan cache lokasi IP
         url.hostname.includes('raw.githubusercontent.com') // FIX: Jangan cache file audio
     ) {
