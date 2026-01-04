@@ -15,6 +15,8 @@ let stars = [];
 let moonPhase = 0.5; // 0.0 - 1.0
 let wxLocalHour = new Date().getHours(); // Jam lokal lokasi terpilih
 let lastSkyGradient = ''; // Cache untuk mencegah redraw background berlebihan
+let isAudioUnlocked = false; // Status untuk autoplay audio di HP
+
 
 // --- NEW: Inject SVG Filters & CSS for Realistic Clouds ---
 function initCloudAssets() {
@@ -139,6 +141,91 @@ function initWeatherSystem() {
     initCloudAssets();
     resizeCanvas();
 }
+
+// --- NEW: Audio Manager ---
+const weatherAudio = {
+    rain: null,
+    thunder: [], // Pool of thunder sounds to allow overlap
+    thunderIndex: 0,
+    isReady: false,
+    fadeInterval: null, // To manage fade in/out
+
+    init: function() {
+        if (this.isReady) return;
+        console.log("Initializing audio context...");
+        try {
+            // Menggunakan audio langsung dari URL GitHub (raw)
+            this.rain = new Audio('https://raw.githubusercontent.com/wayanku/fishing/main/real-rain-sound-379215%20(2).mp3');
+            this.rain.loop = true;
+            this.rain.volume = 0; // Mulai dengan volume 0
+
+            // Buat beberapa audio petir agar bisa tumpang tindih
+            for (let i = 0; i < 3; i++) {
+                this.thunder.push(new Audio('https://raw.githubusercontent.com/wayanku/fishing/main/loud-thunder-192165.mp3'));
+                this.thunder[i].volume = 0.7;
+            }
+            
+            // Trik untuk "membuka kunci" audio di browser mobile
+            const promise = this.rain.play();
+            if (promise !== undefined) {
+                promise.then(_ => {
+                    this.rain.pause();
+                    console.log("Audio context unlocked by user interaction.");
+                    this.isReady = true;
+                    isAudioUnlocked = true; // Set flag global
+                }).catch(error => {
+                    // Autoplay was prevented. Audio will not play until next interaction.
+                    console.warn("Audio unlock failed on load, will be silent until user interacts.", error);
+                });;
+            }
+
+        } catch (e) {
+            console.error("Failed to create audio elements:", e);
+        }
+    },
+
+    playRain: function(volume = 0.5) {
+        if (this.isReady && this.rain.paused) {
+            this.rain.currentTime = 0;
+            this.rain.volume = 0;
+            this.rain.play().catch(e => console.error("Rain audio play failed:", e));
+            
+            clearInterval(this.fadeInterval);
+            this.fadeInterval = setInterval(() => {
+                if (this.rain.volume < volume) {
+                    this.rain.volume = Math.min(volume, this.rain.volume + 0.05);
+                } else {
+                    this.rain.volume = volume;
+                    clearInterval(this.fadeInterval);
+                }
+            }, 80);
+        }
+    },
+
+    stopRain: function() {
+        if (this.isReady && !this.rain.paused) {
+            clearInterval(this.fadeInterval);
+            this.fadeInterval = setInterval(() => {
+                if (this.rain.volume > 0.05) {
+                    this.rain.volume -= 0.05;
+                } else {
+                    this.rain.volume = 0;
+                    this.rain.pause();
+                    this.rain.currentTime = 0;
+                    clearInterval(this.fadeInterval);
+                }
+            }, 80);
+        }
+    },
+
+    playThunder: function() {
+        if (this.isReady) {
+            this.thunder[this.thunderIndex].currentTime = 0;
+            this.thunder[this.thunderIndex].play().catch(e => console.error("Thunder audio play failed:", e));
+            this.thunderIndex = (this.thunderIndex + 1) % this.thunder.length;
+        }
+    }
+};
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initWeatherSystem);
@@ -704,6 +791,13 @@ function animate() {
             const targetY = canvas.height * 0.8 + Math.random() * canvas.height * 0.2;
             lightningBolts.push(new Lightning(startX, -10, targetX, targetY, Math.random() * 2 + 2));
             storm.flashOpacity = 0.3; // Trigger flash
+
+            // --- NEW: Play Thunder Sound with Delay ---
+            // Suara guntur muncul setelah kilat terlihat (kecepatan cahaya > suara)
+            const thunderDelay = 300 + Math.random() * 500;
+            setTimeout(() => {
+                weatherAudio.playThunder();
+            }, thunderDelay);
         }
     }
 
@@ -720,14 +814,18 @@ function startWeatherEffect(type) {
     // Pastikan canvas muncul di BELAKANG panel text (2147483640) tapi DI ATAS peta
     canvas.style.zIndex = "2147483639"; 
     canvas.style.pointerEvents = "none";
-
-    if (type === 'rain') for (let i = 0; i < 350; i++) particles.push(new RainDrop()); // Tambah kepadatan hujan
-    else if (type === 'snow') for (let i = 0; i < 200; i++) particles.push(new SnowFlake()); // Optimasi: Kurangi jumlah partikel agar ringan
+    
+    if (type === 'rain') {
+        for (let i = 0; i < 350; i++) particles.push(new RainDrop());
+        if(isAudioUnlocked) weatherAudio.playRain(0.5); // Volume normal untuk hujan
+    }
+    else if (type === 'snow') for (let i = 0; i < 200; i++) particles.push(new SnowFlake());
     else if (type === 'wind') for (let i = 0; i < 10; i++) particles.push(new WindLine());
     else if (type === 'storm') {
         for (let i = 0; i < 500; i++) particles.push(new RainDrop()); // Badai lebih padat
         lightningBolts = []; // Reset bolts
         storm = { flashOpacity: 0 };
+        if(isAudioUnlocked) weatherAudio.playRain(0.7); // Volume lebih keras untuk badai
     }
     
     // Tambahkan Awan jika cuaca mendukung (Berawan/Hujan/Salju)
@@ -776,6 +874,7 @@ function stopWeatherEffect() {
     // Clean up DOM clouds
     clouds.forEach(c => c.remove());
     clouds = [];
+    if(isAudioUnlocked) weatherAudio.stopRain(); // Hentikan suara hujan
     storm = null;
     currentWxType = null;
     
@@ -984,6 +1083,13 @@ async function showLocationPanel(latlng) {
     
     const lang = localStorage.getItem('appLang') || 'id';
     const dt = dynamicTranslations[lang];
+
+    // --- NEW: Unlock Audio on First Interaction ---
+    // Ini adalah kunci agar audio bisa autoplay di HP
+    if (!isAudioUnlocked) {
+        weatherAudio.init();
+    }
+    // ---------------------------------------------
 
     // Reset UI
     document.getElementById('panel-address').innerText = "Mencari nama lokasi...";
