@@ -575,7 +575,7 @@ function drawCelestialBodies() {
     }
 
     // Draw Sun (Day & Clear/Partly Cloudy)
-    if (!isNightTime && wxCode <= 3) {
+    if (!isNightTime && wxCode < 3) { // MODIFIED: Hide sun on overcast days (code 3) and during rain
         const sunX = 60; 
         const sunY = 80;
         
@@ -622,7 +622,7 @@ function drawCelestialBodies() {
     }
 
     // Draw Moon (Night)
-    if (isNightTime) {
+    if (isNightTime && wxCode < 51) { // MODIFIED: Hide moon during rain/storm
         const moonX = 60; // Top Left
         const moonY = 80;
         const radius = 25;
