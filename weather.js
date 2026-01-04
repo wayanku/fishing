@@ -11,6 +11,7 @@ let currentWxType = null;
 let storm = null;
 let wxIsDay = true;
 let wxCode = 0;
+let wxWindSpeed = 0; // Kecepatan angin lokasi terpilih
 let stars = [];
 let moonPhase = 0.5; // 0.0 - 1.0
 let wxLocalHour = new Date().getHours(); // Jam lokal lokasi terpilih
@@ -493,10 +494,23 @@ class Cloud {
         this.y = minTop + Math.random() * (maxTop - minTop);
         this.element.style.top = `${this.y}%`;
 
-        // Random Speed (Duration) & Start Position (Delay)
-        const duration = 50 + Math.random() * 40; // 50s - 90s
-        const delay = -Math.random() * 100; // Start mid-animation (agar awan langsung tersebar)
+        // --- MODIFIED: Smart Positioning, Static Speed ---
+        // 1. Kecepatan statis (tidak dipercepat saat badai)
+        const duration = 50 + Math.random() * 40; // Durasi acak antara 50s - 90s
         this.element.style.animationDuration = `${duration}s`;
+
+        // 2. Delay agar awan LANGSUNG MUNCUL di layar (tidak menunggu dari pinggir)
+        // CSS Animation bergerak dari -700px ke (110vw + 700px). Total jarak = 700 + 1.1*W
+        const w = window.innerWidth;
+        const totalDist = 700 + (1.1 * w);
+        
+        // Tentukan posisi acak di layar (0 sampai lebar layar)
+        const targetX = Math.random() * w; 
+        const distTraveled = 700 + targetX; // Jarak yang seolah-olah sudah ditempuh
+        const progress = distTraveled / totalDist; // Persentase progres (0.0 - 1.0)
+        
+        // Set negative delay agar animasi mulai dari posisi tersebut
+        const delay = -1 * progress * duration;
         this.element.style.animationDelay = `${delay}s`;
 
         const scale = 0.6 + Math.random() * 0.4;
@@ -1001,6 +1015,7 @@ async function fetchUserWeather(lat, lng) {
 function checkWeatherAnimation(code, windSpeed = 0, isDay = true) {
     // Update Globals for Background
     wxCode = code;
+    wxWindSpeed = windSpeed; // Simpan kecepatan angin untuk animasi awan
     wxIsDay = isDay;
 
     // Priority: Storm > Snow > Rain > Wind
