@@ -1939,14 +1939,24 @@
             if(legend) legend.classList.add('hidden');
         }
 
-        function loadLayerPreferences() {
+    function loadLayerPreferences() { // FIX: Logic diperbaiki agar layer mau reload saat online kembali
             try {
                 const saved = JSON.parse(localStorage.getItem('activeMapLayers') || '[]');
                 saved.forEach(type => {
                     const toggle = document.getElementById(`toggle-${type}`);
-                    if(toggle && !toggle.checked) {
+                if(toggle) {
+                    // Force a clean state before re-applying
+                    if(activeLayers[type]) {
+                        // Hapus handler klik jika ada (untuk radar kapal)
+                        if (activeLayers[type].getFeatureInfoHandler) {
+                            map.off('click', activeLayers[type].getFeatureInfoHandler);
+                        }
+                        map.removeLayer(activeLayers[type]);
+                        delete activeLayers[type];
+                    }
+                    // Now, re-apply it
                         toggle.checked = true;
-                        toggleLayer(type); // Aktifkan layer
+                    toggleLayer(type);
                     }
                 });
             } catch(e) { console.log("Error restoring layers", e); }
