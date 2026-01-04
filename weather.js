@@ -94,17 +94,17 @@ function initCloudAssets() {
             .cloud-storm .c-mid { box-shadow: 210px 250px 30px 35px rgba(105, 115, 125, 0.4) !important; }
             .cloud-storm .c-front { box-shadow: 210px 270px 35px 5px rgba(125, 135, 145, 0.5) !important; }
 
-            /* NIGHT: Deep Blue / Slate (Biru Gelap Natural - Tidak Ungu) */
-            .cloud-night .c-base { box-shadow: 200px 170px 25px 45px rgba(30, 41, 59, 0.9) !important; } /* Slate-800 */
-            .cloud-night .c-back { box-shadow: 200px 200px 15px 45px rgba(15, 23, 42, 0.5) !important; } /* Slate-900 */
-            .cloud-night .c-mid { box-shadow: 210px 250px 30px 35px rgba(51, 65, 85, 0.4) !important; } /* Slate-700 */
-            .cloud-night .c-front { box-shadow: 210px 270px 35px 5px rgba(71, 85, 105, 0.5) !important; } /* Slate-600 */
+            /* NIGHT: Abu-abu Gelap Kebiruan (Lebih Natural) */
+            .cloud-night .c-base { box-shadow: 200px 170px 25px 45px rgba(51, 65, 85, 0.9) !important; } /* Slate-700 */
+            .cloud-night .c-back { box-shadow: 200px 200px 15px 45px rgba(30, 41, 59, 0.5) !important; } /* Slate-800 */
+            .cloud-night .c-mid { box-shadow: 210px 250px 30px 35px rgba(71, 85, 105, 0.4) !important; } /* Slate-600 */
+            .cloud-night .c-front { box-shadow: 210px 270px 35px 5px rgba(100, 116, 139, 0.5) !important; } /* Slate-500 */
 
-            /* SUNSET: Dark Blue & Orange (Transisi Sore ke Malam) */
-            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(30, 58, 138, 0.85) !important; } /* Blue-900 */
-            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(124, 45, 18, 0.5) !important; } /* Orange-900 */
-            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(234, 88, 12, 0.3) !important; } /* Orange-600 */
-            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(59, 130, 246, 0.4) !important; } /* Blue-500 */
+            /* SUNSET: Abu-abu dengan Sentuhan Kuning/Orange Halus (Tidak Mencolok) */
+            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(100, 116, 139, 0.9) !important; } /* Slate-500 (Shadowed part) */
+            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(253, 224, 71, 0.3) !important; } /* Yellow-300 (Faint glow) */
+            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(71, 85, 105, 0.5) !important; } /* Slate-600 (Darker shadow) */
+            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(252, 211, 77, 0.4) !important; } /* Amber-400 (Soft highlight) */
         </style>
     `;
     document.body.appendChild(assets);
@@ -296,33 +296,61 @@ function lerpColor(a, b, amount) {
 function drawSkyBackground() {
     if (!ctx || !canvas) return;
     
-    // --- MODIFIED: Transisi Halus per Menit (Deep Blue Style) ---
+    // --- MODIFIED: Transisi Halus per Menit & Waktu Matahari Dinamis ---
     // Hitung jam dalam desimal (misal 17.5 untuk 17:30)
-    const minutes = new Date().getMinutes();
+    const now = new Date();
+    const minutes = now.getMinutes();
     const floatHour = wxLocalHour + (minutes / 60);
     
-    // Definisi Keyframe Warna Langit (Jam -> Warna Top, Warna Bot)
-    // Menggunakan Biru Gelap (Deep Blue) untuk malam, menghindari Ungu
-    const skyKeys = [
-        { h: 0, top: "#020617", bot: "#0f172a" },   // Midnight: Slate-950 -> Slate-900
-        { h: 4, top: "#020617", bot: "#1e293b" },   // Pre-Dawn: Slate-950 -> Slate-800
-        { h: 5, top: "#0f172a", bot: "#1e3a8a" },   // Dawn: Slate-900 -> Blue-900 (Deep Blue)
-        { h: 6, top: "#1e40af", bot: "#fdba74" },   // Sunrise: Blue-800 -> Orange-300
-        { h: 8, top: "#3b82f6", bot: "#bae6fd" },   // Morning
-        { h: 12, top: "#0ea5e9", bot: "#cffafe" },  // Noon
-        { h: 16, top: "#2563eb", bot: "#bfdbfe" },  // Late Afternoon
-        { h: 17, top: "#1d4ed8", bot: "#fdba74" },  // Pre-Sunset: Blue-700 -> Orange-300
-        { h: 18, top: "#1e3a8a", bot: "#9a3412" },  // Sunset: Blue-900 -> Red-Orange-800 (Darker)
-        { h: 19, top: "#172554", bot: "#0f172a" },  // Dusk: Blue-950 -> Slate-900 (Deep Dark Blue)
-        { h: 24, top: "#020617", bot: "#0f172a" }   // Loop back to Midnight
-    ];
+    let skyKeys;
+
+    // Coba gunakan waktu matahari terbit/terbenam dinamis jika data tersedia
+    if (currentWeatherData && currentWeatherData.daily && currentWeatherData.daily.sunrise[0]) {
+        const sunriseDate = new Date(currentWeatherData.daily.sunrise[0]);
+        const sunsetDate = new Date(currentWeatherData.daily.sunset[0]);
+
+        const sunriseHour = sunriseDate.getHours() + sunriseDate.getMinutes() / 60;
+        const sunsetHour = sunsetDate.getHours() + sunsetDate.getMinutes() / 60;
+
+        // Definisi Keyframe Warna Langit (Jam -> Warna Top, Warna Bot)
+        // Menggunakan Biru Gelap (Deep Blue) untuk malam, dan warna sunset yang lebih lembut
+        skyKeys = [
+            { h: 0,               top: "#020617", bot: "#0f172a" },   // Midnight: Slate-950 -> Slate-900
+            { h: sunriseHour - 2, top: "#020617", bot: "#1e293b" },   // Pre-Dawn
+            { h: sunriseHour - 1, top: "#0f172a", bot: "#1e3a8a" },   // Dawn
+            { h: sunriseHour,     top: "#1e40af", bot: "#f97316" },   // Sunrise Moment
+            { h: sunriseHour + 2, top: "#3b82f6", bot: "#bae6fd" },   // Morning
+            { h: 12,              top: "#0ea5e9", bot: "#cffafe" },   // Noon
+            { h: sunsetHour - 2,  top: "#2563eb", bot: "#fdba74" },   // Late Afternoon
+            { h: sunsetHour,      top: "#1e3a8a", bot: "#f59e0b" },   // Sunset Moment: Blue-900 -> Amber-500 (Softer Orange)
+            { h: sunsetHour + 1,  top: "#172554", bot: "#0f172a" },   // Dusk: Deep Dark Blue, NO ORANGE/RED
+            { h: 24,              top: "#020617", bot: "#0f172a" }    // Loop back to Midnight
+        ];
+
+    } else {
+        // Fallback ke jam tetap jika data API belum ada
+        skyKeys = [
+            { h: 0, top: "#020617", bot: "#0f172a" },   // Midnight
+            { h: 4, top: "#020617", bot: "#1e293b" },   // Pre-Dawn
+            { h: 5, top: "#0f172a", bot: "#1e3a8a" },   // Dawn
+            { h: 6, top: "#1e40af", bot: "#f97316" },   // Sunrise
+            { h: 8, top: "#3b82f6", bot: "#bae6fd" },   // Morning
+            { h: 12, top: "#0ea5e9", bot: "#cffafe" },  // Noon
+            { h: 16, top: "#2563eb", bot: "#fdba74" },  // Late Afternoon
+            { h: 17, top: "#1d4ed8", bot: "#f59e0b" },  // Pre-Sunset (Amber)
+            { h: 18, top: "#1e3a8a", bot: "#f59e0b" },  // Sunset (Amber)
+            { h: 19, top: "#172554", bot: "#0f172a" },  // Dusk (Deep Blue)
+            { h: 24, top: "#020617", bot: "#0f172a" }   // Loop back
+        ];
+    }
 
     let top, bot;
 
     if (wxCode >= 95) { // Badai (Sangat Gelap)
         top = "#020617"; bot = "#1e1b4b"; 
     } else if (wxCode >= 51 || wxCode === 3) { // Hujan / Mendung Tebal
-        if(floatHour >= 6 && floatHour < 18) { top = "#475569"; bot = "#94a3b8"; } // Siang Kelabu
+        const isDaytimeCloudy = (skyKeys.length > 4 && skyKeys[3].h && skyKeys[7].h) ? (floatHour > skyKeys[3].h && floatHour < skyKeys[7].h) : (floatHour > 6 && floatHour < 18);
+        if(isDaytimeCloudy) { top = "#475569"; bot = "#94a3b8"; } // Siang Kelabu
         else { top = "#0f172a"; bot = "#334155"; } // Malam Kelabu
     } else {
         // Interpolasi Warna Berdasarkan Waktu
@@ -340,7 +368,7 @@ function drawSkyBackground() {
 
         // Hitung persentase perjalanan waktu di antara dua keyframe
         const range = end.h - start.h;
-        const progress = (floatHour - start.h) / range;
+        const progress = (range > 0) ? ((floatHour - start.h) / range) : 0;
 
         // Campurkan warna
         top = lerpColor(start.top, end.top, progress);
@@ -489,10 +517,25 @@ function startWeatherEffect(type) {
     
     // Tentukan Tipe Awan (Warna)
     let cloudType = 'day';
-    const h = wxLocalHour;
+    const h = wxLocalHour; // Integer hour is sufficient here
 
-    if (h >= 19 || h < 5) cloudType = 'night';
-    else if ((h >= 5 && h < 7) || (h >= 17 && h < 19)) cloudType = 'sunset';
+    // NEW: Dynamic cloud colors based on sunrise/sunset
+    if (currentWeatherData && currentWeatherData.daily && currentWeatherData.daily.sunrise[0]) {
+        const sunriseHour = new Date(currentWeatherData.daily.sunrise[0]).getHours();
+        const sunsetHour = new Date(currentWeatherData.daily.sunset[0]).getHours();
+
+        // Night is from one hour after sunset to one hour before sunrise
+        if (h >= sunsetHour + 1 || h < sunriseHour - 1) {
+            cloudType = 'night';
+        // Sunset/sunrise is a 3-hour window around the event
+        } else if ( (h >= sunriseHour - 1 && h <= sunriseHour + 1) || (h >= sunsetHour - 1 && h <= sunsetHour + 1) ) {
+            cloudType = 'sunset';
+        }
+    } else {
+        // Fallback to fixed hours if data isn't ready
+        if (h >= 19 || h < 5) cloudType = 'night';
+        else if ((h >= 5 && h < 7) || (h >= 17 && h < 19)) cloudType = 'sunset';
+    }
 
     if (['storm', 'rain'].includes(type) || wxCode >= 51) cloudType = 'storm';
     
