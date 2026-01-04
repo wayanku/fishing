@@ -1132,37 +1132,33 @@ function updateWeatherUI(data) {
         const referenceNode = dotsContainer || existingScroll;
         const parentNode = referenceNode.parentNode;
 
-        // --- MODIFIED: Pisahkan menjadi kartu-kartu terpisah ---
+        // --- MODIFIED: Pisahkan Precip Chart, tapi Gabungkan Summary ke Hourly ---
         const cardClass = "mx-0 mb-3 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden";
 
-        // 1. Summary Card
-        const summaryCard = document.createElement('div');
-        summaryCard.id = 'summary-card';
-        summaryCard.className = cardClass;
-        if(parentNode) parentNode.insertBefore(summaryCard, referenceNode.nextSibling);
-
-        hourlySummaryContainer = document.createElement('div');
-        hourlySummaryContainer.id = 'hourly-summary-container';
-        hourlySummaryContainer.className = "px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium";
-        summaryCard.appendChild(hourlySummaryContainer);
-
-        // 2. Precip Chart Card (Hidden by default)
+        // 1. Precip Chart Card (Hidden by default) - Separate
         const precipCard = document.createElement('div');
         precipCard.id = 'precip-card';
         precipCard.className = cardClass + " hidden";
-        if(parentNode) parentNode.insertBefore(precipCard, summaryCard.nextSibling);
+        if(parentNode) parentNode.insertBefore(precipCard, referenceNode.nextSibling);
 
         precipChartContainer = document.createElement('div');
         precipChartContainer.id = 'precip-chart-container';
         precipChartContainer.className = "px-4 py-2";
         precipCard.appendChild(precipChartContainer);
 
-        // 3. Hourly Forecast Card
+        // 2. Hourly Forecast Card (Summary + Scroll)
         const hourlyCard = document.createElement('div');
         hourlyCard.id = 'hourly-card';
         hourlyCard.className = cardClass;
         if(parentNode) parentNode.insertBefore(hourlyCard, precipCard.nextSibling);
 
+        // 2a. Summary (Header)
+        hourlySummaryContainer = document.createElement('div');
+        hourlySummaryContainer.id = 'hourly-summary-container';
+        hourlySummaryContainer.className = "px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium border-b border-white/5";
+        hourlyCard.appendChild(hourlySummaryContainer);
+
+        // 2b. Scroll List
         hourlyContainer = document.createElement('div');
         hourlyContainer.id = 'hourly-forecast-container';
         hourlyContainer.className = "flex items-stretch gap-x-4 overflow-x-auto no-scrollbar p-4";
@@ -2114,15 +2110,19 @@ function showMetricInsight(type) {
     // Apply card styles
     panel.className = "mx-0 mb-3 bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-lg overflow-hidden p-4 hidden";
     
-    // Insert BEFORE the summary card
-    const summaryCard = document.getElementById('summary-card');
-    if (summaryCard && summaryCard.parentNode) {
-        summaryCard.parentNode.insertBefore(panel, summaryCard);
+    // Insert BEFORE the precip card (or hourly card if precip missing)
+    const precipCard = document.getElementById('precip-card');
+    const hourlyCard = document.getElementById('hourly-card');
+    const targetCard = precipCard || hourlyCard;
+    
+    if (targetCard && targetCard.parentNode) {
+        targetCard.parentNode.insertBefore(panel, targetCard);
     } else {
         // Fallback logic
         const hourlySummary = document.getElementById('hourly-summary-container');
-        if (hourlySummary && hourlySummary.parentNode && hourlySummary.parentNode.parentNode) {
-             hourlySummary.parentNode.parentNode.insertBefore(panel, hourlySummary.parentNode);
+        if (hourlySummary && hourlySummary.closest('#hourly-card')) {
+             const card = hourlySummary.closest('#hourly-card');
+             if(card.parentNode) card.parentNode.insertBefore(panel, card);
         }
     }
     
