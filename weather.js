@@ -218,6 +218,21 @@ const weatherAudio = {
         }
     },
 
+    muteAll: function() {
+        if (this.isReady) {
+            clearInterval(this.fadeInterval);
+            if (this.rain) {
+                this.rain.volume = 0;
+                this.rain.pause();
+                this.rain.currentTime = 0;
+            }
+            this.thunder.forEach(t => {
+                t.pause();
+                t.currentTime = 0;
+            });
+        }
+    },
+
     playThunder: function() {
         if (this.isReady) {
             this.thunder[this.thunderIndex].currentTime = 0;
@@ -874,7 +889,7 @@ function stopWeatherEffect() {
     // Clean up DOM clouds
     clouds.forEach(c => c.remove());
     clouds = [];
-    if(isAudioUnlocked) weatherAudio.stopRain(); // Hentikan suara hujan
+    if(isAudioUnlocked) weatherAudio.muteAll(); // Hentikan semua audio (Hujan & Petir)
     storm = null;
     currentWxType = null;
     
