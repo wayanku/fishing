@@ -2319,8 +2319,12 @@
 
         // --- OFFLINE MAP SYSTEM (Service Worker & Downloader) ---
         if ('serviceWorker' in navigator) {
-            // PERBAIKAN: Kode penghapus Service Worker dihapus agar cache offline tetap awet.
-            // Jika Anda memiliki file sw.js, browser akan menggunakannya untuk cache aset.
+            window.addEventListener('load', () => {
+                // Gunakan './sw.js' agar kompatibel dengan Vercel (Root) maupun GitHub Pages (Subfolder)
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered!', reg.scope))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
         }
 
         // Helper: Konversi LatLng ke Tile Coordinate
