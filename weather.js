@@ -4,6 +4,7 @@ let canvas = document.getElementById('weather-canvas');
 let ctx = canvas ? canvas.getContext('2d') : null;
 let particles = [];
 let clouds = []; // Array untuk awan
+let lightningBolts = []; // Array untuk petir
 let animationFrameId = null;
 let wxInterval = null;
 let currentWxType = null;
@@ -151,41 +152,99 @@ window.addEventListener('resize', () => {
 
 class RainDrop {
     constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = -Math.random() * 50;
-        const layerRand = Math.random();
-        if (layerRand < 0.1) { // Front
-            this.length = 60; this.speed = 25 + Math.random() * 10; this.width = 3; this.opacity = 0.9; this.splash = true;
-        } else if (layerRand < 0.4) { // Mid
-            this.length = 40; this.speed = 15 + Math.random() * 5; this.width = 2; this.opacity = 0.6; this.splash = Math.random() > 0.5;
-        } else { // Back
-            this.length = 25; this.speed = 8 + Math.random() * 4; this.width = 1; this.opacity = 0.3; this.splash = false;
-        }
+        this.reset(true);
     }
+
+    reset(initial = false) {
+        this.x = Math.random() * (canvas.width + 400) - 200; // Area spawn lebih lebar karena angin kencang
+        this.y = initial ? Math.random() * canvas.height : -100;
+        
+        const layer = Math.random();
+        // Layering: Depan (Sangat Cepat & Panjang), Tengah, Belakang
+        if (layer < 0.15) { // Front - Lebih agresif
+            this.length = 50 + Math.random() * 30; // Streak panjang (efek deras)
+            this.speed = 40 + Math.random() * 20;  // Kecepatan tinggi (40-60px per frame)
+            this.width = 2.5;
+            this.opacity = 0.8;
+            this.splash = true;
+        } else if (layer < 0.5) { // Mid
+            this.length = 35 + Math.random() * 20;
+            this.speed = 30 + Math.random() * 15;
+            this.width = 1.8;
+            this.opacity = 0.5;
+            this.splash = Math.random() > 0.5;
+        } else { // Back
+            this.length = 20 + Math.random() * 15;
+            this.speed = 20 + Math.random() * 10;
+            this.width = 1;
+            this.opacity = 0.3;
+            this.splash = false;
+        }
+
+        // Simulasi Angin Kencang (4 - 8 px per frame)
+        this.vx = 4 + Math.random() * 4; 
+    }
+
     update() {
         if (!canvas) return;
         this.y += this.speed;
+        this.x += this.vx; // Gerakan horizontal
+
         if (this.y > canvas.height) {
             if (this.splash) particles.push(new Splash(this.x));
-            this.y = -this.length; this.x = Math.random() * canvas.width;
+            this.reset();
         }
     }
+
     draw() {
         if (!ctx) return;
         ctx.beginPath(); ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x + this.length * 0.25, this.y + this.length); // Tilt
-        ctx.strokeStyle = `rgba(147, 197, 253, ${this.opacity})`; ctx.lineWidth = this.width; ctx.stroke();
+        // Gambar ekor berlawanan arah gerakan (agar miringnya pas)
+        ctx.lineTo(this.x - this.vx * 1.5, this.y - this.length);
+        // Warna Hujan Natural (Putih Kebiruan)
+        ctx.strokeStyle = `rgba(220, 235, 255, ${this.opacity})`; 
+        ctx.lineWidth = this.width; 
+        ctx.lineCap = 'round';
+        ctx.stroke();
     }
 }
 
 class Splash {
-    constructor(x) { this.x = x; this.y = canvas ? canvas.height : 0; this.radius = 20 + Math.random() * 20; this.maxRadius = this.radius * 1.5; this.life = 0; this.maxLife = 20; this.isDead = false; }
-    update() { this.life++; if (this.life >= this.maxLife) this.isDead = true; }
+    constructor(x) { 
+        this.x = x; 
+        this.y = canvas ? canvas.height : 0; 
+        this.life = 0; 
+        this.maxLife = 20; 
+        this.isDead = false;
+        this.size = 2 + Math.random() * 3;
+    }
+    update() { 
+        this.life++; 
+        if (this.life >= this.maxLife) this.isDead = true; 
+    }
     draw() {
         if (!ctx) return;
         const p = this.life / this.maxLife;
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * p, Math.PI, 2 * Math.PI, false);
-        ctx.strokeStyle = `rgba(147, 197, 253, ${0.8 * (1 - p)})`; ctx.lineWidth = 2; ctx.stroke();
+        const opacity = 0.6 * (1 - p);
+        
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(1, 0.25); // Lebih pipih (perspektif tanah)
+        
+        // Main Splash (Cipratan Utama)
+        ctx.beginPath();
+        ctx.arc(0, 0, this.size + (p * 5), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 220, 255, ${opacity})`;
+        ctx.fill();
+
+        // Ripple Ring (Efek Cincin Pantulan)
+        ctx.beginPath();
+        ctx.arc(0, 0, this.size + (p * 15), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        ctx.restore();
     }
 }
 
@@ -212,6 +271,83 @@ class SnowFlake {
         }
     }
     draw() { if(!ctx) return; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); ctx.closePath(); }
+}
+
+// --- NEW: Realistic Lightning Logic ---
+function createLightningPath(x1, y1, x2, y2, displacement) {
+    let path = [];
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    if (displacement < 3) {
+        return [{x: x1, y: y1}, {x: x2, y: y2}];
+    }
+
+    // Geser titik tengah secara acak untuk menciptakan efek patahan
+    const nx = midX + (Math.random() - 0.5) * displacement;
+    const ny = midY + (Math.random() - 0.5) * displacement;
+
+    path = path.concat(createLightningPath(x1, y1, nx, ny, displacement / 2));
+    path = path.concat(createLightningPath(nx, ny, x2, y2, displacement / 2));
+    
+    return path;
+}
+
+class Lightning {
+    constructor(x, y, targetX, targetY, thickness, isBranch = false) {
+        this.x = x;
+        this.y = y;
+        this.targetX = targetX;
+        this.targetY = targetY;
+        this.thickness = thickness;
+        this.opacity = 1;
+        this.isBranch = isBranch;
+        
+        // Displacement awal menentukan seberapa "liar" lekukannya
+        this.path = createLightningPath(x, y, targetX, targetY, isBranch ? 40 : 120);
+        this.branches = [];
+
+        // Buat cabang hanya pada batang utama
+        if (!isBranch) {
+            this.generateBranches();
+        }
+    }
+
+    generateBranches() {
+        // Ambil beberapa titik secara acak di jalur utama untuk dijadikan pangkal cabang
+        for (let i = 0; i < this.path.length; i += 10) {
+            if (Math.random() < 0.2) {
+                const pt = this.path[i];
+                const direction = (Math.random() - 0.5) * 400;
+                const branchX = pt.x + direction;
+                const branchY = pt.y + Math.random() * 300;
+                this.branches.push(new Lightning(pt.x, pt.y, branchX, branchY, this.thickness * 0.4, true));
+            }
+        }
+    }
+
+    draw() {
+        if (!ctx || this.opacity <= 0) return;
+
+        ctx.save();
+        // Efek Cahaya Luar (Glow)
+        ctx.shadowBlur = this.isBranch ? 5 : 15;
+        ctx.shadowColor = "#4d79ff";
+        ctx.strokeStyle = `rgba(180, 200, 255, ${this.opacity})`;
+        ctx.lineWidth = this.thickness;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(this.path[0].x, this.path[0].y);
+        for (let i = 1; i < this.path.length; i++) { ctx.lineTo(this.path[i].x, this.path[i].y); }
+        ctx.stroke();
+        // Inti Putih
+        ctx.shadowBlur = 0; ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`; ctx.lineWidth = this.thickness * 0.3; ctx.stroke();
+        ctx.restore();
+        // Gambar cabang & Fade
+        this.branches.forEach(b => { b.opacity = this.opacity; b.draw(); });
+        this.opacity -= 0.01;
+    }
 }
 
 class WindLine {
@@ -249,8 +385,8 @@ class Cloud {
         // Randomize Position & Animation
         // FIX: Posisi awan lebih tinggi di HP agar tidak menutupi peta
         const isMobile = window.innerWidth < 768;
-        const minTop = isMobile ? -5 : 5;
-        const maxTop = isMobile ? 25 : 40;
+        const minTop = isMobile ? -20 : 5;
+        const maxTop = isMobile ? 10 : 40;
         this.y = minTop + Math.random() * (maxTop - minTop);
         this.element.style.top = `${this.y}%`;
 
@@ -355,7 +491,15 @@ function drawSkyBackground() {
 
     let top, bot;
 
-    if (wxCode >= 95) { // Badai (Sangat Gelap)
+    // --- NEW: Override based on active animation type (Immediate Visual Feedback) ---
+    if (currentWxType === 'storm') {
+        top = "#0f172a"; bot = "#1e1b4b"; // Deep Storm Blue
+    } else if (currentWxType === 'rain') {
+        // Cek waktu (siang/malam) berdasarkan floatHour
+        const isDay = (floatHour > 6 && floatHour < 18);
+        if(isDay) { top = "#334155"; bot = "#64748b"; } // Slate-700 -> Slate-500 (Gloomy Day)
+        else { top = "#020617"; bot = "#1e293b"; } // Slate-950 -> Slate-800 (Dark Night)
+    } else if (wxCode >= 95) { // Badai (Sangat Gelap)
         top = "#020617"; bot = "#1e1b4b"; 
     } else if (wxCode >= 51 || wxCode === 3) { // Hujan / Mendung Tebal
         const isDaytimeCloudy = (skyKeys.length > 4 && skyKeys[3].h && skyKeys[7].h) ? (floatHour > skyKeys[3].h && floatHour < skyKeys[7].h) : (floatHour > 6 && floatHour < 18);
@@ -529,12 +673,37 @@ function animate() {
     particles = particles.filter(p => !p.isDead);
     for (const p of particles) { p.update(); p.draw(); }
 
-    if (storm) {
-        if (Math.random() > 0.995) storm.flashOpacity = 0.6;
+    // --- NEW: Ground Reflection / Mist (Pantulan Bawah) ---
+    if (['rain', 'storm'].includes(currentWxType)) {
+        const grad = ctx.createLinearGradient(0, canvas.height - 80, 0, canvas.height);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        grad.addColorStop(1, 'rgba(200, 220, 255, 0.15)'); // Efek basah/kabut bawah
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+    }
+
+    // 4. Draw Lightning (Storm Only)
+    if (currentWxType === 'storm' && storm) {
+        // Background Flash (Atmospheric)
         if (storm.flashOpacity > 0) {
             ctx.fillStyle = `rgba(255, 255, 255, ${storm.flashOpacity})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            storm.flashOpacity -= 0.05;
+            storm.flashOpacity -= 0.01;
+        }
+
+        // Draw Bolts
+        for (let i = lightningBolts.length - 1; i >= 0; i--) {
+            lightningBolts[i].draw();
+            if (lightningBolts[i].opacity <= 0) lightningBolts.splice(i, 1);
+        }
+
+        // Trigger Random Strike
+        if (Math.random() < 0.01 && lightningBolts.length === 0) {
+            const startX = Math.random() * canvas.width;
+            const targetX = startX + (Math.random() - 0.5) * 300;
+            const targetY = canvas.height * 0.8 + Math.random() * canvas.height * 0.2;
+            lightningBolts.push(new Lightning(startX, -10, targetX, targetY, Math.random() * 2 + 2));
+            storm.flashOpacity = 0.3; // Trigger flash
         }
     }
 
@@ -552,11 +721,12 @@ function startWeatherEffect(type) {
     canvas.style.zIndex = "2147483639"; 
     canvas.style.pointerEvents = "none";
 
-    if (type === 'rain') for (let i = 0; i < 150; i++) particles.push(new RainDrop());
+    if (type === 'rain') for (let i = 0; i < 350; i++) particles.push(new RainDrop()); // Tambah kepadatan hujan
     else if (type === 'snow') for (let i = 0; i < 200; i++) particles.push(new SnowFlake()); // Optimasi: Kurangi jumlah partikel agar ringan
     else if (type === 'wind') for (let i = 0; i < 10; i++) particles.push(new WindLine());
     else if (type === 'storm') {
-        for (let i = 0; i < 200; i++) particles.push(new RainDrop());
+        for (let i = 0; i < 500; i++) particles.push(new RainDrop()); // Badai lebih padat
+        lightningBolts = []; // Reset bolts
         storm = { flashOpacity: 0 };
     }
     
@@ -602,6 +772,7 @@ function startWeatherEffect(type) {
 function stopWeatherEffect() {
     if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     particles = [];
+    lightningBolts = []; // Clear lightning
     // Clean up DOM clouds
     clouds.forEach(c => c.remove());
     clouds = [];
