@@ -155,8 +155,7 @@ const weatherAudio = {
         console.log("Initializing audio context...");
         try {
             // Menggunakan audio langsung dari URL GitHub (raw)
-            // FIX: Menggunakan URL yang bersih tanpa spasi atau karakter khusus untuk menghindari masalah loading.
-            this.rain = new Audio('https://raw.githubusercontent.com/wayanku/fishing/main/rain-heavy.mp3');
+            this.rain = new Audio('https://raw.githubusercontent.com/wayanku/fishing/main/real-rain-sound-379215%20(2).mp3');
             this.rain.loop = true;
             this.rain.volume = 0; // Mulai dengan volume 0
 
@@ -177,7 +176,7 @@ const weatherAudio = {
                 }).catch(error => {
                     // Autoplay was prevented. Audio will not play until next interaction.
                     console.warn("Audio unlock failed on load, will be silent until user interacts.", error);
-                });
+                });;
             }
 
         } catch (e) {
@@ -224,24 +223,6 @@ const weatherAudio = {
             this.thunder[this.thunderIndex].currentTime = 0;
             this.thunder[this.thunderIndex].play().catch(e => console.error("Thunder audio play failed:", e));
             this.thunderIndex = (this.thunderIndex + 1) % this.thunder.length;
-        }
-    },
-
-    stopAll: function(immediate = false) {
-        if (immediate && this.isReady) {
-            clearInterval(this.fadeInterval);
-            this.rain.pause();
-            this.rain.currentTime = 0;
-            this.rain.volume = 0;
-        } else {
-            this.stopRain();
-        }
-
-        if (this.isReady) {
-            this.thunder.forEach(t => {
-                t.pause();
-                t.currentTime = 0;
-            });
         }
     }
 };
@@ -886,14 +867,14 @@ function startWeatherEffect(type) {
     if (!animationFrameId) animate();
 }
 
-function stopWeatherEffect(immediate = false) {
+function stopWeatherEffect() {
     if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     particles = [];
     lightningBolts = []; // Clear lightning
     // Clean up DOM clouds
     clouds.forEach(c => c.remove());
     clouds = [];
-    if(isAudioUnlocked) weatherAudio.stopAll(immediate); // Hentikan suara hujan & petir
+    if(isAudioUnlocked) weatherAudio.stopRain(); // Hentikan suara hujan
     storm = null;
     currentWxType = null;
     
@@ -2072,7 +2053,7 @@ function closeLocationPanel() {
     const closeBtn = document.getElementById('panel-close-btn');
     if(closeBtn) closeBtn.classList.add('hidden');
     
-    stopWeatherEffect(true); // Matikan total animasi saat panel ditutup (True = Immediate Stop)
+    stopWeatherEffect(); // Matikan total animasi saat panel ditutup
 }
 
 // --- FITUR DETAIL CUACA (Chart & Hourly) ---
