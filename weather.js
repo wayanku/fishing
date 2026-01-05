@@ -1332,7 +1332,10 @@ async function showLocationPanel(latlng) {
         // MODIFIED: Isi Header dengan Placeholder Statis (Tanpa Efek Loading Pulse)
         // Menggunakan style text-shadow yang sama dengan tampilan akhir agar tidak ada pergeseran visual
         header.innerHTML = `
-            <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2" style="text-shadow: 0 2px 4px rgb(0 0 0 / 0.5);">Mencari lokasi...</h2>
+            <div class="flex items-center justify-center gap-2 px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin text-blue-400 w-6 h-6 drop-shadow-md"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2" style="text-shadow: 0 2px 4px rgb(0 0 0 / 0.5);">Mencari lokasi...</h2>
+            </div>
             <p class="text-sm font-medium text-slate-200 mt-1 mb-2 opacity-90 tracking-wide" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);"><span id="header-time">--:--</span></p>
             
             <p id="header-temp" class="text-8xl font-thin -my-2 tracking-tighter" style="font-family: -apple-system, sans-serif; text-shadow: 0 3px 8px rgb(0 0 0 / 0.5);">--°</p>
@@ -1340,6 +1343,14 @@ async function showLocationPanel(latlng) {
             <p id="header-desc" class="text-xl font-medium mt-1" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);">Memuat...</p>
             <p id="header-minmax" class="text-sm font-medium opacity-80 mt-1" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);">-- / --</p>
         `;
+        
+        // FIX: Hapus icon map-pin lama yang mungkin masih muncul (duplikat)
+        const strayPins = panel.querySelectorAll('[data-lucide="map-pin"], .lucide-map-pin');
+        strayPins.forEach(pin => {
+            if (!pin.closest('#new-weather-header')) {
+                pin.style.display = 'none';
+            }
+        });
     }
 
     // 2. Grid Cards Skeleton (Ombak, Pasang, dll)
@@ -1903,7 +1914,10 @@ function updateWeatherUI(data) {
             // FIX: Tambah jarak atas (pt-16) dan jarak bawah ke grid (pb-10) agar lebih lega
             header.className = 'flex flex-col items-center text-white pt-16 pb-10 px-4 text-center';
             header.innerHTML = `
-                <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2" style="text-shadow: 0 2px 4px rgb(0 0 0 / 0.5);"></h2>
+                <div class="flex items-center justify-center gap-2 px-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin text-blue-400 w-6 h-6 drop-shadow-md"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2" style="text-shadow: 0 2px 4px rgb(0 0 0 / 0.5);"></h2>
+                </div>
                 <p class="text-sm font-medium text-slate-200 mt-1 mb-2 opacity-90 tracking-wide" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);"><span id="header-time">--:--</span></p>
                 
                 <p id="header-temp" class="text-8xl font-thin -my-2 tracking-tighter" style="font-family: -apple-system, sans-serif; text-shadow: 0 3px 8px rgb(0 0 0 / 0.5);"></p>
@@ -1935,6 +1949,14 @@ function updateWeatherUI(data) {
             if (tempCard) tempCard.classList.add('hidden');
             if (weatherCard) weatherCard.classList.add('hidden');
         }
+
+        // FIX: Pastikan icon lama terhapus (jalankan setiap update)
+        const strayPins = document.getElementById('location-panel').querySelectorAll('[data-lucide="map-pin"], .lucide-map-pin');
+        strayPins.forEach(pin => {
+            if (!pin.closest('#new-weather-header')) {
+                pin.style.display = 'none';
+            }
+        });
 
         // Populate new header with data
         // FIX: Pastikan elemen loading dibersihkan sebelum diisi teks
