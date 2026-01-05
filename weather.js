@@ -712,121 +712,147 @@ function drawSkyBackground() {
 
 function drawCelestialBodies() {
     if (!ctx) return;
-    // Draw Stars (Night only, if not heavy storm)
-    const h = wxLocalHour; 
     
-    // --- MODIFIED: Hitung Waktu Presisi (Float) untuk Transisi Halus ---
-    const now = new Date();
-    const minutes = now.getMinutes();
-    const floatHour = wxLocalHour + (minutes / 60);
+    let sunX = canvas.width / 2;
+    let sunY = canvas.height + 200; // Default sembunyi di bawah
+    let moonX = canvas.width / 2;
+    let moonY = canvas.height + 200;
+    let sunAlt = -1;
+    let moonAlt = -1;
+    
+    // --- NEW: Kalkulasi Posisi Realtime (SunCalc) ---
+    // Menggunakan library SunCalc untuk menghitung posisi akurat berdasarkan GPS & Waktu
+    if (typeof SunCalc !== 'undefined' && currentWeatherData && currentWeatherData.latitude) {
+        const now = new Date();
+        const lat = currentWeatherData.latitude;
+        const lng = currentWeatherData.longitude;
+        
+        const sunPos = SunCalc.getPosition(now, lat, lng);
+        const moonPos = SunCalc.getMoonPosition(now, lat, lng);
+        
+        sunAlt = sunPos.altitude; // Ketinggian matahari (Radians)
+        moonAlt = moonPos.altitude;
 
-    // Tentukan Siang/Malam secara Dinamis berdasarkan Sunset/Sunrise API
-    let isNightTime = h >= 18 || h < 6; // Default fallback
-    if (currentWeatherData && currentWeatherData.daily && currentWeatherData.daily.sunset[0]) {
-        const sunriseH = new Date(currentWeatherData.daily.sunrise[0]).getHours() + new Date(currentWeatherData.daily.sunrise[0]).getMinutes()/60;
-        const sunsetH = new Date(currentWeatherData.daily.sunset[0]).getHours() + new Date(currentWeatherData.daily.sunset[0]).getMinutes()/60;
-        isNightTime = (floatHour < sunriseH || floatHour >= sunsetH);
+        // Fungsi Mapping: Azimuth/Altitude -> Canvas X/Y
+        // Azimuth: 0 (Selatan) -> Tengah. -PI/2 (Timur) -> Kiri. PI/2 (Barat) -> Kanan.
+        const mapPos = (az, alt) => {
+            const fov = Math.PI; // Bidang pandang 180 derajat
+            // X: Mapping Azimuth ke Lebar Layar
+            // Kita geser sedikit agar Timur ada di kiri (10%) dan Barat di kanan (90%)
+            const x = (canvas.width / 2) + (az / fov) * canvas.width;
+            
+            // Y: Mapping Altitude ke Tinggi Layar
+            // Horizon di 70% tinggi layar, Zenith (atas kepala) di 10%
+            const horizon = canvas.height * 0.7; 
+            const zenith = canvas.height * 0.1;
+            const y = horizon - (alt / (Math.PI/2)) * (horizon - zenith);
+            
+            return { x, y };
+        };
+
+        const s = mapPos(sunPos.azimuth, sunPos.altitude);
+        sunX = s.x; sunY = s.y;
+
+        const m = mapPos(moonPos.azimuth, moonPos.altitude);
+        moonX = m.x; moonY = m.y;
+    }
+
+    // --- Draw Stars (Bintang) ---
+    // Bintang muncul jika Matahari di bawah horizon (Twilight/Malam)
+    let starOpacity = 0;
+    if (sunAlt < 0.1) { // Mulai muncul saat matahari rendah (< 6 derajat)
+        starOpacity = Math.min(1, (0.1 - sunAlt) * 5); 
     }
     
-    // --- MODIFIED: Transisi Bintang Perlahan (Sore->Malam & Malam->Pagi) ---
-    let starOpacity = 0;
-    if (isNightTime) starOpacity = 1.0; // Malam
-    // Transisi halus saat senja/fajar bisa ditambahkan di sini jika perlu
+    // Sembunyikan bintang jika cuaca buruk
+    if (wxCode >= 60 || wxCode === 3) starOpacity = 0;
 
-    if (starOpacity > 0 && wxCode < 60) {
+    if (starOpacity > 0) {
         ctx.fillStyle = "white";
         stars.forEach(star => {
-            ctx.globalAlpha = star.alpha * starOpacity; // Terapkan efek pudar
+            ctx.globalAlpha = star.alpha * starOpacity;
             ctx.beginPath();
             ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
             ctx.fill();
-            // Twinkle effect
+            // Efek Kelap-kelip
             star.alpha += star.twinkle;
             if (star.alpha > 1 || star.alpha < 0.2) star.twinkle *= -1;
         });
         ctx.globalAlpha = 1.0;
     }
 
-    // Draw Sun (Day & Clear/Partly Cloudy)
-    if (!isNightTime && wxCode < 3) { // MODIFIED: Hide sun on overcast days (code 3) and during rain
-        const sunX = 60; 
-        const sunY = 80;
+    // --- Draw Sun (Matahari) ---
+    // Muncul jika altitude > -0.15 (Civil Twilight) & Cuaca Bagus
+    if (sunAlt > -0.15 && wxCode < 3) { 
+        // Warna Dinamis: Merah/Orange saat terbit/terbenam, Kuning saat siang
+        // Altitude 0 (Horizon) -> 1 (Zenith)
+        let p = Math.min(1, Math.max(0, sunAlt / 0.8)); 
         
-        // --- NEW: Transisi Warna Matahari (Kuning -> Orange saat Sunset) ---
-        let colorCore = "#facc15"; // Yellow-500 (Siang)
-        let colorCenter = "#fef3c7"; // Amber-100 (Pusat)
-        let glowHex = "#fde047"; // Yellow-300 (Glow)
+        const colorHigh = "#facc15"; // Kuning Siang
+        const colorLow = "#f97316";  // Orange Senja
+        const colorCore = lerpColor(colorLow, colorHigh, p);
+        const glowRgb = hexToRgb(colorCore);
 
-        if (currentWeatherData && currentWeatherData.daily && currentWeatherData.daily.sunset[0]) {
-            const sunriseH = new Date(currentWeatherData.daily.sunrise[0]).getHours() + new Date(currentWeatherData.daily.sunrise[0]).getMinutes()/60;
-            const sunsetH = new Date(currentWeatherData.daily.sunset[0]).getHours() + new Date(currentWeatherData.daily.sunset[0]).getMinutes()/60;
-
-            // Transisi Sunrise (Orange -> Kuning) - 2 Jam setelah terbit
-            if (floatHour >= sunriseH && floatHour < sunriseH + 2) {
-                const p = (floatHour - sunriseH) / 2;
-                colorCore = lerpColor("#fb923c", "#facc15", p); // Orange -> Yellow
-                colorCenter = lerpColor("#fdba74", "#fef3c7", p);
-                glowHex = lerpColor("#fb923c", "#fde047", p);
-            }
-            // Transisi Sunset (Kuning -> Orange) - 2.5 Jam sebelum terbenam
-            else if (floatHour > sunsetH - 2.5 && floatHour <= sunsetH) {
-                const p = (floatHour - (sunsetH - 2.5)) / 2.5;
-                colorCore = lerpColor("#facc15", "#fb923c", p); // Yellow -> Orange Soft
-                colorCenter = lerpColor("#fef3c7", "#fdba74", p); // Amber -> Orange Muda
-                glowHex = lerpColor("#fde047", "#fb923c", p);
-            }
-        }
-
-        const glowRgb = hexToRgb(glowHex);
-
-        // Glow
-        const grd = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 60);
-        grd.addColorStop(0, `rgba(${glowRgb}, 0.8)`);
+        // Glow Luar
+        const grd = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 80);
+        grd.addColorStop(0, `rgba(${glowRgb}, 0.6)`);
         grd.addColorStop(1, `rgba(${glowRgb}, 0)`);
         ctx.fillStyle = grd;
-        ctx.beginPath(); ctx.arc(sunX, sunY, 60, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sunX, sunY, 80, 0, Math.PI * 2); ctx.fill();
 
-        // Core (Dynamic Color)
-        const coreGrd = ctx.createRadialGradient(sunX, sunY, 5, sunX, sunY, 25);
-        coreGrd.addColorStop(0, colorCenter); 
-        coreGrd.addColorStop(1, colorCore); 
-        ctx.fillStyle = coreGrd;
-        ctx.beginPath(); ctx.arc(sunX, sunY, 25, 0, Math.PI * 2); ctx.fill();
+        // Inti Matahari
+        ctx.fillStyle = colorCore;
+        ctx.beginPath(); ctx.arc(sunX, sunY, 30, 0, Math.PI * 2); ctx.fill();
     }
 
-    // Draw Moon (Night)
-    if (isNightTime && wxCode < 51) { // MODIFIED: Hide moon during rain/storm
-        const moonX = 60; // Top Left
-        const moonY = 80;
+    // --- Draw Moon (Bulan) ---
+    // Muncul jika altitude > -0.1 & Tidak Hujan Deras
+    if (moonAlt > -0.1 && wxCode < 51) { 
         const radius = 25;
 
         // Moon Glow
-        const grd = ctx.createRadialGradient(moonX, moonY, radius, moonX, moonY, radius * 3);
-        grd.addColorStop(0, "rgba(255, 255, 255, 0.2)");
+        const grd = ctx.createRadialGradient(moonX, moonY, radius, moonX, moonY, radius * 4);
+        grd.addColorStop(0, "rgba(255, 255, 255, 0.15)");
         grd.addColorStop(1, "rgba(255, 255, 255, 0)");
         ctx.fillStyle = grd;
-        ctx.beginPath(); ctx.arc(moonX, moonY, radius * 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(moonX, moonY, radius * 4, 0, Math.PI * 2); ctx.fill();
 
-        // Draw Base Moon (White)
+        // Base Moon (Putih)
         ctx.fillStyle = "#f8fafc";
         ctx.beginPath(); ctx.arc(moonX, moonY, radius, 0, Math.PI * 2); ctx.fill();
 
-        // Draw Phase Shadow (Dark Circle Overlay)
-        // FIX: Gunakan clipping & fill gelap agar tidak bolong transparan
+        // Phase Shadow (Bayangan Fase Bulan)
         ctx.save();
         ctx.beginPath(); ctx.arc(moonX, moonY, radius, 0, Math.PI * 2); ctx.clip(); // Clip ke bentuk bulan
 
-        // Hitung posisi bayangan
-        // 0.0 (New) -> Bayangan di Tengah (Menutup)
-        // 0.5 (Full) -> Bayangan Jauh (Terbuka)
-        let shadowOffset;
-        if (moonPhase < 0.5) shadowOffset = (moonPhase / 0.5) * 2.8 * radius; // Waxing
-        else shadowOffset = ((1.0 - moonPhase) / 0.5) * 2.8 * radius; // Waning
+        // Logika Fase Bulan Sederhana (Sabit -> Purnama -> Sabit)
+        // moonPhase: 0 (Baru), 0.5 (Purnama), 1.0 (Baru)
+        // Kita geser bayangan gelap (warna langit) menutupi bulan putih
+        
+        let shadowOffset = 0;
+        // Geser bayangan dari Kiri ke Kanan (Waxing) atau sebaliknya
+        // Rumus sederhana untuk visualisasi 2D
+        if (moonPhase <= 0.5) {
+            // Menuju Purnama: Bayangan geser ke kanan
+            // 0.0 -> Offset -Radius (Tertutup)
+            // 0.5 -> Offset +3*Radius (Terbuka Penuh)
+            shadowOffset = (moonPhase / 0.5) * 3.5 * radius; 
+        } else {
+            // Menuju Bulan Baru: Bayangan datang lagi
+            // 0.5 -> Offset +3*Radius
+            // 1.0 -> Offset -Radius
+             shadowOffset = ((1 - moonPhase) / 0.5) * 3.5 * radius;
+        }
 
-        ctx.fillStyle = "rgba(15, 23, 42, 0.95)"; // Warna gelap menyerupai langit malam
+        // Warna Bayangan (Samakan dengan langit malam)
+        ctx.fillStyle = "rgba(15, 23, 42, 0.98)"; 
+        
+        // Gambar lingkaran bayangan yang digeser
+        // Mulai dari posisi menutupi (moonX - 2*radius) lalu geser + shadowOffset
         ctx.beginPath();
-        ctx.arc(moonX + shadowOffset, moonY, radius, 0, Math.PI * 2);
+        ctx.arc(moonX - (1.8 * radius) + shadowOffset, moonY, radius, 0, Math.PI * 2);
         ctx.fill();
+        
         ctx.restore();
     }
 }
@@ -2378,21 +2404,24 @@ function openDetailModal(dayIndex) {
     }
     
     if(sunPct >= 0) {
-        const sunRotate = (sunPct * 180) - 90; // -90 (left) to 90 (right)
+        // MODIFIED: Batasi rotasi agar tidak terlalu ke bawah (-70 s/d 70 derajat)
+        const maxRot = 70; 
+        const sunRotate = (sunPct * (maxRot * 2)) - maxRot;
+
         summary += `
-            <div class="relative h-20 w-full overflow-hidden mt-6 mb-2 bg-slate-800/30 rounded-xl border border-white/5 pt-4">
+            <div class="relative h-28 w-full overflow-hidden mt-4 mb-2 bg-slate-800/30 rounded-xl border border-white/5 pt-4">
                 <p class="absolute top-2 left-0 w-full text-center text-[10px] text-slate-400 uppercase font-bold tracking-widest">Posisi Matahari</p>
-                <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-24 border-t-2 border-dashed border-yellow-500/20 rounded-t-full"></div>
-                <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-24">
+                <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-56 h-28 border-t-2 border-dashed border-yellow-500/20 rounded-t-full"></div>
+                <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-56 h-28">
                     <div class="w-full h-full origin-bottom transition-transform duration-1000" style="transform: rotate(${sunRotate}deg)">
-                        <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-yellow-400 rounded-full shadow-[0_0_25px_rgba(250,204,21,0.6)] flex items-center justify-center">
-                            <div class="w-2 h-2 bg-white rounded-full opacity-50"></div>
+                        <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-7 h-7 bg-yellow-400 rounded-full shadow-[0_0_30px_rgba(250,204,21,0.8)] flex items-center justify-center border-2 border-white/20">
+                            <div class="w-2 h-2 bg-white rounded-full opacity-80"></div>
                         </div>
                     </div>
                 </div>
-                <div class="absolute bottom-1 w-full flex justify-between px-6 text-[9px] font-mono text-slate-500">
-                    <span>${currentWeatherData.daily.sunrise[dayIndex].split('T')[1]}</span>
-                    <span>${currentWeatherData.daily.sunset[dayIndex].split('T')[1]}</span>
+                <div class="absolute bottom-2 w-full flex justify-between px-4 text-[10px] font-bold text-slate-400">
+                    <span class="bg-slate-900/50 px-2 py-0.5 rounded text-yellow-500/80">${currentWeatherData.daily.sunrise[dayIndex].split('T')[1]}</span>
+                    <span class="bg-slate-900/50 px-2 py-0.5 rounded text-orange-500/80">${currentWeatherData.daily.sunset[dayIndex].split('T')[1]}</span>
                 </div>
             </div>
         `;
