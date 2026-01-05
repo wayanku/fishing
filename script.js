@@ -754,6 +754,11 @@
             // PERBAIKAN: Refresh ukuran peta agar tidak error/abu-abu saat muncul
             setTimeout(() => { if(typeof map !== 'undefined') map.invalidateSize(); }, 100);
             
+            // Buat modal untuk peta presipitasi
+            if (typeof createPrecipitationModal === 'function') {
+                createPrecipitationModal();
+            }
+
             // Pre-load the AI model in the background for faster analysis later
             getAiWorker().postMessage({ type: 'init' });
 
@@ -2495,6 +2500,217 @@
         function closeWindy() {
             document.getElementById('windyModal').classList.add('translate-y-full');
             setTimeout(() => { document.getElementById('windy-frame').src = ''; }, 300); // Reset iframe agar tidak berat
+        }
+
+        // --- PRECIPITATION MAP FUNCTIONS ---
+        let largePrecipMap = null;
+
+        function createPrecipitationModal() {
+            // Mencegah duplikasi
+            if (document.getElementById('precipModal')) return;
+
+            const modal = document.createElement('div');
+            modal.id = 'precipModal';
+            // FIX: Full Screen murni (tanpa padding), Z-Index tertinggi
+            modal.style.zIndex = "2147483650"; 
+            modal.className = "fixed inset-0 bg-slate-950 translate-y-full transition-transform duration-300";
+            modal.innerHTML = `
+                <div class="relative w-full h-full">
+                    <div id="precip-map-large" class="w-full h-full bg-slate-950"></div>
+                    
+                    <!-- Header Floating -->
+                    <div class="absolute top-0 left-0 w-full p-4 pt-12 flex items-center justify-between z-[1000] bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+                        <button onclick="closePrecipMap()" class="pointer-events-auto bg-slate-800/50 backdrop-blur-md text-white rounded-full p-3 shadow-lg border border-white/10 hover:bg-slate-700 transition-all">
+                            <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                        </button>
+                        <div class="pointer-events-auto bg-slate-800/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
+                            <span class="text-xs font-bold text-white flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-[#000099]"></span> Hujan
+                                <span class="w-2 h-2 rounded-full bg-[#800080] ml-1"></span> Lebat
+                                <span class="w-2 h-2 rounded-full bg-[#ffcc00] ml-1"></span> Ekstrem
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Lokasi Saya -->
+                    <button onclick="centerPrecipMap()" class="absolute bottom-8 right-4 z-[1000] bg-slate-800/80 backdrop-blur-md text-blue-400 rounded-full p-3 shadow-lg border border-white/10 hover:bg-slate-700 transition-all">
+                        <i data-lucide="navigation" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        let precipUserMarker = null; // Marker user di peta besar
+
+        function openPrecipMap(lat, lng) {
+            const modal = document.getElementById('precipModal');
+            if (!modal) return;
+
+            modal.classList.remove('translate-y-full');
+            lucide.createIcons(); // Render ikon tombol close
+
+            // Tunda inisialisasi peta sampai modal terlihat
+            setTimeout(async () => {
+                if (largePrecipMap) {
+                    largePrecipMap.remove();
+                    largePrecipMap = null;
+                }
+
+                const mapContainer = document.getElementById('precip-map-large');
+                if (!mapContainer) return;
+
+                // Gunakan lokasi user global jika ada, jika tidak pakai lokasi yang diklik
+                const centerLat = (typeof userLatlng !== 'undefined' && userLatlng) ? userLatlng.lat : lat;
+                const centerLng = (typeof userLatlng !== 'undefined' && userLatlng) ? userLatlng.lng : lng;
+
+                largePrecipMap = L.map(mapContainer, {
+                    zoomControl: false, // Hilangkan kontrol zoom bawaan (biar clean seperti iPhone)
+                    attributionControl: false
+                }).setView([centerLat, centerLng], 10); // Zoom level regional
+
+                // Peta dasar abu-abu gelap
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(largePrecipMap);
+
+                // Tambahkan Label Kota (Layer terpisah agar di atas hujan)
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+                    subdomains: 'abcd',
+                    maxZoom: 20,
+                    zIndex: 1000 // Pastikan label di atas layer hujan
+                }).addTo(largePrecipMap);
+
+                // Marker Lokasi User (Pulsing Blue Dot ala iPhone)
+                const userIcon = L.divIcon({
+                    className: 'bg-transparent',
+                    html: `<div class="relative flex items-center justify-center w-6 h-6">
+                            <div class="absolute w-full h-full bg-blue-500/50 rounded-full animate-ping"></div>
+                            <div class="relative w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-md"></div>
+                           </div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+                precipUserMarker = L.marker([centerLat, centerLng], {icon: userIcon}).addTo(largePrecipMap);
+
+                // Tambahkan layer hujan dari RainViewer
+                try {
+                    const res = await fetch(`https://api.rainviewer.com/public/weather-maps.json?_=${Date.now()}`);
+                    const data = await res.json();
+                    const host = data.host || 'https://tilecache.rainviewer.com';
+                    
+                    if (data.radar && data.radar.past && data.radar.past.length > 0) {
+                        const item = data.radar.past[data.radar.past.length - 1]; // Frame terbaru
+                        
+                        // GANTI WARNA: Gunakan skema '2' (Titan) atau '4' (Meteored) atau '8' (Sirocco)
+                        // Skema 2: Biru -> Hijau -> Kuning -> Merah (Standard)
+                        // Skema 4: Biru Muda -> Biru Tua -> Ungu (Mirip Dark Sky/iPhone di mode tertentu)
+                        // Skema 8: Biru -> Kuning -> Merah (Tanpa Hijau)
+                        // Kita coba Skema 2 tapi dengan opacity yang pas agar terlihat menyatu
+                        const tileUrl = `${host}${item.path}/512/{z}/{x}/{y}/2/1_1.png`; 
+                        
+                        L.tileLayer(tileUrl, { opacity: 0.8, attribution: 'RainViewer' }).addTo(largePrecipMap);
+                    }
+                } catch (e) {
+                    console.error("Gagal memuat layer hujan untuk peta besar:", e);
+                }
+
+            }, 300); // Tunggu transisi selesai
+        }
+
+        function centerPrecipMap() {
+            if(largePrecipMap && precipUserMarker) {
+                largePrecipMap.flyTo(precipUserMarker.getLatLng(), 10);
+            }
+        }
+
+        function closePrecipMap() {
+            const modal = document.getElementById('precipModal');
+            if (modal) modal.classList.add('translate-y-full');
+            if (largePrecipMap) {
+                setTimeout(() => {
+                    largePrecipMap.remove();
+                    largePrecipMap = null;
+                }, 300);
+            }
+        }
+
+        async function injectPrecipitationCard(lat, lng) {
+            // Target elemen forecast-list (Prakiraan 10 Hari)
+            const forecastList = document.getElementById('forecast-list');
+            // Cek jika forecastList ada
+            if (!forecastList) return;
+            
+            // Hapus card lama jika ada (untuk refresh lokasi)
+            const oldCard = document.getElementById('precip-map-card');
+            if(oldCard) oldCard.remove();
+
+            const cardHtml = `
+                <div id="precip-map-card" onclick="openPrecipMap(${lat}, ${lng})" class="mx-0 mt-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg cursor-pointer group overflow-hidden relative">
+                    <div class="px-2 py-2 mb-2 flex items-center gap-2 border-b border-white/5 relative z-10">
+                        <i data-lucide="map" class="w-4 h-4 text-slate-400"></i> 
+                        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Peta Hujan</span>
+                    </div>
+                    <div id="precip-map-preview" class="w-full h-48 rounded-lg bg-slate-900 relative overflow-hidden border border-white/5 pointer-events-none">
+                        <div class="absolute inset-0 flex items-center justify-center z-0">
+                            <i data-lucide="loader" class="w-6 h-6 text-slate-500 animate-spin"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-4 right-4 z-10 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-bold text-white flex items-center gap-1 group-hover:bg-blue-600 transition-colors border border-white/10 shadow-xl">
+                        <i data-lucide="maximize-2" class="w-3 h-3"></i> Perbesar
+                    </div>
+                </div>`;
+            
+            // Insert AFTER forecast-list
+            forecastList.insertAdjacentHTML('afterend', cardHtml);
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`https://api.rainviewer.com/public/weather-maps.json?_=${Date.now()}`);
+                const data = await res.json();
+                const host = data.host || 'https://tilecache.rainviewer.com';
+                if (data.radar && data.radar.past && data.radar.past.length > 0) {
+                    const item = data.radar.past[data.radar.past.length - 1];
+                    // Samakan skema warna dengan peta besar (2)
+                    const tileUrl = `${host}${item.path}/256/{z}/{x}/{y}/2/1_1.png`;
+                    const previewMapContainer = document.getElementById('precip-map-preview');
+                    if(previewMapContainer) {
+                        previewMapContainer.innerHTML = ''; 
+                        const previewMap = L.map(previewMapContainer, { 
+                            zoomControl: false, 
+                            attributionControl: false, 
+                            dragging: false, 
+                            scrollWheelZoom: false, 
+                            doubleClickZoom: false, 
+                            touchZoom: false,
+                            boxZoom: false,
+                            keyboard: false
+                        }).setView([lat, lng], 8);
+
+                        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', { 
+                            maxZoom: 20,
+                            subdomains: 'abcd'
+                        }).addTo(previewMap);
+
+                        L.tileLayer(tileUrl, { opacity: 0.8 }).addTo(previewMap);
+                        
+                        // Marker User di Preview (Kecil)
+                        const userIconSmall = L.divIcon({
+                            className: 'bg-transparent',
+                            html: `<div class="relative flex items-center justify-center w-3 h-3"><div class="absolute w-full h-full bg-blue-500/50 rounded-full animate-ping"></div><div class="relative w-2 h-2 bg-blue-500 border border-white rounded-full shadow-sm"></div></div>`,
+                            iconSize: [12, 12],
+                            iconAnchor: [6, 6]
+                        });
+                        L.marker([lat, lng], {icon: userIconSmall}).addTo(previewMap);
+                    }
+                } else { throw new Error("No radar data available"); }
+            } catch (e) {
+                const previewMapContainer = document.getElementById('precip-map-preview');
+                if(previewMapContainer) previewMapContainer.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-slate-800"><i data-lucide="${navigator.onLine ? 'cloud-off' : 'wifi-off'}" class="w-6 h-6 text-slate-600"></i></div>`;
+                lucide.createIcons();
+            }
         }
 
         // --- OFFLINE MAP SYSTEM (Service Worker & Downloader) ---
