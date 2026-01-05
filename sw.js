@@ -1,10 +1,11 @@
-const CACHE_NAME = 'fishing-spot-v21';
+const CACHE_NAME = 'fishing-spot-v20';
 const ASSETS = [
     './',
     './index.html',
     './style.css',
     './script.js',
-    './weather.js'
+    './weather.js',
+    './manifest.json'
 ];
 
 // 1. Install Service Worker & Cache File Inti
