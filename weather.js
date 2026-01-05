@@ -1297,35 +1297,48 @@ async function showLocationPanel(latlng) {
     const panelContent = document.querySelector('#location-panel > div');
     let header = document.getElementById('new-weather-header');
     
+    // FIX: Hapus header duplikat jika ada (Penyebab loading ganda/tidak hilang)
+    const allHeaders = document.querySelectorAll('#new-weather-header');
+    if (allHeaders.length > 1) {
+        for (let i = 1; i < allHeaders.length; i++) allHeaders[i].remove();
+    }
+
+    // FIX: Force hide old elements EVERY TIME to prevent "ghost" loading bars
+    const oldAddress = document.getElementById('panel-address');
+    const oldCoords = document.getElementById('panel-coords');
+    const oldDist = document.getElementById('panel-dist');
+    if (oldAddress) oldAddress.classList.add('hidden');
+    if (oldCoords) oldCoords.classList.add('hidden');
+    if (oldDist) oldDist.classList.add('hidden');
+    
+    // FIX: Paksa sembunyikan panel-dist dengan style inline agar tidak muncul loading bar kecil di bawah
+    if (oldDist) oldDist.style.display = 'none';
+
+    // Sembunyikan kartu lama yang pindah ke header (Temp & Weather Desc)
+    const tempCard = document.querySelector('[onclick="showMetricInsight(\'temp\')"]');
+    const weatherCard = document.querySelector('[onclick="showMetricInsight(\'weather\')"]');
+    if (tempCard) tempCard.classList.add('hidden');
+    if (weatherCard) weatherCard.classList.add('hidden');
+
     if (!header && panelContent) {
         header = document.createElement('div');
         header.id = 'new-weather-header';
         header.className = 'flex flex-col items-center text-white pt-16 pb-10 px-4 text-center';
         panelContent.prepend(header);
         
-        // Sembunyikan elemen lama yang duplikat
-        const oldAddress = document.getElementById('panel-address');
-        const oldCoords = document.getElementById('panel-coords');
-        const oldDist = document.getElementById('panel-dist');
-        if (oldAddress) oldAddress.classList.add('hidden');
-        if (oldCoords) oldCoords.classList.add('hidden');
-        if (oldDist) oldDist.classList.add('hidden');
-        
-        // Sembunyikan kartu lama yang pindah ke header
-        const tempCard = document.querySelector('[onclick="showMetricInsight(\'temp\')"]');
-        const weatherCard = document.querySelector('[onclick="showMetricInsight(\'weather\')"]');
-        if (tempCard) tempCard.classList.add('hidden');
-        if (weatherCard) weatherCard.classList.add('hidden');
     }
 
     if (header) {
-        // Isi Header dengan Skeleton
+        // MODIFIED: Isi Header dengan Placeholder Statis (Tanpa Efek Loading Pulse)
+        // Menggunakan style text-shadow yang sama dengan tampilan akhir agar tidak ada pergeseran visual
         header.innerHTML = `
-            <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2"><div class="h-8 w-48 bg-slate-700/50 rounded-lg animate-pulse mx-auto"></div></h2>
-            <p class="text-sm font-medium text-slate-200 mt-1 mb-2 opacity-90"><span id="header-time"><div class="h-4 w-20 bg-slate-700/50 rounded-lg animate-pulse inline-block"></div></span></p>
-            <p id="header-temp" class="text-8xl font-thin -my-2 tracking-tighter"><div class="h-24 w-40 bg-slate-700/50 rounded-3xl animate-pulse mx-auto my-4"></div></p>
-            <p id="header-desc" class="text-xl font-medium mt-1"><div class="h-6 w-32 bg-slate-700/50 rounded-lg animate-pulse mx-auto"></div></p>
-            <p id="header-minmax" class="text-sm font-medium opacity-80 mt-1"><div class="h-4 w-48 bg-slate-700/50 rounded-lg animate-pulse mx-auto"></div></p>
+            <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2" style="text-shadow: 0 2px 4px rgb(0 0 0 / 0.5);">Mencari lokasi...</h2>
+            <p class="text-sm font-medium text-slate-200 mt-1 mb-2 opacity-90 tracking-wide" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);"><span id="header-time">--:--</span></p>
+            
+            <p id="header-temp" class="text-8xl font-thin -my-2 tracking-tighter" style="font-family: -apple-system, sans-serif; text-shadow: 0 3px 8px rgb(0 0 0 / 0.5);">--°</p>
+            
+            <p id="header-desc" class="text-xl font-medium mt-1" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);">Memuat...</p>
+            <p id="header-minmax" class="text-sm font-medium opacity-80 mt-1" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);">-- / --</p>
         `;
     }
 
@@ -1703,6 +1716,14 @@ async function showLocationPanel(latlng) {
         document.getElementById('wx-desc').innerText = "Offline";
         document.getElementById('wx-temp').innerText = "-";
         document.getElementById('forecast-list').innerHTML = '<div class="text-center text-red-400 text-xs py-4">Gagal memuat data. Cek koneksi internet.</div>';
+        
+        // FIX: Update Header Skeleton jika Error (Agar loading tidak macet)
+        const hTemp = document.getElementById('header-temp');
+        if(hTemp) hTemp.innerText = "--";
+        const hDesc = document.getElementById('header-desc');
+        if(hDesc) hDesc.innerText = "Data Tidak Tersedia";
+        const hMinMax = document.getElementById('header-minmax');
+        if(hMinMax) hMinMax.innerText = "Cek koneksi internet";
     }
 
     // 4. Fetch Tide Data (Marine API)
@@ -1916,8 +1937,13 @@ function updateWeatherUI(data) {
         }
 
         // Populate new header with data
-        document.getElementById('header-temp').innerText = `${Math.round(data.current_weather.temperature)}°`;
-        document.getElementById('header-minmax').innerText = `Tertinggi: ${Math.round(data.daily.temperature_2m_max[0])}° Terendah: ${Math.round(data.daily.temperature_2m_min[0])}°`;
+        // FIX: Pastikan elemen loading dibersihkan sebelum diisi teks
+        const hTemp = document.getElementById('header-temp');
+        if(hTemp) { hTemp.innerHTML = ""; hTemp.innerText = `${Math.round(data.current_weather.temperature)}°`; }
+        
+        const hMinMax = document.getElementById('header-minmax');
+        if(hMinMax) { hMinMax.innerHTML = ""; hMinMax.innerText = `Tertinggi: ${Math.round(data.daily.temperature_2m_max[0])}° Terendah: ${Math.round(data.daily.temperature_2m_min[0])}°`; }
+        
         document.getElementById('header-time').innerText = localTimeStr;
     }
 
