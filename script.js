@@ -2504,6 +2504,13 @@
 
         // --- PRECIPITATION MAP FUNCTIONS ---
         let largePrecipMap = null;
+        // --- NEW: Animation Variables ---
+        let precipAnimationInterval = null;
+        let precipFrames = [];
+        let currentPrecipFrameIndex = 0;
+        let precipRadarLayer = null; // To easily remove and add new layers
+        let isPrecipPlaying = false;
+        // --- End Animation Variables ---
 
         function createPrecipitationModal() {
             // Mencegah duplikasi
@@ -2525,9 +2532,9 @@
                         </button>
                         <div class="pointer-events-auto bg-slate-800/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
                             <span class="text-xs font-bold text-white flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-[#000099]"></span> Hujan
-                                <span class="w-2 h-2 rounded-full bg-[#800080] ml-1"></span> Lebat
-                                <span class="w-2 h-2 rounded-full bg-[#ffcc00] ml-1"></span> Ekstrem
+                                <span class="w-2 h-2 rounded-full bg-[#3b82f6]"></span> Hujan
+                                <span class="w-2 h-2 rounded-full bg-[#8b5cf6] ml-1"></span> Lebat
+                                <span class="w-2 h-2 rounded-full bg-[#f43f5e] ml-1"></span> Ekstrem
                             </span>
                         </div>
                     </div>
@@ -2536,6 +2543,24 @@
                     <button onclick="centerPrecipMap()" class="absolute bottom-8 right-4 z-[1000] bg-slate-800/80 backdrop-blur-md text-blue-400 rounded-full p-3 shadow-lg border border-white/10 hover:bg-slate-700 transition-all">
                         <i data-lucide="navigation" class="w-6 h-6"></i>
                     </button>
+
+                    <!-- NEW: Animation Controls -->
+                    <div class="absolute bottom-0 left-0 w-full p-4 z-[1000] pointer-events-none">
+                        <div class="bg-slate-900/70 backdrop-blur-md rounded-xl p-3 flex items-center gap-4 pointer-events-auto border border-white/10 shadow-2xl max-w-2xl mx-auto">
+                            <button id="precip-play-pause-btn" onclick="togglePrecipAnimation()" class="text-white hover:bg-slate-700 p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i data-lucide="play" class="w-6 h-6"></i>
+                            </button>
+                            <div class="flex-1 flex flex-col gap-2">
+                                <input type="range" id="precip-timeline-slider" min="0" max="10" value="0" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer range-sm" oninput="handleSliderInput(this.value)" disabled>
+                                <div id="precip-timeline-labels" class="flex justify-between text-[9px] text-slate-400 font-mono">
+                                    <span>--:--</span>
+                                    <span>Kini</span>
+                                    <span>--:--</span>
+                                </div>
+                            </div>
+                            <div id="precip-timestamp" class="text-sm font-bold text-white w-16 text-center tabular-nums">--:--</div>
+                        </div>
+                    </div>
                 </div>
             `;
             document.body.appendChild(modal);
@@ -2544,6 +2569,7 @@
         let precipUserMarker = null; // Marker user di peta besar
 
         function openPrecipMap(lat, lng) {
+            pausePrecipAnimation(); // Reset state on open
             const modal = document.getElementById('precipModal');
             if (!modal) return;
 
@@ -2567,7 +2593,7 @@
                 largePrecipMap = L.map(mapContainer, {
                     zoomControl: false, // Hilangkan kontrol zoom bawaan (biar clean seperti iPhone)
                     attributionControl: false
-                }).setView([centerLat, centerLng], 10); // Zoom level regional
+                }).setView([centerLat, centerLng], 5); // Zoom level macro (Negara/Pulau)
 
                 // Peta dasar abu-abu gelap
                 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
@@ -2596,29 +2622,112 @@
                 precipUserMarker = L.marker([centerLat, centerLng], {icon: userIcon}).addTo(largePrecipMap);
 
                 // Tambahkan layer hujan dari RainViewer
+                const playBtn = document.getElementById('precip-play-pause-btn');
+                const slider = document.getElementById('precip-timeline-slider');
+
                 try {
                     const res = await fetch(`https://api.rainviewer.com/public/weather-maps.json?_=${Date.now()}`);
                     const data = await res.json();
                     const host = data.host || 'https://tilecache.rainviewer.com';
                     
-                    if (data.radar && data.radar.past && data.radar.past.length > 0) {
-                        const item = data.radar.past[data.radar.past.length - 1]; // Frame terbaru
+                    // Gabungkan frame masa lalu dan prediksi
+                    const pastFrames = data.radar.past || [];
+                    const futureFrames = data.radar.nowcast || [];
+                    precipFrames = [...pastFrames, ...futureFrames];
+
+                    if (precipFrames.length > 0) {
+                        // Temukan frame "Kini" (frame terakhir dari 'past')
+                        currentPrecipFrameIndex = Math.max(0, pastFrames.length - 1);
+
+                        // Konfigurasi Slider & Label
+                        slider.max = precipFrames.length - 1;
+                        slider.value = currentPrecipFrameIndex;
                         
-                        // GANTI WARNA: Gunakan skema '2' (Titan) atau '4' (Meteored) atau '8' (Sirocco)
-                        // Skema 2: Biru -> Hijau -> Kuning -> Merah (Standard)
-                        // Skema 4: Biru Muda -> Biru Tua -> Ungu (Mirip Dark Sky/iPhone di mode tertentu)
-                        // Skema 8: Biru -> Kuning -> Merah (Tanpa Hijau)
-                        // Kita coba Skema 2 tapi dengan opacity yang pas agar terlihat menyatu
-                        const tileUrl = `${host}${item.path}/512/{z}/{x}/{y}/2/1_1.png`; 
-                        
-                        L.tileLayer(tileUrl, { opacity: 0.8, attribution: 'RainViewer' }).addTo(largePrecipMap);
+                        const firstFrameTime = new Date(precipFrames[0].time * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        const lastFrameTime = new Date(precipFrames[precipFrames.length - 1].time * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        document.getElementById('precip-timeline-labels').innerHTML = `<span>${firstFrameTime}</span><span>Kini</span><span>${lastFrameTime}</span>`;
+
+                        // Tampilkan frame awal
+                        showPrecipFrame(currentPrecipFrameIndex, host);
+
+                        // Aktifkan tombol
+                        playBtn.disabled = false;
+                        slider.disabled = false;
+                    } else {
+                        throw new Error("No radar frames available");
                     }
                 } catch (e) {
                     console.error("Gagal memuat layer hujan untuk peta besar:", e);
+                    document.getElementById('precip-timestamp').innerText = "Error";
+                    playBtn.disabled = true;
+                    slider.disabled = true;
                 }
 
             }, 300); // Tunggu transisi selesai
         }
+
+        // --- NEW: Animation Control Functions ---
+        function showPrecipFrame(index, host) {
+            if (index < 0 || index >= precipFrames.length) return;
+
+            const frame = precipFrames[index];
+            const tileUrl = `${host || 'https://tilecache.rainviewer.com'}${frame.path}/512/{z}/{x}/{y}/5/1_1.png`;
+
+            if (precipRadarLayer) {
+                largePrecipMap.removeLayer(precipRadarLayer);
+            }
+
+            precipRadarLayer = L.tileLayer(tileUrl, { opacity: 0.8, attribution: 'RainViewer' });
+            precipRadarLayer.addTo(largePrecipMap);
+
+            // Update UI
+            const timestamp = new Date(frame.time * 1000);
+            document.getElementById('precip-timestamp').innerText = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('precip-timeline-slider').value = index;
+            currentPrecipFrameIndex = index;
+        }
+
+        function playPrecipAnimation() {
+            if (precipAnimationInterval) return; // Already playing
+            isPrecipPlaying = true;
+            document.getElementById('precip-play-pause-btn').innerHTML = '<i data-lucide="pause" class="w-6 h-6"></i>';
+            lucide.createIcons();
+
+            precipAnimationInterval = setInterval(() => {
+                let nextIndex = currentPrecipFrameIndex + 1;
+                if (nextIndex >= precipFrames.length) {
+                    nextIndex = 0; // Loop back to start
+                }
+                showPrecipFrame(nextIndex, precipFrames[0] ? (precipFrames[0].host || 'https://tilecache.rainviewer.com') : 'https://tilecache.rainviewer.com');
+            }, 500); // Ganti frame setiap 500ms
+        }
+
+        function pausePrecipAnimation() {
+            if (precipAnimationInterval) {
+                clearInterval(precipAnimationInterval);
+                precipAnimationInterval = null;
+            }
+            isPrecipPlaying = false;
+            const btn = document.getElementById('precip-play-pause-btn');
+            if(btn) {
+                btn.innerHTML = '<i data-lucide="play" class="w-6 h-6"></i>';
+                lucide.createIcons();
+            }
+        }
+
+        function togglePrecipAnimation() {
+            if (isPrecipPlaying) {
+                pausePrecipAnimation();
+            } else {
+                playPrecipAnimation();
+            }
+        }
+
+        function handleSliderInput(value) {
+            pausePrecipAnimation(); // Stop animation when user interacts with slider
+            showPrecipFrame(parseInt(value), precipFrames[0] ? (precipFrames[0].host || 'https://tilecache.rainviewer.com') : 'https://tilecache.rainviewer.com');
+        }
+        // --- End Animation Control Functions ---
 
         function centerPrecipMap() {
             if(largePrecipMap && precipUserMarker) {
@@ -2628,6 +2737,7 @@
 
         function closePrecipMap() {
             const modal = document.getElementById('precipModal');
+            pausePrecipAnimation(); // Stop animation on close
             if (modal) modal.classList.add('translate-y-full');
             if (largePrecipMap) {
                 setTimeout(() => {
@@ -2673,8 +2783,8 @@
                 const host = data.host || 'https://tilecache.rainviewer.com';
                 if (data.radar && data.radar.past && data.radar.past.length > 0) {
                     const item = data.radar.past[data.radar.past.length - 1];
-                    // Samakan skema warna dengan peta besar (2)
-                    const tileUrl = `${host}${item.path}/256/{z}/{x}/{y}/2/1_1.png`;
+                    // Samakan skema warna dengan peta besar (5 - Meteored)
+                    const tileUrl = `${host}${item.path}/256/{z}/{x}/{y}/5/1_1.png`;
                     const previewMapContainer = document.getElementById('precip-map-preview');
                     if(previewMapContainer) {
                         previewMapContainer.innerHTML = ''; 
@@ -2687,7 +2797,7 @@
                             touchZoom: false,
                             boxZoom: false,
                             keyboard: false
-                        }).setView([lat, lng], 8);
+                        }).setView([lat, lng], 4);
 
                         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', { 
                             maxZoom: 20,
