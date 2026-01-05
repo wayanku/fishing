@@ -537,8 +537,8 @@
             if (!container && input) {
                 container = document.createElement('div');
                 container.id = 'search-suggestions';
-                // Style Liquid Glass (Blur Kuat + Transparan)
-                container.className = "absolute top-full left-0 w-full bg-slate-900/60 backdrop-blur-xl border border-white/20 rounded-xl mt-2 shadow-2xl z-[5000] overflow-hidden flex flex-col transition-all duration-300";
+                // Style Solid & Clean (Latar Gelap Pekat agar Mudah Dibaca)
+                container.className = "absolute top-full left-0 w-full bg-[#0f172a] border border-slate-700 rounded-xl mt-2 shadow-2xl z-[5000] overflow-hidden flex flex-col";
                 
                 if(input.parentNode) {
                     const parentStyle = window.getComputedStyle(input.parentNode);
@@ -583,33 +583,32 @@
                 if(!text) return '';
                 const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regex = new RegExp(`(${safeQuery})`, 'gi');
-                return text.replace(regex, '<span class="text-blue-400 font-bold drop-shadow-sm">$1</span>');
+                // Highlight Putih Tebal (Bukan Warna-warni)
+                return text.replace(regex, '<span class="text-white font-extrabold">$1</span>');
             };
 
             data.forEach(item => {
                 const div = document.createElement('div');
-                div.className = "p-3 hover:bg-white/10 cursor-pointer border-b border-white/5 last:border-0 flex items-center gap-3 transition-colors group";
+                div.className = "p-3 hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-0 flex items-center gap-3 transition-colors group";
                 
                 // Nama lokasi yang lebih bersih
                 const mainName = item.display_name.split(',')[0];
                 const subName = item.display_name.replace(mainName + ',', '').trim();
 
-                // Advanced Icon Logic
+                // Icon Logic (Seragam / Monokrom)
                 let iconName = 'map-pin';
-                let iconColor = 'text-slate-400';
                 
-                if (item.type === 'city' || item.type === 'administrative') { iconColor = 'text-purple-400'; }
-                else if (item.type === 'village' || item.type === 'hamlet') { iconColor = 'text-emerald-400'; }
-                else if (item.class === 'natural' || item.type === 'water' || item.type === 'bay' || item.type === 'beach') { iconName = 'waves'; iconColor = 'text-cyan-400'; }
-                else if (item.class === 'tourism') { iconName = 'image'; iconColor = 'text-yellow-400'; }
+                // Gunakan ikon berbeda tapi warnanya tetap abu-abu (slate) agar rapi
+                if (item.class === 'natural' || item.type === 'water' || item.type === 'bay' || item.type === 'beach') { iconName = 'waves'; }
+                else if (item.class === 'tourism') { iconName = 'image'; }
 
                 div.innerHTML = `
-                    <div class="w-8 h-8 rounded-full bg-slate-800/50 border border-white/10 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:border-blue-500 transition-all shadow-sm">
-                        <i data-lucide="${iconName}" class="w-4 h-4 ${iconColor} group-hover:text-white transition-colors"></i>
+                    <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:border-blue-500 transition-all">
+                        <i data-lucide="${iconName}" class="w-4 h-4 text-slate-400 group-hover:text-white transition-colors"></i>
                     </div>
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-medium text-white truncate group-hover:text-blue-100 transition-colors">${highlight(mainName)}</p>
-                        <p class="text-[10px] text-slate-400 truncate group-hover:text-slate-300 transition-colors">${highlight(subName)}</p>
+                        <p class="text-sm font-medium text-slate-300 truncate group-hover:text-white transition-colors">${highlight(mainName)}</p>
+                        <p class="text-[11px] text-slate-500 truncate group-hover:text-slate-400 transition-colors">${highlight(subName)}</p>
                     </div>
                 `;
                 
