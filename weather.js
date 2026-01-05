@@ -742,7 +742,7 @@ function drawCelestialBodies() {
         // Fungsi Mapping: Azimuth/Altitude -> Canvas X/Y
         // Azimuth: 0 (Selatan) -> Tengah. -PI/2 (Timur) -> Kiri. PI/2 (Barat) -> Kanan.
         const mapPos = (az, alt) => {
-            const fov = Math.PI; // Bidang pandang 180 derajat
+            const fov = 2 * Math.PI; // MODIFIED: 360 derajat FOV agar seluruh langit terlihat (termasuk Utara)
             // X: Mapping Azimuth ke Lebar Layar
             // Kita geser sedikit agar Timur ada di kiri (10%) dan Barat di kanan (90%)
             const x = (canvas.width / 2) + (az / fov) * canvas.width;
@@ -822,49 +822,66 @@ function drawCelestialBodies() {
     if (moonAlt > -0.1 && wxCode < 51) { 
         const radius = 25;
 
-        // Moon Glow
-        const grd = ctx.createRadialGradient(moonX, moonY, radius, moonX, moonY, radius * 4);
-        grd.addColorStop(0, "rgba(255, 255, 255, 0.15)");
+        // 1. Moon Glow (Atmosphere) - Lebih natural
+        const grd = ctx.createRadialGradient(moonX, moonY, radius, moonX, moonY, radius * 5);
+        grd.addColorStop(0, "rgba(255, 255, 255, 0.2)");
         grd.addColorStop(1, "rgba(255, 255, 255, 0)");
         ctx.fillStyle = grd;
-        ctx.beginPath(); ctx.arc(moonX, moonY, radius * 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(moonX, moonY, radius * 5, 0, Math.PI * 2); ctx.fill();
 
-        // Base Moon (Putih)
-        ctx.fillStyle = "#f8fafc";
+        // 2. Draw Dark Side (Earthshine) - Abu Gelap Kebiruan (Slate-800)
+        // Ini memberikan efek "lingkaran luar" yang natural (tidak hitam pekat)
+        ctx.fillStyle = "rgba(30, 41, 59, 0.95)"; 
         ctx.beginPath(); ctx.arc(moonX, moonY, radius, 0, Math.PI * 2); ctx.fill();
 
-        // Phase Shadow (Bayangan Fase Bulan)
-        ctx.save();
-        ctx.beginPath(); ctx.arc(moonX, moonY, radius, 0, Math.PI * 2); ctx.clip(); // Clip ke bentuk bulan
+        // 3. Draw Lit Part (Phase) - Putih Terang
+        ctx.fillStyle = "#f8fafc"; 
+        ctx.shadowColor = "rgba(255, 255, 255, 0.9)";
+        ctx.shadowBlur = 15; // Glow pada bagian yang terang
 
-        // Logika Fase Bulan Sederhana (Sabit -> Purnama -> Sabit)
-        // moonPhase: 0 (Baru), 0.5 (Purnama), 1.0 (Baru)
-        // Kita geser bayangan gelap (warna langit) menutupi bulan putih
-        
-        let shadowOffset = 0;
-        // Geser bayangan dari Kiri ke Kanan (Waxing) atau sebaliknya
-        // Rumus sederhana untuk visualisasi 2D
-        if (moonPhase <= 0.5) {
-            // Menuju Purnama: Bayangan geser ke kanan
-            // 0.0 -> Offset -Radius (Tertutup)
-            // 0.5 -> Offset +3*Radius (Terbuka Penuh)
-            shadowOffset = (moonPhase / 0.5) * 3.5 * radius; 
-        } else {
-            // Menuju Bulan Baru: Bayangan datang lagi
-            // 0.5 -> Offset +3*Radius
-            // 1.0 -> Offset -Radius
-             shadowOffset = ((1 - moonPhase) / 0.5) * 3.5 * radius;
-        }
-
-        // Warna Bayangan (Samakan dengan langit malam)
-        ctx.fillStyle = "rgba(15, 23, 42, 0.98)"; 
-        
-        // Gambar lingkaran bayangan yang digeser
-        // Mulai dari posisi menutupi (moonX - 2*radius) lalu geser + shadowOffset
         ctx.beginPath();
-        ctx.arc(moonX - (1.8 * radius) + shadowOffset, moonY, radius, 0, Math.PI * 2);
-        ctx.fill();
         
+        // Logika Fase Geometris (Bukan sekedar geser bayangan)
+        // 0.0 (New) -> 0.5 (Full) -> 1.0 (New)
+        
+        if (moonPhase <= 0.5) {
+            // Waxing (Menuju Purnama) - Terang di Kanan
+            ctx.arc(moonX, moonY, radius, -Math.PI / 2, Math.PI / 2);
+            
+            // Terminator (Garis Batas)
+            const p = moonPhase / 0.5; // 0 -> 1
+            const scale = -1 + (p * 2); // FIX: -1 (New) -> 1 (Full)
+            
+            ctx.save();
+            ctx.translate(moonX, moonY);
+            ctx.scale(scale, 1);
+            ctx.arc(0, 0, radius, Math.PI / 2, 3 * Math.PI / 2);
+            ctx.restore();
+        } else {
+            // Waning (Menuju Baru) - Terang di Kiri
+            ctx.arc(moonX, moonY, radius, Math.PI / 2, 3 * Math.PI / 2);
+            
+            const p = (moonPhase - 0.5) / 0.5; // 0 -> 1
+            const scale = 1 - (p * 2); // FIX: 1 (Full) -> -1 (New)
+            
+            ctx.save();
+            ctx.translate(moonX, moonY);
+            ctx.scale(scale, 1);
+            ctx.arc(0, 0, radius, 3 * Math.PI / 2, 5 * Math.PI / 2);
+            ctx.restore();
+        }
+        
+        ctx.fill();
+        ctx.shadowBlur = 0; // Reset shadow
+
+        // 4. Texture (Kawah) - Opsional, Sederhana
+        ctx.save();
+        ctx.beginPath(); ctx.arc(moonX, moonY, radius, 0, Math.PI * 2); ctx.clip();
+        ctx.fillStyle = "rgba(0,0,0,0.05)";
+        // Beberapa kawah statis relatif terhadap pusat bulan
+        ctx.beginPath(); ctx.arc(moonX - 5, moonY - 5, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(moonX + 8, moonY + 2, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(moonX - 2, moonY + 10, 5, 0, Math.PI*2); ctx.fill();
         ctx.restore();
     }
 }
@@ -888,7 +905,7 @@ function drawLandscape() {
     ctx.fillStyle = backColor;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.55); // Naikkan sedikit agar menutupi horizon 50%
+    ctx.lineTo(0, h * 0.48); // MODIFIED: Naikkan ke 48% agar benar-benar menutupi horizon 50%
     ctx.bezierCurveTo(w * 0.15, h * 0.45, w * 0.3, h * 0.65, w * 0.4, h * 0.55);
     ctx.bezierCurveTo(w * 0.55, h * 0.40, w * 0.7, h * 0.60, w * 0.8, h * 0.55);
     ctx.lineTo(w, h * 0.60);
@@ -1719,7 +1736,7 @@ async function showLocationPanel(latlng) {
     // 3. Fetch Weather & Marine Data (Open-Meteo API)
     try {
         // Mengambil Weather + Marine (Wave Height) + Sun (Sunrise/Sunset)
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,precipitation,weathercode,wave_height,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure,visibility,apparent_temperature,dewpoint_2m,cloudcover,windgusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,sunrise,sunset,uv_index_max&minutely_15=precipitation&timezone=auto&forecast_days=14`);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,precipitation,weathercode,wave_height,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure,visibility,apparent_temperature,dewpoint_2m,cloudcover,windgusts_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,windspeed_10m_max,sunrise,sunset,uv_index_max&minutely_15=precipitation&timezone=auto&forecast_days=14`);
         const data = await res.json();
         currentWeatherData = data; // Simpan data untuk detail view
         updateWeatherUI(data);
@@ -1999,7 +2016,12 @@ function updateWeatherUI(data) {
     // Cek Animasi Cuaca untuk lokasi yang dipilih
     // Hanya jalankan animasi jika panel cuaca sedang terbuka
     if (!document.getElementById('location-panel').classList.contains('translate-y-full')) {
-        moonPhase = getMoonPhaseValue(new Date()); // Update moon phase
+        // MODIFIED: Gunakan SunCalc untuk akurasi fase bulan (Realtime)
+        if (typeof SunCalc !== 'undefined') {
+            moonPhase = SunCalc.getMoonIllumination(new Date()).phase;
+        } else {
+            moonPhase = getMoonPhaseValue(new Date()); 
+        }
         checkWeatherAnimation(code, wx.windspeed, isDay);
     }
 
@@ -2382,6 +2404,7 @@ function updateWeatherUI(data) {
             const minTemp = Math.round(data.daily.temperature_2m_min[i]);
             const code = data.daily.weathercode[i];
             const rainSum = data.daily.precipitation_sum[i];
+            const rainProb = data.daily.precipitation_probability_max ? data.daily.precipitation_probability_max[i] : 0;
 
             // Calculate bar dimensions based on the overall range
             const leftOffset = ((minTemp - overallMinTemp) / totalRange) * 100;
@@ -2414,7 +2437,7 @@ function updateWeatherUI(data) {
                 <div class="w-[22%] text-sm font-semibold text-slate-200 group-hover:text-white transition-colors truncate">${dayName}</div>
                 <div class="w-[18%] flex flex-col items-center justify-center">
                     ${iconHtml}
-                    ${rainSum > 0.5 ? `<span class="text-[9px] font-bold text-blue-300 mt-0.5">${Math.round(rainSum)}mm</span>` : ''}
+                    ${rainProb >= 20 ? `<span class="text-[9px] font-bold text-blue-300 mt-0.5">${rainProb}%</span>` : ''}
                 </div>
                 <div class="w-[60%] flex items-center gap-3 pl-1">
                     <span class="text-slate-200 text-xs font-medium w-6 text-right">${minTemp}°</span>
@@ -3247,7 +3270,15 @@ async function fetchEarthquakeInfo() {
         quakeContainer.id = 'quake-container';
         // Style mirip dengan kartu prakiraan cuaca (Liquid Glass)
         quakeContainer.className = "mx-0 mt-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg";
-        forecastList.parentNode.insertBefore(quakeContainer, forecastList.nextSibling);
+        
+        // MODIFIED: Cek apakah ada AQI container. Jika ada, taruh Gempa DI BAWAH AQI.
+        const aqiContainer = document.getElementById('aqi-container');
+        if (aqiContainer && aqiContainer.parentNode === forecastList.parentNode) {
+             if (aqiContainer.nextSibling) forecastList.parentNode.insertBefore(quakeContainer, aqiContainer.nextSibling);
+             else forecastList.parentNode.appendChild(quakeContainer);
+        } else {
+             forecastList.parentNode.insertBefore(quakeContainer, forecastList.nextSibling);
+        }
     }
     
     if(!quakeContainer) return;
@@ -3353,13 +3384,13 @@ function updateAqiUI(aqi) {
     // Tentukan warna & status
     let status = "Bagus";
     let colorClass = "text-emerald-400";
-    let barColor = "bg-emerald-500";
+    // let barColor = "bg-emerald-500"; // Removed: Menggunakan gradient full
     let desc = "Udara bersih, bagus untuk aktivitas luar.";
 
-    if(aqi > 50) { status = "Sedang"; colorClass = "text-yellow-400"; barColor = "bg-yellow-500"; desc = "Kualitas udara dapat diterima, namun berisiko bagi yang sensitif."; }
-    if(aqi > 100) { status = "Tdk Sehat"; colorClass = "text-orange-400"; barColor = "bg-orange-500"; desc = "Kurangi aktivitas fisik yang berat di luar ruangan."; }
-    if(aqi > 150) { status = "Bahaya"; colorClass = "text-red-400"; barColor = "bg-red-500"; desc = "Hindari aktivitas luar ruangan. Gunakan masker."; }
-    if(aqi > 300) { status = "Beracun"; colorClass = "text-purple-400"; barColor = "bg-purple-500"; desc = "Sangat berbahaya. Tetap di dalam ruangan."; }
+    if(aqi > 50) { status = "Sedang"; colorClass = "text-yellow-400"; desc = "Kualitas udara dapat diterima, namun berisiko bagi yang sensitif."; }
+    if(aqi > 100) { status = "Tdk Sehat"; colorClass = "text-orange-400"; desc = "Kurangi aktivitas fisik yang berat di luar ruangan."; }
+    if(aqi > 150) { status = "Bahaya"; colorClass = "text-red-400"; desc = "Hindari aktivitas luar ruangan. Gunakan masker."; }
+    if(aqi > 300) { status = "Beracun"; colorClass = "text-purple-400"; desc = "Sangat berbahaya. Tetap di dalam ruangan."; }
 
     const pct = Math.min((aqi / 300) * 100, 100);
 
@@ -3378,31 +3409,27 @@ function updateAqiUI(aqi) {
                 <span class="text-[10px] text-slate-400 mt-1">US AQI</span>
             </div>
             <div class="flex-1">
-                <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div class="h-full ${barColor} transition-all duration-1000" style="width: ${pct}%"></div>
+                <div class="relative w-full h-2 rounded-full" style="background: linear-gradient(to right, #4ade80, #facc15, #fb923c, #f87171, #a78bfa, #881337);">
+                    <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)] border border-slate-500 transition-all duration-1000" style="left: calc(${pct}% - 6px);"></div>
                 </div>
-                <p class="text-[10px] text-slate-300 mt-1 leading-tight">${desc}</p>
+                <p class="text-[10px] text-slate-300 mt-2 leading-tight">${desc}</p>
             </div>
         </div>
     `;
     lucide.createIcons();
 
     // --- FIX: LOGIKA PENEMPATAN (PLACEMENT LOGIC) ---
-    // Pastikan AQI selalu di bawah Gempa (jika ada), atau di bawah Forecast
-    const quakeContainer = document.getElementById('quake-container');
+    // MODIFIED: Pastikan AQI selalu di ATAS Gempa (Tepat di bawah Forecast)
     const parent = forecastList.parentNode;
 
     // Cabut dulu elemennya (jika sudah ada) agar bisa dipindah ke posisi yang benar
     if (aqiContainer.parentNode) aqiContainer.parentNode.removeChild(aqiContainer);
 
-    if (quakeContainer && quakeContainer.parentNode === parent) {
-        // Jika Gempa sudah ada, taruh AQI SETELAH Gempa
-        if (quakeContainer.nextSibling) parent.insertBefore(aqiContainer, quakeContainer.nextSibling);
-        else parent.appendChild(aqiContainer);
+    // Selalu sisipkan AQI tepat setelah Forecast List
+    // (Ini akan otomatis mendorong Gempa ke bawah jika Gempa sudah ada)
+    if (forecastList.nextSibling) {
+        parent.insertBefore(aqiContainer, forecastList.nextSibling);
     } else {
-        // Jika Gempa belum ada, taruh AQI SETELAH Forecast
-        // (Nanti saat Gempa muncul, dia akan menyisipkan dirinya di antara Forecast dan AQI)
-        if (forecastList.nextSibling) parent.insertBefore(aqiContainer, forecastList.nextSibling);
-        else parent.appendChild(aqiContainer);
+        parent.appendChild(aqiContainer);
     }
 }
