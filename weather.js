@@ -22,6 +22,7 @@ let currentSkyBot = '#000000'; // NEW: Cache for landscape
 let isAudioUnlocked = false; // Status untuk autoplay audio di HP
 let pendingAudio = null; // Sinkronisasi audio & animasi
 let audioFrameCounter = 0; // Counter delay audio agar tidak mendahului visual
+let landscapeTreePath = null; // Cache untuk siluet pohon
 
 
 // --- NEW: Inject SVG Filters & CSS for Realistic Clouds ---
@@ -124,6 +125,61 @@ function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         initStars();
+        generateLandscapeTrees();
+    }
+}
+
+function generateLandscapeTrees() {
+    if (!canvas) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    
+    landscapeTreePath = new Path2D();
+    
+    // 1. Gambar Tanah Dasar (Bukit bergelombang)
+    landscapeTreePath.moveTo(0, h);
+    for (let x = 0; x <= w; x += 10) {
+        const groundY = h * 0.93 - Math.sin(x * 0.0025) * 25;
+        landscapeTreePath.lineTo(x, groundY);
+    }
+    landscapeTreePath.lineTo(w, h);
+    landscapeTreePath.closePath();
+
+    // 2. Tambahkan Pohon Pinus (Natural & Bertingkat)
+    let x = 0;
+    while (x < w) {
+        // Jarak antar pohon acak (Rapat agar terlihat seperti hutan)
+        const gap = 5 + Math.random() * 20; 
+        x += gap;
+        if (x >= w) break;
+
+        // Posisi Y mengikuti kontur tanah
+        const groundY = h * 0.93 - Math.sin(x * 0.0025) * 25;
+
+        // Variasi Ukuran Pohon
+        const scale = 0.8 + Math.random() * 1.2; // Skala diperbesar (0.8x - 2.0x)
+        const treeH = 75 * scale; // Tinggi dasar dinaikkan agar lebih tinggi
+        const treeW = 20 * scale; // Lebar dasar disesuaikan
+        const baseY = groundY + 5; // Sedikit tertanam
+
+        // Gambar Pohon Pinus (3 Tingkat Segitiga)
+        // Tingkat 1 (Bawah)
+        landscapeTreePath.moveTo(x - treeW, baseY);
+        landscapeTreePath.lineTo(x, baseY - treeH * 0.4);
+        landscapeTreePath.lineTo(x + treeW, baseY);
+        landscapeTreePath.closePath();
+
+        // Tingkat 2 (Tengah)
+        landscapeTreePath.moveTo(x - treeW * 0.8, baseY - treeH * 0.25);
+        landscapeTreePath.lineTo(x, baseY - treeH * 0.7);
+        landscapeTreePath.lineTo(x + treeW * 0.8, baseY - treeH * 0.25);
+        landscapeTreePath.closePath();
+
+        // Tingkat 3 (Atas)
+        landscapeTreePath.moveTo(x - treeW * 0.6, baseY - treeH * 0.55);
+        landscapeTreePath.lineTo(x, baseY - treeH); // Puncak
+        landscapeTreePath.lineTo(x + treeW * 0.6, baseY - treeH * 0.55);
+        landscapeTreePath.closePath();
     }
 }
 
@@ -922,6 +978,13 @@ function drawLandscape() {
     ctx.bezierCurveTo(w * 0.7, h * 0.85, w * 0.85, h * 0.65, w, h * 0.70);
     ctx.lineTo(w, h);
     ctx.fill();
+
+    // 3. Siluet Pohon (Layer Paling Depan - Kaki Gunung)
+    if (landscapeTreePath) {
+        // Warna pohon lebih gelap dari gunung depan (hampir hitam tapi menyatu)
+        ctx.fillStyle = lerpColor(frontColor, '#000000', 0.6);
+        ctx.fill(landscapeTreePath);
+    }
 }
 
 function animate() {
