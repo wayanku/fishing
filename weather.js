@@ -2519,6 +2519,11 @@ function updateWeatherUI(data) {
 
         // --- NEW: Load Earthquake Info (Async) ---
         fetchEarthquakeInfo();
+
+        // --- NEW: Inject Precipitation Map Card ---
+        if(typeof injectPrecipitationCard === 'function') {
+            injectPrecipitationCard(data.latitude, data.longitude);
+        }
     }
 }
 
