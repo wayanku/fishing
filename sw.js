@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fishing-spot-v15';
+const CACHE_NAME = 'fishing-spot-v21';
 const ASSETS = [
     './',
     './index.html',
@@ -38,9 +38,10 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(event.request.url);
 
-    // --- FIX: AUDIO BYPASS ---
-    // File audio dari GitHub harus bypass SW agar Range Requests (seek/loop) berfungsi di iOS/Chrome
-    if (url.hostname.includes('raw.githubusercontent.com')) {
+    // --- FIX: AUDIO & API BYPASS ---
+    // File audio dari GitHub & API Eksternal harus bypass SW agar tidak error saat offline/CORS
+    if (url.hostname.includes('raw.githubusercontent.com') || 
+        url.hostname.includes('rainviewer.com')) {
         return;
     }
 
