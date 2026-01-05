@@ -2507,6 +2507,7 @@
         // --- NEW: Animation Variables ---
         let precipAnimationInterval = null;
         let precipFrames = [];
+        let precipLayers = {}; // Cache layer agar animasi mulus
         let currentPrecipFrameIndex = 0;
         let precipRadarLayer = null; // To easily remove and add new layers
         let isPrecipPlaying = false;
@@ -2634,6 +2635,17 @@
                     const pastFrames = data.radar.past || [];
                     const futureFrames = data.radar.nowcast || [];
                     precipFrames = [...pastFrames, ...futureFrames];
+                    
+                    // Pre-create Layers (Caching) untuk animasi mulus
+                    precipLayers = {};
+                    precipFrames.forEach((frame, i) => {
+                        const tileUrl = `${host}${frame.path}/512/{z}/{x}/{y}/5/1_1.png`;
+                        precipLayers[i] = L.tileLayer(tileUrl, { 
+                            opacity: 0.8, 
+                            attribution: 'RainViewer',
+                            tileSize: 512, zoomOffset: -1 // Optimasi RainViewer 512px
+                        });
+                    });
 
                     if (precipFrames.length > 0) {
                         // Temukan frame "Kini" (frame terakhir dari 'past')
@@ -2671,14 +2683,20 @@
             if (index < 0 || index >= precipFrames.length) return;
 
             const frame = precipFrames[index];
-            const tileUrl = `${host || 'https://tilecache.rainviewer.com'}${frame.path}/512/{z}/{x}/{y}/5/1_1.png`;
+            // Gunakan layer yang sudah dicache
+            const newLayer = precipLayers[index];
+            if (!newLayer) return;
 
-            if (precipRadarLayer) {
+            // Teknik Double Buffering: Tambah layer baru dulu, baru hapus yang lama
+            if (!largePrecipMap.hasLayer(newLayer)) {
+                newLayer.addTo(largePrecipMap);
+            }
+            
+            if (precipRadarLayer && precipRadarLayer !== newLayer) {
                 largePrecipMap.removeLayer(precipRadarLayer);
             }
 
-            precipRadarLayer = L.tileLayer(tileUrl, { opacity: 0.8, attribution: 'RainViewer' });
-            precipRadarLayer.addTo(largePrecipMap);
+            precipRadarLayer = newLayer;
 
             // Update UI
             const timestamp = new Date(frame.time * 1000);
@@ -2699,7 +2717,7 @@
                     nextIndex = 0; // Loop back to start
                 }
                 showPrecipFrame(nextIndex, precipFrames[0] ? (precipFrames[0].host || 'https://tilecache.rainviewer.com') : 'https://tilecache.rainviewer.com');
-            }, 500); // Ganti frame setiap 500ms
+            }, 250); // Dipercepat jadi 250ms agar lebih fluid
         }
 
         function pausePrecipAnimation() {
