@@ -404,7 +404,13 @@
                 map.flyTo(userLatlng, 15); // Fokus ke lokasi user
             } else {
                 alert("Lokasi Anda belum ditemukan. Pastikan GPS aktif.");
-                getUserWeather();
+                // FIX: Tambahkan pengecekan untuk mencegah error jika fungsi belum termuat
+                if (typeof getUserWeather === 'function') {
+                    getUserWeather();
+                } else {
+                    console.error("Fungsi 'getUserWeather' tidak ditemukan. Coba refresh halaman.");
+                    alert("Fitur cuaca belum siap. Mohon coba lagi sesaat.");
+                }
             }
         }
 
@@ -452,6 +458,12 @@
         }
 
         function searchLocation() {
+            // FIX: Sembunyikan saran otomatis saat tombol cari/enter ditekan
+            hideSuggestions();
+            
+            // FIX: Hentikan timer pencarian otomatis agar tidak muncul tiba-tiba setelah enter
+            if(typeof searchDebounceTimer !== 'undefined') clearTimeout(searchDebounceTimer);
+            
             const query = document.getElementById('search-input').value;
             if(!query) return;
             
@@ -492,6 +504,164 @@
                 })
                 .catch(() => alert("Gagal mencari lokasi"))
                 .finally(() => btn.innerHTML = originalContent);
+        }
+
+        // --- NEW: AUTOCOMPLETE SEARCH FUNCTIONS ---
+        let searchDebounceTimer;
+
+        function handleSearchInput() {
+            clearTimeout(searchDebounceTimer);
+            const query = document.getElementById('search-input').value;
+            
+            if (query.length < 3) {
+                hideSuggestions();
+                return;
+            }
+
+            // Tampilkan loading skeleton agar terlihat canggih
+            showSearchLoading();
+
+            searchDebounceTimer = setTimeout(() => {
+                // Limit dinaikkan jadi 5 agar lebih banyak pilihan
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5&addressdetails=1&extratags=1`)
+                    .then(res => res.json())
+                    .then(data => showSuggestions(data))
+                    .catch(err => console.error(err));
+            }, 300); // Delay 300ms agar tidak spam API
+        }
+
+        function showSearchLoading() {
+            let container = document.getElementById('search-suggestions');
+            const input = document.getElementById('search-input');
+            
+            if (!container && input) {
+                container = document.createElement('div');
+                container.id = 'search-suggestions';
+                // Style Liquid Glass (Blur Kuat + Transparan)
+                container.className = "absolute top-full left-0 w-full bg-slate-900/60 backdrop-blur-xl border border-white/20 rounded-xl mt-2 shadow-2xl z-[5000] overflow-hidden flex flex-col transition-all duration-300";
+                
+                if(input.parentNode) {
+                    const parentStyle = window.getComputedStyle(input.parentNode);
+                    if(parentStyle.position === 'static') input.parentNode.style.position = 'relative';
+                    input.parentNode.appendChild(container);
+                }
+            }
+            
+            if(container) {
+                container.innerHTML = `
+                    <div class="p-3 flex items-center gap-3 animate-pulse border-b border-white/5">
+                        <div class="w-8 h-8 rounded-full bg-white/10"></div>
+                        <div class="flex-1">
+                            <div class="h-3 w-1/3 bg-white/10 rounded mb-2"></div>
+                            <div class="h-2 w-2/3 bg-white/5 rounded"></div>
+                        </div>
+                    </div>
+                `;
+                container.classList.remove('hidden');
+            }
+        }
+
+        function showSuggestions(data) {
+            let container = document.getElementById('search-suggestions');
+            
+            if (!container) {
+                showSearchLoading(); 
+                container = document.getElementById('search-suggestions');
+            }
+            
+            container.innerHTML = '';
+            
+            if (data.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 italic">Lokasi tidak ditemukan</div>`;
+                return;
+            }
+
+            const query = document.getElementById('search-input').value.toLowerCase();
+            
+            // Helper Highlight Text
+            const highlight = (text) => {
+                if(!text) return '';
+                const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${safeQuery})`, 'gi');
+                return text.replace(regex, '<span class="text-blue-400 font-bold drop-shadow-sm">$1</span>');
+            };
+
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-3 hover:bg-white/10 cursor-pointer border-b border-white/5 last:border-0 flex items-center gap-3 transition-colors group";
+                
+                // Nama lokasi yang lebih bersih
+                const mainName = item.display_name.split(',')[0];
+                const subName = item.display_name.replace(mainName + ',', '').trim();
+
+                // Advanced Icon Logic
+                let iconName = 'map-pin';
+                let iconColor = 'text-slate-400';
+                
+                if (item.type === 'city' || item.type === 'administrative') { iconColor = 'text-purple-400'; }
+                else if (item.type === 'village' || item.type === 'hamlet') { iconColor = 'text-emerald-400'; }
+                else if (item.class === 'natural' || item.type === 'water' || item.type === 'bay' || item.type === 'beach') { iconName = 'waves'; iconColor = 'text-cyan-400'; }
+                else if (item.class === 'tourism') { iconName = 'image'; iconColor = 'text-yellow-400'; }
+
+                div.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-slate-800/50 border border-white/10 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:border-blue-500 transition-all shadow-sm">
+                        <i data-lucide="${iconName}" class="w-4 h-4 ${iconColor} group-hover:text-white transition-colors"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium text-white truncate group-hover:text-blue-100 transition-colors">${highlight(mainName)}</p>
+                        <p class="text-[10px] text-slate-400 truncate group-hover:text-slate-300 transition-colors">${highlight(subName)}</p>
+                    </div>
+                `;
+                
+                div.onclick = () => selectSuggestion(item);
+                container.appendChild(div);
+            });
+            
+            container.classList.remove('hidden');
+            if(window.lucide) lucide.createIcons();
+            
+            // Close when clicking outside
+            document.addEventListener('click', function closeOnClickOutside(e) {
+                const input = document.getElementById('search-input');
+                if (!container.contains(e.target) && e.target !== input) {
+                    hideSuggestions();
+                    document.removeEventListener('click', closeOnClickOutside);
+                }
+            });
+        }
+
+        function hideSuggestions() {
+            const container = document.getElementById('search-suggestions');
+            if (container) container.classList.add('hidden');
+        }
+
+        function selectSuggestion(item) {
+            const input = document.getElementById('search-input');
+            if(input) input.value = item.display_name.split(',')[0];
+            
+            hideSuggestions();
+            
+            // Direct Fly-To Logic (Reusing search marker style)
+            const lat = parseFloat(item.lat);
+            const lon = parseFloat(item.lon);
+            
+            if(searchMarker) map.removeLayer(searchMarker);
+
+            const redPin = L.divIcon({
+                className: 'bg-transparent',
+                html: `<div class="relative -mt-10 flex flex-col items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" viewBox="0 0 24 24" fill="#ef4444" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-2xl"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+                        <div class="w-4 h-1.5 bg-black/30 blur-sm rounded-full"></div>
+                       </div>`,
+                iconSize: [46, 46],
+                iconAnchor: [23, 46],
+                popupAnchor: [0, -45]
+            });
+
+            searchMarker = L.marker([lat, lon], {icon: redPin}).addTo(map)
+                .bindPopup(`<b class="text-slate-900 text-sm">${item.display_name.split(',')[0]}</b>`).openPopup();
+
+            map.flyTo([lat, lon], 13);
         }
 
         // Fungsi Street View: Membuka koordinat di Google Street View
@@ -587,6 +757,12 @@
             
             // Pre-load the AI model in the background for faster analysis later
             getAiWorker().postMessage({ type: 'init' });
+
+            // --- NEW: Init Search Autocomplete ---
+            const searchInput = document.getElementById('search-input');
+            if(searchInput) {
+                searchInput.addEventListener('input', handleSearchInput);
+            }
 
             if(typeof getUserWeather === 'function') getUserWeather(); // Ambil cuaca lokasi user saat ini
             loadSpots();
@@ -2252,6 +2428,7 @@
             }
 
             try {
+                // REMOVED: Proxy dihapus sesuai permintaan. Ini mungkin menyebabkan error CORS kembali.
                 const res = await fetch(`https://api.rainviewer.com/public/weather-maps.json?_=${Date.now()}`);
                 const data = await res.json();
                 
