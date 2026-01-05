@@ -100,17 +100,17 @@ function initCloudAssets() {
             .cloud-storm .c-mid { box-shadow: 210px 250px 30px 35px rgba(105, 115, 125, 0.4) !important; }
             .cloud-storm .c-front { box-shadow: 210px 270px 35px 5px rgba(125, 135, 145, 0.5) !important; }
 
-            /* NIGHT: Abu-abu Gelap Kebiruan (Lebih Natural) */
-            .cloud-night .c-base { box-shadow: 200px 170px 25px 45px rgba(51, 65, 85, 0.9) !important; } /* Slate-700 */
-            .cloud-night .c-back { box-shadow: 200px 200px 15px 45px rgba(30, 41, 59, 0.5) !important; } /* Slate-800 */
-            .cloud-night .c-mid { box-shadow: 210px 250px 30px 35px rgba(71, 85, 105, 0.4) !important; } /* Slate-600 */
-            .cloud-night .c-front { box-shadow: 210px 270px 35px 5px rgba(100, 116, 139, 0.5) !important; } /* Slate-500 */
+            /* NIGHT: Abu-abu Natural Malam Hari (Tidak Terlalu Biru) */
+            .cloud-night .c-base { box-shadow: 200px 170px 25px 45px rgba(70, 70, 80, 0.9) !important; }   /* Base: Abu-abu gelap netral */
+            .cloud-night .c-back { box-shadow: 200px 200px 15px 45px rgba(50, 50, 60, 0.5) !important; }   /* Back: Bayangan lebih gelap */
+            .cloud-night .c-mid { box-shadow: 210px 250px 30px 35px rgba(85, 85, 95, 0.4) !important; }    /* Mid: Sedikit lebih terang */
+            .cloud-night .c-front { box-shadow: 210px 270px 35px 5px rgba(110, 110, 120, 0.5) !important; } /* Front: Highlight abu-abu terang */
 
-            /* SUNSET: Abu-abu Gelap dengan Highlight Oranye Lembut (Natural) */
-            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(71, 85, 105, 0.9) !important; } /* Slate-600 (Base gelap) */
-            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(250, 204, 21, 0.2) !important; } /* Yellow-400 (Sedikit Kuning) */
-            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(51, 65, 85, 0.5) !important; } /* Slate-700 (Shadow) */
-            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(251, 146, 60, 0.25) !important; } /* Orange-400 (Tetap Orange) */
+            /* SUNSET: Putih Kemerahan dengan Sentuhan Abu (Sesuai Request) */
+            .cloud-sunset .c-base { box-shadow: 200px 170px 25px 45px rgba(230, 220, 225, 0.9) !important; } /* Base: Putih Pink Abu */
+            .cloud-sunset .c-back { box-shadow: 200px 200px 15px 45px rgba(255, 182, 193, 0.4) !important; } /* Back: Pink Lembut */
+            .cloud-sunset .c-mid { box-shadow: 210px 250px 30px 35px rgba(160, 160, 170, 0.4) !important; } /* Mid: Abu-abu Ringan */
+            .cloud-sunset .c-front { box-shadow: 210px 270px 35px 5px rgba(255, 240, 245, 0.5) !important; } /* Front: Putih Pink Cerah */
         </style>
     `;
     document.body.appendChild(assets);
@@ -1780,12 +1780,14 @@ function updateWeatherUI(data) {
             const now = new Date();
             const nowTime = now.getTime();
             
-            // Generate 6 slots (Now, +10, +20, +30, +40, +50) -> Total 50 mins range
+            // MODIFIED: Generate 30 slots for the next 60 minutes (1 slot per 2 mins) for a smoother graph
             const nextSlots = [];
             let hasRain = false;
+            const totalSlots = 30; // 30 bars for 60 minutes
+            const minuteInterval = 2; // 2 minutes per bar
             
-            for(let i=0; i<6; i++) {
-                const targetTime = nowTime + (i * 10 * 60 * 1000);
+            for(let i=0; i < totalSlots; i++) {
+                const targetTime = nowTime + (i * minuteInterval * 60 * 1000);
                 
                 // Find index in original data (Interpolation)
                 let idx = pTimes.findIndex(t => t >= targetTime);
@@ -1814,8 +1816,10 @@ function updateWeatherUI(data) {
                 val = Math.max(0, Math.round(val * 100) / 100);
                 if(val > 0.05) hasRain = true;
                 
-                // Label: "Kini", "10m", "20m"...
-                let label = i === 0 ? "Kini" : `${i*10}m`;
+                // Label: "Kini", lalu setiap 10 menit (kelipatan 5 batang jika interval 2 menit)
+                let label = '';
+                if (i === 0) label = "Kini";
+                else if ((i * minuteInterval) % 10 === 0) label = `${i * minuteInterval}m`;
                 
                 nextSlots.push({ t: targetTime, v: val, label: label });
             }
@@ -1834,7 +1838,7 @@ function updateWeatherUI(data) {
                     // Sedang Hujan -> Cari kapan berhenti
                     const stopIdx = nextSlots.findIndex(s => s.v <= 0.05);
                     if (stopIdx !== -1) {
-                        const diffMin = stopIdx * 10;
+                        const diffMin = stopIdx * minuteInterval;
                         statusText = `${pTypeChart} berhenti dalam ${diffMin} menit.`;
                     } else {
                         statusText = `${pTypeChart} berlanjut untuk 1 jam ke depan.`;
@@ -1843,7 +1847,7 @@ function updateWeatherUI(data) {
                     // Tidak Hujan -> Cari kapan mulai
                     const startRainIdx = nextSlots.findIndex(s => s.v > 0.05);
                     if (startRainIdx !== -1) {
-                        const diffMin = startRainIdx * 10;
+                        const diffMin = startRainIdx * minuteInterval;
                         statusText = `${pTypeChart} dimulai dalam ${diffMin} menit.`;
                     }
                 }
@@ -1853,10 +1857,10 @@ function updateWeatherUI(data) {
                 let barsHtml = nextSlots.map(s => {
                     const heightPct = Math.min((s.v / maxP) * 100, 100);
                     const barColor = s.v > 0.05 ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-slate-700/30';
-                    return `<div class="flex flex-col items-center justify-end h-20 w-full gap-1"><div class="w-1.5 rounded-full ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${s.label}</span></div>`;
+                    return `<div class="flex flex-col items-center justify-end h-20 flex-1 gap-1"><div class="w-1 rounded-full ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${s.label}</span></div>`;
                 }).join('');
 
-                precipChartContainer.innerHTML = `<p class="text-xs font-bold text-white mb-2 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-1 h-16 border-b border-white/5 pb-1">${barsHtml}</div>`;
+                precipChartContainer.innerHTML = `<p class="text-xs font-bold text-white mb-2 flex items-center gap-2"><i data-lucide="cloud-rain" class="w-4 h-4 text-blue-400"></i> ${statusText}</p><div class="flex items-end justify-between gap-0.5 h-16 border-b border-white/5 pb-1">${barsHtml}</div>`;
             } else {
                 precipChartContainer.classList.add('hidden');
                 const pCard = document.getElementById('precip-card');
