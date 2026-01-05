@@ -748,10 +748,16 @@ function drawCelestialBodies() {
             const x = (canvas.width / 2) + (az / fov) * canvas.width;
             
             // Y: Mapping Altitude ke Tinggi Layar
-            // MODIFIED: Horizon di 50% (sejajar kolom info), Zenith di 1% (Sangat tinggi, hampir menyentuh atas)
+            // MODIFIED: Horizon di 50% (sejajar kolom info)
+            // Zenith di 2% (Hampir menyentuh atas)
             const horizon = canvas.height * 0.50; 
-            const zenith = canvas.height * 0.01;
-            const y = horizon - (alt / (Math.PI/2)) * (horizon - zenith);
+            const zenith = canvas.height * 0.02;
+            
+            // FIX: Gunakan Math.sin dan scaling 1.3x agar matahari terlihat lebih tinggi (melengkung ke atas)
+            // Ini meniru efek visual "tinggi" yang diinginkan user
+            let visualAlt = alt > 0 ? Math.min(Math.PI / 2, alt * 1.3) : alt;
+            
+            const y = horizon - Math.sin(visualAlt) * (horizon - zenith);
             
             return { x, y };
         };
@@ -882,10 +888,10 @@ function drawLandscape() {
     ctx.fillStyle = backColor;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.65);
-    ctx.bezierCurveTo(w * 0.15, h * 0.50, w * 0.3, h * 0.70, w * 0.4, h * 0.60);
-    ctx.bezierCurveTo(w * 0.55, h * 0.45, w * 0.7, h * 0.65, w * 0.8, h * 0.60);
-    ctx.lineTo(w, h * 0.65);
+    ctx.lineTo(0, h * 0.55); // Naikkan sedikit agar menutupi horizon 50%
+    ctx.bezierCurveTo(w * 0.15, h * 0.45, w * 0.3, h * 0.65, w * 0.4, h * 0.55);
+    ctx.bezierCurveTo(w * 0.55, h * 0.40, w * 0.7, h * 0.60, w * 0.8, h * 0.55);
+    ctx.lineTo(w, h * 0.60);
     ctx.lineTo(w, h);
     ctx.fill();
 
@@ -893,9 +899,9 @@ function drawLandscape() {
     ctx.fillStyle = frontColor;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.70);
-    ctx.bezierCurveTo(w * 0.2, h * 0.80, w * 0.35, h * 0.60, w * 0.5, h * 0.75);
-    ctx.bezierCurveTo(w * 0.7, h * 0.90, w * 0.85, h * 0.70, w, h * 0.75);
+    ctx.lineTo(0, h * 0.65);
+    ctx.bezierCurveTo(w * 0.2, h * 0.75, w * 0.35, h * 0.55, w * 0.5, h * 0.70);
+    ctx.bezierCurveTo(w * 0.7, h * 0.85, w * 0.85, h * 0.65, w, h * 0.70);
     ctx.lineTo(w, h);
     ctx.fill();
 }
@@ -1283,20 +1289,144 @@ async function showLocationPanel(latlng) {
     }
     // ---------------------------------------------
 
-    // Reset UI
-    document.getElementById('panel-address').innerText = "Mencari nama lokasi...";
-    document.getElementById('wx-wave').innerText = "-- m";
-    document.getElementById('wx-tide').innerText = "-- m";
-    document.getElementById('wx-sst').innerText = "--°C";
-    document.getElementById('wx-depth').innerText = "-- m";
-    document.getElementById('panel-dist').innerHTML = '<span class="animate-pulse">Menghitung...</span>';
-    document.getElementById('wx-sun').innerHTML = "--:--<br>--:--";
-    document.getElementById('panel-coords').innerText = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
-    document.getElementById('wx-temp').innerText = "--°";
-    document.getElementById('wx-wind-speed').innerText = "--";
-    document.getElementById('wx-desc').innerText = dt.loading;
-    document.getElementById('wx-score').innerText = "--%";
-    document.getElementById('forecast-list').innerHTML = `<div class="text-center text-xs text-slate-500 py-4">${dt.loading}</div>`;
+    // --- MODIFIED: Reset UI with Full Skeleton (Tampilan Loading Kartu) ---
+    const skeletonBlock = '<div class="h-5 w-16 bg-slate-600/50 rounded animate-pulse mx-auto"></div>';
+    const skeletonText = '<div class="h-3 w-24 bg-slate-600/50 rounded animate-pulse mx-auto mt-1"></div>';
+    
+    // 1. Header Skeleton (Agar header langsung muncul walau data belum ada)
+    const panelContent = document.querySelector('#location-panel > div');
+    let header = document.getElementById('new-weather-header');
+    
+    if (!header && panelContent) {
+        header = document.createElement('div');
+        header.id = 'new-weather-header';
+        header.className = 'flex flex-col items-center text-white pt-16 pb-10 px-4 text-center';
+        panelContent.prepend(header);
+        
+        // Sembunyikan elemen lama yang duplikat
+        const oldAddress = document.getElementById('panel-address');
+        const oldCoords = document.getElementById('panel-coords');
+        const oldDist = document.getElementById('panel-dist');
+        if (oldAddress) oldAddress.classList.add('hidden');
+        if (oldCoords) oldCoords.classList.add('hidden');
+        if (oldDist) oldDist.classList.add('hidden');
+        
+        // Sembunyikan kartu lama yang pindah ke header
+        const tempCard = document.querySelector('[onclick="showMetricInsight(\'temp\')"]');
+        const weatherCard = document.querySelector('[onclick="showMetricInsight(\'weather\')"]');
+        if (tempCard) tempCard.classList.add('hidden');
+        if (weatherCard) weatherCard.classList.add('hidden');
+    }
+
+    if (header) {
+        // Isi Header dengan Skeleton
+        header.innerHTML = `
+            <h2 id="header-location" class="text-3xl font-bold tracking-tight text-center leading-tight line-clamp-2"><div class="h-8 w-48 bg-slate-700/50 rounded-lg animate-pulse mx-auto"></div></h2>
+            <p class="text-sm font-medium text-slate-200 mt-1 mb-2 opacity-90"><span id="header-time"><div class="h-4 w-20 bg-slate-700/50 rounded-lg animate-pulse inline-block"></div></span></p>
+            <p id="header-temp" class="text-8xl font-thin -my-2 tracking-tighter"><div class="h-24 w-40 bg-slate-700/50 rounded-3xl animate-pulse mx-auto my-4"></div></p>
+            <p id="header-desc" class="text-xl font-medium mt-1"><div class="h-6 w-32 bg-slate-700/50 rounded-lg animate-pulse mx-auto"></div></p>
+            <p id="header-minmax" class="text-sm font-medium opacity-80 mt-1"><div class="h-4 w-48 bg-slate-700/50 rounded-lg animate-pulse mx-auto"></div></p>
+        `;
+    }
+
+    // 2. Grid Cards Skeleton (Ombak, Pasang, dll)
+    document.getElementById('wx-wave').innerHTML = skeletonBlock;
+    document.getElementById('wx-tide').innerHTML = skeletonBlock;
+    document.getElementById('wx-sst').innerHTML = skeletonBlock;
+    document.getElementById('wx-depth').innerHTML = skeletonBlock;
+    document.getElementById('wx-score').innerHTML = skeletonBlock;
+    document.getElementById('wx-wind-speed').innerHTML = '<div class="h-5 w-10 bg-slate-600/50 rounded animate-pulse inline-block"></div>';
+    document.getElementById('wx-sun').innerHTML = `<div class="flex flex-col gap-2 items-center justify-center w-full h-full"><div class="h-3 w-16 bg-slate-600/50 rounded animate-pulse"></div><div class="h-3 w-16 bg-slate-600/50 rounded animate-pulse"></div></div>`;
+    document.getElementById('panel-dist').innerHTML = '<div class="h-8 w-24 bg-slate-700/50 rounded animate-pulse mx-auto"></div>';
+    
+    // --- MODIFIED: Render Skeleton UI immediately (Agar tampilan siap sebelum data datang) ---
+    
+    // 1. Setup Hourly Forecast Skeleton
+    let hourlyContainer = document.getElementById('hourly-forecast-container');
+    const existingScroll = document.getElementById('weather-scroll');
+    const dotsContainer = document.getElementById('scroll-dots');
+    
+    // Create Hourly Card if missing (Buat wadah kartu jika belum ada)
+    if (!hourlyContainer && existingScroll) {
+        const referenceNode = dotsContainer || existingScroll;
+        const parentNode = referenceNode.parentNode;
+        const cardClass = "mx-0 mb-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg overflow-hidden";
+
+        // Precip Card (Hidden initially)
+        const precipCard = document.createElement('div');
+        precipCard.id = 'precip-card';
+        precipCard.className = cardClass + " hidden";
+        if(parentNode) parentNode.insertBefore(precipCard, referenceNode.nextSibling);
+        
+        const precipChartContainer = document.createElement('div');
+        precipChartContainer.id = 'precip-chart-container';
+        precipChartContainer.className = "px-4 py-2";
+        precipCard.appendChild(precipChartContainer);
+
+        // Hourly Card
+        const hourlyCard = document.createElement('div');
+        hourlyCard.id = 'hourly-card';
+        hourlyCard.className = cardClass;
+        if(parentNode) parentNode.insertBefore(hourlyCard, precipCard.nextSibling);
+
+        // Summary
+        const hourlySummaryContainer = document.createElement('div');
+        hourlySummaryContainer.id = 'hourly-summary-container';
+        hourlySummaryContainer.className = "px-4 py-3 text-xs text-slate-200 leading-relaxed font-medium border-b border-white/5";
+        hourlyCard.appendChild(hourlySummaryContainer);
+
+        // Scroll List
+        hourlyContainer = document.createElement('div');
+        hourlyContainer.id = 'hourly-forecast-container';
+        hourlyContainer.className = "flex items-stretch gap-x-4 overflow-x-auto no-scrollbar p-4";
+        hourlyCard.appendChild(hourlyContainer);
+    }
+
+    // Fill Hourly with Skeletons (Isi dengan animasi loading)
+    if (hourlyContainer) {
+        let hourlySkeleton = '';
+        for(let i=0; i<12; i++) {
+            hourlySkeleton += `
+                <div class="flex flex-col items-center justify-between py-2 shrink-0 w-14 border-b-2 border-transparent animate-pulse">
+                    <div class="w-8 h-3 bg-slate-700/50 rounded mb-2"></div>
+                    <div class="w-6 h-6 bg-slate-700/50 rounded-full mb-2"></div>
+                    <div class="w-8 h-4 bg-slate-700/50 rounded"></div>
+                </div>`;
+        }
+        hourlyContainer.innerHTML = hourlySkeleton;
+        
+        const summary = document.getElementById('hourly-summary-container');
+        if(summary) summary.innerHTML = `<div class="h-3 w-3/4 bg-slate-700/50 rounded animate-pulse"></div>`;
+    }
+
+    // 2. Setup Daily Forecast Skeleton (Forecast List)
+    const list = document.getElementById('forecast-list');
+    if (list) {
+        list.className = "mx-0 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg";
+        let dailySkeleton = `
+            <div class="px-2 py-2 mb-2 flex items-center gap-2 border-b border-white/5">
+                <i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i> 
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Prakiraan 10 Hari</span>
+            </div>`;
+            
+        for(let i=0; i<7; i++) {
+            dailySkeleton += `
+                <div class="flex items-center justify-between py-3 px-3 mx-2 mb-0 border-b border-white/5 last:border-0 animate-pulse">
+                    <div class="w-[22%] h-3 bg-slate-700/50 rounded"></div>
+                    <div class="w-[18%] flex flex-col items-center justify-center">
+                        <div class="w-6 h-6 bg-slate-700/50 rounded-full"></div>
+                    </div>
+                    <div class="w-[60%] flex items-center gap-3 pl-1">
+                        <div class="w-6 h-3 bg-slate-700/50 rounded"></div>
+                        <div class="flex-1 h-1.5 bg-slate-700/50 rounded-full"></div>
+                        <div class="w-6 h-3 bg-slate-700/50 rounded"></div>
+                    </div>
+                </div>`;
+        }
+        list.innerHTML = dailySkeleton;
+    }
+    
+    lucide.createIcons();
     
     // --- FIX: Tampilkan Latar Langit Dulu Sebelum Panel Muncul ---
     // Agar tidak terlihat peta yang "berantakan" di bawah panel transparan
