@@ -1,4 +1,5 @@
-const CACHE_NAME = 'fishing-spot-v42';
+
+const CACHE_NAME = 'fishing-spot-v44';
 const ASSETS = [
     './',
     './index.html',
@@ -46,37 +47,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // --- STRATEGY: NETWORK FIRST (Untuk File Inti) ---
-    // Agar update aplikasi langsung terasa tanpa menunggu cache expired.
-    // Kita cek apakah file yang diminta adalah file utama aplikasi.
-    const isCore = url.pathname.endsWith('index.html') || 
-                   url.pathname.endsWith('/') || 
-                   url.pathname.endsWith('script.js') || 
-                   url.pathname.endsWith('weather.js') || 
-                   url.pathname.endsWith('style.css');
-
-    if (isCore) {
-        event.respondWith(
-            fetch(event.request)
-                .then((response) => {
-                    // Jika berhasil ambil dari network, update cache
-                    if (response.status === 200) {
-                        const responseToCache = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, responseToCache);
-                        });
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    // Jika offline, fallback ke cache
-                    return caches.match(event.request);
-                })
-        );
-        return; // Stop di sini untuk file inti
-    }
-
-    // --- STRATEGY: CACHE FIRST (Untuk Aset Lain & Peta Offline) ---
     event.respondWith(
         caches.match(event.request).then((cached) => {
             // 1. Jika ada di cache (termasuk Peta Offline), gunakan itu!
