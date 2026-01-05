@@ -137,12 +137,64 @@ function initStars() {
     }
 }
 
+// --- NEW: PWA INSTALLATION LOGIC ---
+let deferredPrompt;
+
+function initPWA() {
+    // 1. Register Service Worker (Wajib untuk PWA)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('Service Worker Registered'))
+            .catch(err => console.error('SW Register Failed', err));
+    }
+
+    // 2. Listen event 'beforeinstallprompt' (Browser mendeteksi web bisa diinstall)
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent default browser banner
+        e.preventDefault();
+        deferredPrompt = e;
+        // Tampilkan tombol install custom
+        showInstallButton();
+    });
+
+    window.addEventListener('appinstalled', () => {
+        const btn = document.getElementById('pwa-install-btn');
+        if(btn) btn.remove();
+        deferredPrompt = null;
+        console.log('PWA Installed');
+    });
+}
+
+function showInstallButton() {
+    if(document.getElementById('pwa-install-btn')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'pwa-install-btn';
+    // Style: Floating Button di pojok kanan bawah
+    btn.className = 'fixed bottom-24 right-4 z-[2000] flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-900/50 transition-all transform hover:scale-105 font-bold text-sm backdrop-blur-sm border border-white/10';
+    btn.innerHTML = `<i data-lucide="download" class="w-5 h-5"></i><span>Install App</span>`;
+    
+    btn.onclick = async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt(); // Munculkan dialog native
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`Install prompt outcome: ${outcome}`);
+            deferredPrompt = null;
+            btn.remove();
+        }
+    };
+    
+    document.body.appendChild(btn);
+    if(typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 // --- FIX: Initialize after DOM Ready to ensure body & canvas exist ---
 function initWeatherSystem() {
     canvas = document.getElementById('weather-canvas');
     ctx = canvas ? canvas.getContext('2d') : null;
     initCloudAssets();
     resizeCanvas();
+    initPWA(); // Initialize PWA Logic
 }
 
 // --- NEW: Audio Manager ---
