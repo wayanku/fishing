@@ -742,9 +742,10 @@ function drawCelestialBodies() {
             const x = (canvas.width / 2) + (az / fov) * canvas.width;
             
             // Y: Mapping Altitude ke Tinggi Layar
-            // Horizon di 70% tinggi layar, Zenith (atas kepala) di 10%
-            const horizon = canvas.height * 0.7; 
-            const zenith = canvas.height * 0.1;
+            // MODIFIED: Horizon dinaikkan ke 50% (sejajar kolom info) agar tidak tertutup konten bawah
+            // Zenith di 12% (dekat atas layar)
+            const horizon = canvas.height * 0.50; 
+            const zenith = canvas.height * 0.12;
             const y = horizon - (alt / (Math.PI/2)) * (horizon - zenith);
             
             return { x, y };
