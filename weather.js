@@ -196,12 +196,12 @@ const weatherAudio = {
             clearInterval(this.fadeInterval);
             this.fadeInterval = setInterval(() => {
                 if (this.rain.volume < volume) {
-                    this.rain.volume = Math.min(volume, this.rain.volume + 0.05);
+                    this.rain.volume = Math.min(volume, this.rain.volume + 0.1); // Percepat fade-in (0.05 -> 0.1)
                 } else {
                     this.rain.volume = volume;
                     clearInterval(this.fadeInterval);
                 }
-            }, 80);
+            }, 50); // Interval lebih cepat (80ms -> 50ms)
         }
     },
 
@@ -846,8 +846,9 @@ function animate() {
         }
 
         audioFrameCounter++;
-        // Tunggu ~30 frame (0.5 detik) agar animasi visual Hujan/Badai sudah stabil terlihat di layar
-        if (audioFrameCounter > 30) {
+        // Tunggu sedikit frame agar animasi visual Hujan/Badai sudah stabil terlihat di layar
+        // Di HP frame bisa drop, jadi kurangi dari 30 ke 5 agar suara lebih responsif
+        if (audioFrameCounter > 5) {
             weatherAudio.playRain(pendingAudio.volume);
             pendingAudio = null;
             audioFrameCounter = 0;
@@ -1522,6 +1523,9 @@ async function showLocationPanel(latlng) {
         document.getElementById('wx-tide').innerText = "-- m";
         document.getElementById('wx-sst').innerText = "--°C";
     }
+
+    // 5. NEW: Fetch Air Quality (AQI) untuk Kesehatan
+    fetchAirQuality(latlng.lat, latlng.lng);
 }
 
 function getMoonPhaseValue(date) {
@@ -2122,6 +2126,9 @@ function updateWeatherUI(data) {
             list.appendChild(item);
         }
         lucide.createIcons();
+
+        // --- NEW: Load Earthquake Info (Async) ---
+        fetchEarthquakeInfo();
     }
 }
 
@@ -2257,6 +2264,14 @@ function openDetailModal(dayIndex) {
     const cloudCover = currentWeatherData.hourly.cloudcover ? currentWeatherData.hourly.cloudcover[noonIdx] : '-';
     const windGust = currentWeatherData.hourly.windgusts_10m ? currentWeatherData.hourly.windgusts_10m[noonIdx] : '-';
     const visibility = currentWeatherData.hourly.visibility ? (currentWeatherData.hourly.visibility[noonIdx] / 1000).toFixed(1) : '-';
+    
+    // --- NEW: Pressure Trend Calculation (3 Jam Terakhir) ---
+    // Ikan sensitif terhadap perubahan tekanan. Turun = Buruk, Naik/Stabil = Bagus.
+    const currentP = currentWeatherData.hourly.surface_pressure[noonIdx] || 0;
+    const prevP = currentWeatherData.hourly.surface_pressure[noonIdx - 3] || currentP;
+    let pTrend = "Stabil";
+    if (currentP > prevP + 1) pTrend = "Naik";
+    else if (currentP < prevP - 1) pTrend = "Turun";
 
     const extraDetailsHtml = `
         <div class="grid grid-cols-3 gap-2 mb-4 mt-2">
@@ -2266,7 +2281,7 @@ function openDetailModal(dayIndex) {
             </div>
             <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Awan</p>
-                <p class="text-sm font-bold text-white">${cloudCover}%</p>
+                <p class="text-sm font-bold text-white">${cloudCover}<span class="text-[9px]">%</span></p>
             </div>
             <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Gust Angin</p>
@@ -2279,6 +2294,10 @@ function openDetailModal(dayIndex) {
             <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Visibilitas</p>
                 <p class="text-sm font-bold text-white">${visibility} <span class="text-[9px]">km</span></p>
+            </div>
+            <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+                <p class="text-[9px] text-slate-400 uppercase font-bold">Tren Barometer</p>
+                <p class="text-sm font-bold ${pTrend === 'Turun' ? 'text-red-400' : 'text-emerald-400'}">${pTrend}</p>
             </div>
         </div>
     `;
@@ -2888,6 +2907,15 @@ function showMetricInsight(type) {
                 text = `Kedalaman laut di titik ini diperkirakan <b>${dVal}</b>. Area ini potensial untuk teknik Jigging atau Dasaran tergantung struktur bawah laut.`;
             }
             break;
+        case 'aqi':
+            title = "Kualitas Udara (AQI)";
+            icon = "wind";
+            const aqiVal = parseInt(document.getElementById('wx-aqi').innerText);
+            if(aqiVal <= 50) text = `AQI ${aqiVal} (Bagus). Udara bersih, sangat bagus untuk aktivitas luar ruangan seharian.`;
+            else if(aqiVal <= 100) text = `AQI ${aqiVal} (Sedang). Udara cukup baik, namun sensitif mungkin sedikit terganggu.`;
+            else if(aqiVal <= 150) text = `AQI ${aqiVal} (Tidak Sehat bagi Sensitif). Kurangi aktivitas berat di luar ruangan jika Anda punya asma/alergi.`;
+            else text = `AQI ${aqiVal} (Tidak Sehat/Bahaya). Disarankan pakai masker atau hindari aktivitas luar ruangan yang lama.`;
+            break;
         default:
             title = "Info";
             text = "Klik item lain untuk melihat analisis detail.";
@@ -2901,3 +2929,174 @@ function showMetricInsight(type) {
 
 // Apply responsive styles immediately on load
 injectResponsiveStyles();
+
+// --- NEW: EARTHQUAKE INFO FUNCTION ---
+async function fetchEarthquakeInfo() {
+    // 1. Siapkan Container di bawah Forecast List
+    let quakeContainer = document.getElementById('quake-container');
+    const forecastList = document.getElementById('forecast-list');
+    
+    if (!quakeContainer && forecastList && forecastList.parentNode) {
+        quakeContainer = document.createElement('div');
+        quakeContainer.id = 'quake-container';
+        // Style mirip dengan kartu prakiraan cuaca (Liquid Glass)
+        quakeContainer.className = "mx-0 mt-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg";
+        forecastList.parentNode.insertBefore(quakeContainer, forecastList.nextSibling);
+    }
+    
+    if(!quakeContainer) return;
+
+    // 2. Render Header & Loading State
+    quakeContainer.innerHTML = `
+        <div class="px-2 py-2 mb-2 flex items-center gap-2 border-b border-white/5">
+            <i data-lucide="activity" class="w-4 h-4 text-red-400"></i> 
+            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Info Gempa Terkini (Dunia)</span>
+        </div>
+        <div id="quake-list" class="flex flex-col gap-2">
+            <div class="text-center text-xs text-slate-500 py-4 animate-pulse">Memuat data gempa...</div>
+        </div>
+    `;
+    lucide.createIcons();
+
+    try {
+        // 3. Fetch Data USGS (Gempa > 4.5 SR dalam 24 jam terakhir) - Ringan & Cepat
+        const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson');
+        const data = await res.json();
+        
+        const list = document.getElementById('quake-list');
+        list.innerHTML = '';
+
+        if(data.features && data.features.length > 0) {
+            // Pastikan hanya 3 gempa terbaru
+            const quakes = data.features.slice(0, 3);
+            
+            quakes.forEach(q => {
+                const p = q.properties;
+                const mag = p.mag.toFixed(1);
+                const place = p.place; // Lokasi
+                const time = new Date(p.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const depth = q.geometry.coordinates[2].toFixed(0); // Kedalaman (km)
+                const tsunami = p.tsunami === 1; // Potensi Tsunami (0=Tidak, 1=Ya)
+                
+                // Warna Warni berdasarkan Skala Gempa
+                let magColor = 'text-yellow-400';
+                let borderColor = 'border-yellow-500/30';
+                if(mag >= 6.0) { magColor = 'text-red-500'; borderColor = 'border-red-500/50'; }
+                else if(mag >= 5.0) { magColor = 'text-orange-400'; borderColor = 'border-orange-500/40'; }
+
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border ${borderColor} hover:bg-slate-800 transition-colors`;
+                
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="flex flex-col items-center justify-center w-10 h-10 rounded-full bg-slate-900 border border-white/10 shrink-0 shadow-md">
+                            <span class="text-xs font-black ${magColor}">${mag}</span>
+                            <span class="text-[8px] text-slate-500">SR</span>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-white truncate" title="${place}">${place}</p>
+                            <p class="text-[10px] text-slate-400 flex items-center gap-3 mt-0.5">
+                                <span class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${time}</span>
+                                <span class="flex items-center gap-1"><i data-lucide="arrow-down" class="w-3 h-3"></i> ${depth} km</span>
+                            </p>
+                        </div>
+                    </div>
+                    ${tsunami ? `<div class="flex flex-col items-center justify-center text-red-400 animate-pulse ml-2 shrink-0 bg-red-900/20 px-2 py-1 rounded border border-red-500/30"><i data-lucide="waves" class="w-4 h-4"></i><span class="text-[8px] font-bold uppercase mt-0.5">Tsunami</span></div>` : ''}
+                `;
+                list.appendChild(item);
+            });
+        } else {
+            list.innerHTML = '<div class="text-center text-xs text-slate-500 py-2">Tidak ada gempa signifikan (>4.5 SR) hari ini.</div>';
+        }
+        lucide.createIcons();
+    } catch(e) {
+        console.error("Gagal load gempa:", e);
+        const list = document.getElementById('quake-list');
+        if(list) list.innerHTML = '<div class="text-center text-xs text-red-400 py-2">Gagal memuat data gempa.</div>';
+    }
+}
+
+// --- NEW: AIR QUALITY FUNCTIONS ---
+async function fetchAirQuality(lat, lng) {
+    try {
+        // Fetch US AQI standard
+        const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi`);
+        const data = await res.json();
+        if(data.current) {
+            updateAqiUI(data.current.us_aqi);
+        }
+    } catch(e) { console.warn("AQI Fetch failed", e); }
+}
+
+function updateAqiUI(aqi) {
+    // Target Parent: Forecast List Wrapper (Agar bisa disisipkan di bawahnya)
+    const forecastList = document.getElementById('forecast-list');
+    if (!forecastList || !forecastList.parentNode) return;
+    
+    // Cek apakah container AQI sudah ada
+    let aqiContainer = document.getElementById('aqi-container');
+    
+    // Jika belum ada, buat baru
+    if (!aqiContainer) {
+        aqiContainer = document.createElement('div');
+        aqiContainer.id = 'aqi-container';
+        // Style mirip kartu gempa (Liquid Glass)
+        aqiContainer.className = "mx-0 mt-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-3 shadow-lg";
+    }
+
+    // Tentukan warna & status
+    let status = "Bagus";
+    let colorClass = "text-emerald-400";
+    let barColor = "bg-emerald-500";
+    let desc = "Udara bersih, bagus untuk aktivitas luar.";
+
+    if(aqi > 50) { status = "Sedang"; colorClass = "text-yellow-400"; barColor = "bg-yellow-500"; desc = "Kualitas udara dapat diterima, namun berisiko bagi yang sensitif."; }
+    if(aqi > 100) { status = "Tdk Sehat"; colorClass = "text-orange-400"; barColor = "bg-orange-500"; desc = "Kurangi aktivitas fisik yang berat di luar ruangan."; }
+    if(aqi > 150) { status = "Bahaya"; colorClass = "text-red-400"; barColor = "bg-red-500"; desc = "Hindari aktivitas luar ruangan. Gunakan masker."; }
+    if(aqi > 300) { status = "Beracun"; colorClass = "text-purple-400"; barColor = "bg-purple-500"; desc = "Sangat berbahaya. Tetap di dalam ruangan."; }
+
+    const pct = Math.min((aqi / 300) * 100, 100);
+
+    aqiContainer.innerHTML = `
+        <div class="flex items-center justify-between mb-2 border-b border-white/5 pb-2">
+            <div class="flex items-center gap-2">
+                <i data-lucide="wind" class="w-4 h-4 ${colorClass}"></i>
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Kualitas Udara</span>
+            </div>
+            <span class="text-xs font-bold ${colorClass}">${status}</span>
+        </div>
+        
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col">
+                <span class="text-3xl font-bold text-white leading-none" id="wx-aqi">${aqi}</span>
+                <span class="text-[10px] text-slate-400 mt-1">US AQI</span>
+            </div>
+            <div class="flex-1">
+                <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full ${barColor} transition-all duration-1000" style="width: ${pct}%"></div>
+                </div>
+                <p class="text-[10px] text-slate-300 mt-1 leading-tight">${desc}</p>
+            </div>
+        </div>
+    `;
+    lucide.createIcons();
+
+    // --- FIX: LOGIKA PENEMPATAN (PLACEMENT LOGIC) ---
+    // Pastikan AQI selalu di bawah Gempa (jika ada), atau di bawah Forecast
+    const quakeContainer = document.getElementById('quake-container');
+    const parent = forecastList.parentNode;
+
+    // Cabut dulu elemennya (jika sudah ada) agar bisa dipindah ke posisi yang benar
+    if (aqiContainer.parentNode) aqiContainer.parentNode.removeChild(aqiContainer);
+
+    if (quakeContainer && quakeContainer.parentNode === parent) {
+        // Jika Gempa sudah ada, taruh AQI SETELAH Gempa
+        if (quakeContainer.nextSibling) parent.insertBefore(aqiContainer, quakeContainer.nextSibling);
+        else parent.appendChild(aqiContainer);
+    } else {
+        // Jika Gempa belum ada, taruh AQI SETELAH Forecast
+        // (Nanti saat Gempa muncul, dia akan menyisipkan dirinya di antara Forecast dan AQI)
+        if (forecastList.nextSibling) parent.insertBefore(aqiContainer, forecastList.nextSibling);
+        else parent.appendChild(aqiContainer);
+    }
+}
