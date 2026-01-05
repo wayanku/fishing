@@ -16,6 +16,8 @@ let stars = [];
 let moonPhase = 0.5; // 0.0 - 1.0
 let wxLocalHour = new Date().getHours(); // Jam lokal lokasi terpilih
 let lastSkyGradient = ''; // Cache untuk mencegah redraw background berlebihan
+let currentSkyTop = '#000000'; // NEW: Cache for landscape
+let currentSkyBot = '#000000'; // NEW: Cache for landscape
 let isAudioUnlocked = false; // Status untuk autoplay audio di HP
 let pendingAudio = null; // Sinkronisasi audio & animasi
 let audioFrameCounter = 0; // Counter delay audio agar tidak mendahului visual
@@ -699,6 +701,10 @@ function drawSkyBackground() {
         // Campurkan warna
         top = lerpColor(start.top, end.top, progress);
         bot = lerpColor(start.bot, end.bot, progress);
+
+        // NEW: Cache colors for landscape rendering
+        currentSkyTop = top;
+        currentSkyBot = bot;
     }
 
     // OPTIMISASI: Hanya update DOM jika warna berubah (Mencegah Lag/Patah-patah)
@@ -742,10 +748,9 @@ function drawCelestialBodies() {
             const x = (canvas.width / 2) + (az / fov) * canvas.width;
             
             // Y: Mapping Altitude ke Tinggi Layar
-            // MODIFIED: Horizon dinaikkan ke 50% (sejajar kolom info) agar tidak tertutup konten bawah
-            // Zenith di 12% (dekat atas layar)
+            // MODIFIED: Horizon di 50% (sejajar kolom info), Zenith di 1% (Sangat tinggi, hampir menyentuh atas)
             const horizon = canvas.height * 0.50; 
-            const zenith = canvas.height * 0.12;
+            const zenith = canvas.height * 0.01;
             const y = horizon - (alt / (Math.PI/2)) * (horizon - zenith);
             
             return { x, y };
@@ -858,6 +863,43 @@ function drawCelestialBodies() {
     }
 }
 
+// --- NEW: Draw Landscape (Mountains) ---
+function drawLandscape() {
+    if (!ctx) return;
+    
+    const w = canvas.width;
+    const h = canvas.height;
+    
+    // --- MODIFIED: Dynamic Color based on Sky & More Realistic Shape ---
+    // Warna gunung diambil dari warna langit bawah (horizon) dan digelapkan
+    // untuk menciptakan efek siluet atmosferik yang realistis. Ini membuat
+    // warna gunung menyatu dengan transisi warna langit saat sunrise/sunset.
+    const baseColor = currentSkyBot; // Ambil warna horizon dari cache
+    const backColor = lerpColor(baseColor, '#020617', 0.4); // Gelapkan 40% untuk gunung belakang
+    const frontColor = lerpColor(baseColor, '#020617', 0.7); // Gelapkan 70% untuk gunung depan
+
+    // 1. Gunung Belakang (Layer Jauh - Lebih Pudar)
+    ctx.fillStyle = backColor;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ctx.lineTo(0, h * 0.65);
+    ctx.bezierCurveTo(w * 0.15, h * 0.50, w * 0.3, h * 0.70, w * 0.4, h * 0.60);
+    ctx.bezierCurveTo(w * 0.55, h * 0.45, w * 0.7, h * 0.65, w * 0.8, h * 0.60);
+    ctx.lineTo(w, h * 0.65);
+    ctx.lineTo(w, h);
+    ctx.fill();
+
+    // 2. Gunung Depan (Layer Dekat - Lebih Gelap)
+    ctx.fillStyle = frontColor;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ctx.lineTo(0, h * 0.70);
+    ctx.bezierCurveTo(w * 0.2, h * 0.80, w * 0.35, h * 0.60, w * 0.5, h * 0.75);
+    ctx.bezierCurveTo(w * 0.7, h * 0.90, w * 0.85, h * 0.70, w, h * 0.75);
+    ctx.lineTo(w, h);
+    ctx.fill();
+}
+
 function animate() {
     animationFrameId = requestAnimationFrame(animate);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -865,6 +907,10 @@ function animate() {
     // 1. Draw Sky & Celestial Bodies
     drawSkyBackground();
     drawCelestialBodies();
+
+    // 2. Draw Landscape (Gunung) - NEW
+    // Digambar setelah matahari/bulan agar mereka tenggelam di balik gunung
+    drawLandscape();
 
     // 2. Update Clouds (DOM)
     clouds.forEach(c => c.update());
