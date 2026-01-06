@@ -104,13 +104,6 @@
             const body = document.body;
             const btn = document.getElementById('theme-btn');
             
-            // --- UPDATE STATUS BAR (Full Screen Look) ---
-            const sbColor = theme === 'light' ? '#ffffff' : '#0f172a';
-            let meta = document.querySelector('meta[name="theme-color"]');
-            if(!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
-            meta.content = sbColor;
-            meta.dataset.originalColor = sbColor;
-            
             if(theme === 'light') {
                 body.classList.add('light-mode');
                 if(btn) { btn.innerHTML = '<i data-lucide="sun" class="w-3 h-3 inline mr-1"></i> Light'; btn.className = "bg-white text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 font-bold shadow-sm"; }
@@ -135,28 +128,6 @@
 
         // Jalankan tema saat start
         initTheme();
-
-        // --- DYNAMIC THEME COLOR HELPERS (for Status Bar) ---
-        function setModalThemeColor(color) {
-            let metaTag = document.querySelector('meta[name="theme-color"]');
-            if (!metaTag) {
-                metaTag = document.createElement('meta');
-                metaTag.name = 'theme-color';
-                document.head.appendChild(metaTag);
-            }
-            if (!metaTag.dataset.originalColor) {
-                // Simpan warna asli, fallback ke biru jika tidak terdefinisi
-                metaTag.dataset.originalColor = metaTag.content || '#3B82F6'; 
-            }
-            metaTag.content = color;
-        }
-
-        function restoreOriginalThemeColor() {
-            const metaTag = document.querySelector('meta[name="theme-color"]');
-            if (metaTag && metaTag.dataset.originalColor) {
-                metaTag.content = metaTag.dataset.originalColor;
-            }
-        }
 
         // --- MULTI-LANGUAGE SYSTEM ---
         const translations = {
@@ -734,7 +705,7 @@
 
             // 1. Notifikasi Visual
             const toast = document.createElement('div');
-            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] flex items-center gap-2 animate-bounce";
+            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] flex items-center gap-2 animate-bounce toast-safe-top";
             toast.innerHTML = `<i data-lucide="wifi" class="w-4 h-4"></i> Online: Memuat Ulang Data...`;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
@@ -759,42 +730,59 @@
 
         window.addEventListener('offline', () => {
             const toast = document.createElement('div');
-            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-400 px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[3000] flex items-center gap-2";
+            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-400 px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[3000] flex items-center gap-2 toast-safe-top";
             toast.innerHTML = `<i data-lucide="wifi-off" class="w-4 h-4"></i> Koneksi Terputus`;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
             lucide.createIcons();
         });
 
-        function initApp() {
-            // --- SETUP FULL SCREEN & SAFE AREA ---
-            // 1. Viewport Fit Cover (Edge-to-Edge)
-            let vp = document.querySelector('meta[name="viewport"]');
-            if(!vp) { 
-                vp = document.createElement('meta'); vp.name = 'viewport'; 
-                vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
-                document.head.appendChild(vp); 
-            } else if(!vp.content.includes('viewport-fit=cover')) {
-                vp.content += ', viewport-fit=cover';
+        function initIOSStatusBar() {
+            // 1. Paksa Meta Tag untuk iOS Translucent Status Bar
+            let metaStatus = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+            if (!metaStatus) {
+                metaStatus = document.createElement('meta');
+                metaStatus.name = 'apple-mobile-web-app-status-bar-style';
+                document.head.appendChild(metaStatus);
+            }
+            metaStatus.content = 'black-translucent';
+
+            let metaViewport = document.querySelector('meta[name="viewport"]');
+            if (!metaViewport) {
+                metaViewport = document.createElement('meta');
+                metaViewport.name = 'viewport';
+                document.head.appendChild(metaViewport);
+            }
+            if (!metaViewport.content.includes('viewport-fit=cover')) {
+                metaViewport.content += ', viewport-fit=cover';
             }
 
-            // 2. Inject CSS Safe Area (Notch Support)
-            const saStyle = document.createElement('style');
-            saStyle.innerHTML = `
-                /* Geser kontrol peta (zoom) ke bawah area aman */
-                .leaflet-top { top: env(safe-area-inset-top, 8px) !important; }
-
-                /* Untuk container (seperti search bar), gunakan padding-top.
-                   Ini akan mendorong KONTEN di dalamnya ke bawah, tapi background container tetap mengisi area notch. */
-                .absolute.top-0, .absolute.top-2, .absolute.top-4, .absolute.top-6 {
-                    padding-top: env(safe-area-inset-top, 0px) !important;
-                }
-
-                /* Untuk tombol individual yang melayang (seperti tombol close 'X' di detail), margin-top sudah cukup. */
-                #spot-floating-close { margin-top: env(safe-area-inset-top, 0px) !important; }
+            // 2. Inject CSS Safe Area & Fullscreen Map
+            const style = document.createElement('style');
+            style.innerHTML = `
+                html, body { height: 100%; width: 100%; overflow: hidden; background-color: #0f172a; }
+                #map { height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; z-index: 0; }
+                .toast-safe-top { top: calc(6rem + env(safe-area-inset-top)) !important; }
             `;
-            document.head.appendChild(saStyle);
+            document.head.appendChild(style);
 
+            // 3. Sesuaikan Posisi Search Bar (Heuristik)
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                let container = searchInput.parentElement;
+                while(container && container !== document.body) {
+                    const pos = window.getComputedStyle(container).position;
+                    if (pos === 'absolute' || pos === 'fixed') {
+                        container.style.top = 'calc(1rem + env(safe-area-inset-top))';
+                        break;
+                    }
+                    container = container.parentElement;
+                }
+            }
+        }
+
+        function initApp() {
+            initIOSStatusBar();
             // Set user default (Guest) agar fungsi penyimpanan tetap berjalan
             currentUser = { email: 'Guest', uid: 'guest_user' };
             
@@ -1738,7 +1726,7 @@
                     document.body.appendChild(closeBtn);
                     
                     closeBtn.style.position = 'fixed';
-                    closeBtn.style.top = '20px';
+                    closeBtn.style.top = 'calc(20px + env(safe-area-inset-top))';
                     closeBtn.style.right = '20px';
                     closeBtn.style.zIndex = '10000';
                     closeBtn.className = "bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-full p-2 hover:bg-red-500/20 transition-all text-white";
@@ -2024,7 +2012,7 @@
                     container.style.alignItems = 'center';
                     container.style.justifyContent = 'center';
                     container.style.cursor = 'pointer';
-                    container.style.marginTop = '80px'; // Turunkan posisi agar tidak tertutup search bar
+                    container.style.marginTop = 'calc(80px + env(safe-area-inset-top))'; // Turunkan posisi agar tidak tertutup search bar & notch
                     container.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
                     
                     // Ikon Kompas Custom (Jarum Merah = Utara)
@@ -2243,7 +2231,7 @@
                 }).addTo(map);
                 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
                 toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Layer Angin Ditampilkan`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2281,7 +2269,7 @@
                     }).addTo(map);
 
                     const toast = document.createElement('div');
-                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
                     toast.innerHTML = `<i data-lucide="activity" class="w-4 h-4 text-red-500"></i> Data Gempa Ditampilkan`;
                     document.body.appendChild(toast);
                     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2299,7 +2287,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
                 toast.innerHTML = `<i data-lucide="anchor" class="w-4 h-4 text-orange-400"></i> Peta Navigasi Laut`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2317,7 +2305,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
                 toast.innerHTML = `<i data-lucide="gauge" class="w-4 h-4 text-purple-400"></i> Peta Tekanan Udara`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2355,7 +2343,7 @@
                 activeLayers[type] = L.heatLayer(heatPoints, { radius: 25, blur: 15, maxZoom: 17, gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'} }).addTo(map);
                 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
                 toast.innerHTML = `<i data-lucide="scan-line" class="w-4 h-4 text-pink-400"></i> Heatmap Ikan Aktif`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2378,7 +2366,7 @@
                 }).addTo(map);
                 
                 showLegend('sst'); // Tampilkan Indikator Warna
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // CHLOROPHYLL LAYER - NASA GIBS (Free)
@@ -2396,7 +2384,7 @@
                 }).addTo(map);
                 
                 showLegend('chlorophyll'); // Tampilkan Indikator Warna
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // BATHYMETRY LAYER (GEBCO)
@@ -2411,7 +2399,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
                 toast.innerHTML = `<i data-lucide="waves" class="w-4 h-4 text-cyan-400"></i> Peta Kedalaman Aktif`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2463,7 +2451,7 @@
                 activeLayers[type] = L.layerGroup(layers).addTo(map);
                 
                 showLegend('sonar');
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="radar" class="w-4 h-4 text-emerald-400"></i> Peta Laut (Chart) Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top"; toast.innerHTML = `<i data-lucide="radar" class="w-4 h-4 text-emerald-400"></i> Peta Laut (Chart) Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // LIVE SHIP RADAR (AIS)
@@ -2482,7 +2470,7 @@
 
                 activeLayers[type] = shipLayer;
 
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; 
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top"; 
                 toast.innerHTML = `<i data-lucide="ship" class="w-4 h-4 text-red-400"></i> Radar Kapal Aktif`; 
                 document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons();
                 return;
@@ -2529,7 +2517,7 @@
 
                     // Feedback Visual (Toast)
                     const toast = document.createElement('div');
-                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
                     toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Layer ${type === 'rain' ? 'Hujan' : 'Awan'} Ditampilkan`;
                     document.body.appendChild(toast);
                     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2549,8 +2537,6 @@
             const center = map.getCenter();
             const url = `https://embed.windy.com/embed2.html?lat=${center.lat}&lon=${center.lng}&detailLat=${center.lat}&detailLon=${center.lng}&width=650&height=450&zoom=${Math.max(3, map.getZoom())}&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1`;
             
-            setModalThemeColor('#0f172a'); // Set status bar to dark slate
-
             document.getElementById('windy-frame').src = url;
             document.getElementById('windyModal').classList.remove('translate-y-full');
             closeMapSettings(); // Tutup menu setting
@@ -2559,7 +2545,6 @@
         function closeWindy() {
             document.getElementById('windyModal').classList.add('translate-y-full');
             setTimeout(() => { document.getElementById('windy-frame').src = ''; }, 300); // Reset iframe agar tidak berat
-            restoreOriginalThemeColor(); // Restore status bar color
         }
 
         // --- PRECIPITATION MAP FUNCTIONS ---
@@ -2587,7 +2572,7 @@
                     <div id="precip-map-large" class="w-full h-full bg-slate-950"></div>
                     
                     <!-- Header Floating -->
-                    <div class="absolute top-0 left-0 w-full p-4 pt-12 flex items-center justify-between z-[1000] bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+                    <div class="absolute top-0 left-0 w-full p-4 pt-12 flex items-center justify-between z-[1000] bg-gradient-to-b from-black/80 to-transparent pointer-events-none" style="padding-top: calc(3rem + env(safe-area-inset-top))">
                         <button onclick="closePrecipMap()" class="pointer-events-auto bg-slate-800/50 backdrop-blur-md text-white rounded-full p-3 shadow-lg border border-white/10 hover:bg-slate-700 transition-all">
                             <i data-lucide="chevron-left" class="w-6 h-6"></i>
                         </button>
@@ -2633,8 +2618,6 @@
             pausePrecipAnimation(); // Reset state on open
             const modal = document.getElementById('precipModal');
             if (!modal) return;
-
-            setModalThemeColor('#020617'); // bg-slate-950
 
             modal.classList.remove('translate-y-full');
             lucide.createIcons(); // Render ikon tombol close
@@ -2819,8 +2802,6 @@
             const modal = document.getElementById('precipModal');
             pausePrecipAnimation(); // Stop animation on close
             if (modal) modal.classList.add('translate-y-full');
-            restoreOriginalThemeColor();
-
             if (largePrecipMap) {
                 setTimeout(() => {
                     largePrecipMap.remove();
