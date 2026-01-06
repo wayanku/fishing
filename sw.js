@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'fishing-spot-v56';
+const CACHE_NAME = 'fishing-spot-v57';
 const ASSETS = [
     './',
     './index.html',
