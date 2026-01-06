@@ -900,31 +900,31 @@ function drawCelestialBodies() {
             ctx.translate(sunX, sunY);
             ctx.rotate(Date.now() * 0.0001); // Rotasi sangat pelan & elegan
 
-            // Blur secukupnya agar sinar terlihat seperti cahaya, bukan benda padat
-            ctx.filter = "blur(6px)"; 
-            const rayCount = 8; // Jumlah sinar dikurangi agar lebih eksklusif (6-8 sinar utama)
+            // FIX: Menggunakan Radial Gradient + Scale agar lembut di iPhone (tanpa filter blur)
+            const rayCount = 8; 
             
             for (let i = 0; i < rayCount; i++) {
-                ctx.rotate((Math.PI * 2) / rayCount);
-                ctx.beginPath();
+                ctx.save();
+                ctx.rotate((Math.PI * 2 * i) / rayCount);
                 
-                // Panjang sinar bervariasi tapi panjang (Beam of light)
+                // Panjang sinar bervariasi
                 const variation = (i % 2 === 0) ? 1.0 : 0.7;
-                const rayLen = (250 + (glareIntensity * 300)) * variation; // Sangat panjang
-                const rayWidth = 20 + (glareIntensity * 10); // Pangkal lebar
+                const rayLen = (250 + (glareIntensity * 300)) * variation; 
+                const rayWidth = 35 + (glareIntensity * 15); // Lebih lebar agar gradasinya halus
 
-                const grdRay = ctx.createLinearGradient(0, 0, rayLen, 0);
-                grdRay.addColorStop(0, "rgba(255, 255, 255, 0.4)"); // Putih Transparan di pangkal
-                grdRay.addColorStop(0.4, "rgba(255, 255, 255, 0.1)"); // Fade di tengah
-                grdRay.addColorStop(1, "rgba(255, 255, 255, 0)");
+                // Teknik: Scale unit circle menjadi oval panjang (Sinar)
+                ctx.scale(rayLen, rayWidth);
+
+                // Gradient Radial dari Pusat ke Luar (Otomatis pudar di semua sisi)
+                const grdRay = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+                grdRay.addColorStop(0, "rgba(255, 255, 255, 0.4)"); // Inti Putih
+                grdRay.addColorStop(0.4, "rgba(255, 255, 255, 0.1)"); // Tengah Pudar
+                grdRay.addColorStop(1, "rgba(255, 255, 255, 0)"); // Pinggir Transparan
 
                 ctx.fillStyle = grdRay;
-                
-                // Gambar Segitiga (Duri)
-                ctx.moveTo(0, -rayWidth/2); 
-                ctx.lineTo(rayLen, 0); 
-                ctx.lineTo(0, rayWidth/2); 
+                ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI * 2); 
                 ctx.fill();
+                ctx.restore();
             }
             ctx.restore();
 
@@ -1116,27 +1116,24 @@ function drawLandscape() {
     const backColor = lerpColor(baseColor, '#020617', 0.4); // Gelapkan 40% untuk gunung belakang
     const frontColor = lerpColor(baseColor, '#020617', 0.7); // Gelapkan 70% untuk gunung depan
 
-    // 1. Gunung Belakang (Layer Jauh - Puncak Gunung Megah)
+    // 1. Gunung Belakang (Layer Jauh - Bentuk Lebih Halus & Mengalun)
     ctx.fillStyle = backColor;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.7); 
-    // Naik curam ke puncak gunung (segitiga melengkung natural)
-    ctx.bezierCurveTo(w * 0.2, h * 0.65, w * 0.35, h * 0.25, w * 0.5, h * 0.3);
-    // Turun landai ke kanan dengan lekukan
-    ctx.bezierCurveTo(w * 0.65, h * 0.35, w * 0.85, h * 0.65, w, h * 0.6);
+    ctx.lineTo(0, h * 0.55); 
+    // Kurva Bezier tunggal yang panjang untuk kesan bukit yang jauh dan besar
+    ctx.bezierCurveTo(w * 0.3, h * 0.45, w * 0.7, h * 0.65, w, h * 0.50);
     ctx.lineTo(w, h);
     ctx.fill();
 
-    // 2. Gunung Depan (Layer Dekat - Bukit & Tebing)
+    // 2. Gunung Depan (Layer Dekat - Siluet Tegas & Estetis)
     ctx.fillStyle = frontColor;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.85);
-    // Bukit kiri
-    ctx.bezierCurveTo(w * 0.25, h * 0.75, w * 0.4, h * 0.85, w * 0.55, h * 0.75);
-    // Bukit kanan lebih tinggi
-    ctx.bezierCurveTo(w * 0.7, h * 0.65, w * 0.9, h * 0.8, w, h * 0.75);
+    ctx.lineTo(0, h * 0.75);
+    // Kurva ganda yang lebih landai dan natural
+    ctx.bezierCurveTo(w * 0.25, h * 0.85, w * 0.4, h * 0.65, w * 0.6, h * 0.75);
+    ctx.bezierCurveTo(w * 0.8, h * 0.85, w * 0.9, h * 0.70, w, h * 0.80);
     ctx.lineTo(w, h);
     ctx.fill();
 
