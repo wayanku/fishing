@@ -781,8 +781,17 @@
             // 2. Inject CSS Safe Area (Notch Support)
             const saStyle = document.createElement('style');
             saStyle.innerHTML = `
-                .leaflet-top { top: env(safe-area-inset-top, 0px) !important; }
-                .absolute.top-0, .absolute.top-2, .absolute.top-4, .absolute.top-6 { margin-top: env(safe-area-inset-top, 0px) !important; }
+                /* Geser kontrol peta (zoom) ke bawah area aman */
+                .leaflet-top { top: env(safe-area-inset-top, 8px) !important; }
+
+                /* Untuk container (seperti search bar), gunakan padding-top.
+                   Ini akan mendorong KONTEN di dalamnya ke bawah, tapi background container tetap mengisi area notch. */
+                .absolute.top-0, .absolute.top-2, .absolute.top-4, .absolute.top-6 {
+                    padding-top: env(safe-area-inset-top, 0px) !important;
+                }
+
+                /* Untuk tombol individual yang melayang (seperti tombol close 'X' di detail), margin-top sudah cukup. */
+                #spot-floating-close { margin-top: env(safe-area-inset-top, 0px) !important; }
             `;
             document.head.appendChild(saStyle);
 
