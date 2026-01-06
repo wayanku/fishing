@@ -129,6 +129,28 @@
         // Jalankan tema saat start
         initTheme();
 
+        // --- DYNAMIC THEME COLOR HELPERS (for Status Bar) ---
+        function setModalThemeColor(color) {
+            let metaTag = document.querySelector('meta[name="theme-color"]');
+            if (!metaTag) {
+                metaTag = document.createElement('meta');
+                metaTag.name = 'theme-color';
+                document.head.appendChild(metaTag);
+            }
+            if (!metaTag.dataset.originalColor) {
+                // Simpan warna asli, fallback ke biru jika tidak terdefinisi
+                metaTag.dataset.originalColor = metaTag.content || '#3B82F6'; 
+            }
+            metaTag.content = color;
+        }
+
+        function restoreOriginalThemeColor() {
+            const metaTag = document.querySelector('meta[name="theme-color"]');
+            if (metaTag && metaTag.dataset.originalColor) {
+                metaTag.content = metaTag.dataset.originalColor;
+            }
+        }
+
         // --- MULTI-LANGUAGE SYSTEM ---
         const translations = {
             id: {
@@ -2492,6 +2514,8 @@
             const center = map.getCenter();
             const url = `https://embed.windy.com/embed2.html?lat=${center.lat}&lon=${center.lng}&detailLat=${center.lat}&detailLon=${center.lng}&width=650&height=450&zoom=${Math.max(3, map.getZoom())}&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1`;
             
+            setModalThemeColor('#0f172a'); // Set status bar to dark slate
+
             document.getElementById('windy-frame').src = url;
             document.getElementById('windyModal').classList.remove('translate-y-full');
             closeMapSettings(); // Tutup menu setting
@@ -2500,6 +2524,7 @@
         function closeWindy() {
             document.getElementById('windyModal').classList.add('translate-y-full');
             setTimeout(() => { document.getElementById('windy-frame').src = ''; }, 300); // Reset iframe agar tidak berat
+            restoreOriginalThemeColor(); // Restore status bar color
         }
 
         // --- PRECIPITATION MAP FUNCTIONS ---
@@ -2573,6 +2598,8 @@
             pausePrecipAnimation(); // Reset state on open
             const modal = document.getElementById('precipModal');
             if (!modal) return;
+
+            setModalThemeColor('#020617'); // bg-slate-950
 
             modal.classList.remove('translate-y-full');
             lucide.createIcons(); // Render ikon tombol close
@@ -2757,6 +2784,8 @@
             const modal = document.getElementById('precipModal');
             pausePrecipAnimation(); // Stop animation on close
             if (modal) modal.classList.add('translate-y-full');
+            restoreOriginalThemeColor();
+
             if (largePrecipMap) {
                 setTimeout(() => {
                     largePrecipMap.remove();
