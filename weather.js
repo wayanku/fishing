@@ -881,42 +881,41 @@ function drawCelestialBodies() {
             const glareIntensity = (p - 0.3) / 0.7; // 0.0 -> 1.0
             
             // 1. Main Sun Glare (Blinding Light - Not Round)
-            // Gunakan gradient yang sangat besar dan halus untuk menyamarkan bentuk bulat
-            const outerRadius = 200 + (glareIntensity * 300); // Lebih besar & soft (200-500px)
+            // iPhone Style: Cahaya sangat luas, putih bersih, dan menyatu dengan langit
+            const outerRadius = 300 + (glareIntensity * 500); // Radius sangat besar (300-800px)
             
             const grdMain = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, outerRadius);
-            grdMain.addColorStop(0, "rgba(255, 255, 255, 1.0)"); // Pusat Putih Silau
-            grdMain.addColorStop(0.05, "rgba(255, 255, 255, 0.9)"); 
-            grdMain.addColorStop(0.15, "rgba(255, 245, 220, 0.6)"); // Putih Kekuningan
-            grdMain.addColorStop(0.35, "rgba(255, 200, 150, 0.25)"); // Gradasi Orange Halus (Permintaan User)
-            grdMain.addColorStop(0.6, "rgba(255, 255, 255, 0.05)"); 
+            grdMain.addColorStop(0, "rgba(255, 255, 255, 1.0)"); // Inti Putih Solid
+            grdMain.addColorStop(0.04, "rgba(255, 255, 255, 0.95)"); // Glow Inti
+            grdMain.addColorStop(0.12, "rgba(255, 250, 230, 0.5)"); // Transisi Hangat
+            grdMain.addColorStop(0.3, "rgba(255, 255, 255, 0.15)"); // Glow Luar Halus
+            grdMain.addColorStop(0.6, "rgba(255, 255, 255, 0.02)"); // Fade Out Sangat Halus
             grdMain.addColorStop(1, "rgba(255, 255, 255, 0)");
             
             ctx.fillStyle = grdMain;
             ctx.beginPath(); ctx.arc(sunX, sunY, outerRadius, 0, Math.PI * 2); ctx.fill();
 
-            // 2. Subtle Rays / Duri-duri (Soft Spikes)
+            // 2. Sun Rays / Beams (iPhone Style: Sinar Panjang & Lembut)
             ctx.save();
             ctx.translate(sunX, sunY);
-            ctx.rotate(Date.now() * 0.00015); // Rotasi sangat pelan agar hidup
+            ctx.rotate(Date.now() * 0.0001); // Rotasi sangat pelan & elegan
 
-            // PERUBAHAN: Blur dikurangi sedikit, Warna diperjelas
-            ctx.filter = "blur(5px)"; // Blur dikurangi (8px -> 5px) agar bentuk lebih terlihat
-            const rayCount = 12; // Jumlah ditambah (8 -> 12) agar seperti sinar
+            // Blur secukupnya agar sinar terlihat seperti cahaya, bukan benda padat
+            ctx.filter = "blur(6px)"; 
+            const rayCount = 8; // Jumlah sinar dikurangi agar lebih eksklusif (6-8 sinar utama)
             
             for (let i = 0; i < rayCount; i++) {
                 ctx.rotate((Math.PI * 2) / rayCount);
                 ctx.beginPath();
                 
-                // Panjang duri selang-seling (Panjang-Pendek) agar natural
-                const variation = (i % 2 === 0) ? 1.0 : 0.6;
-                // Panjang sedikit ditambah agar terlihat sebagai sinar (90 -> 110)
-                const rayLen = (110 + (glareIntensity * 120)) * variation;
-                const rayWidth = 6 + (glareIntensity * 3); // Lebih ramping agar elegan
+                // Panjang sinar bervariasi tapi panjang (Beam of light)
+                const variation = (i % 2 === 0) ? 1.0 : 0.7;
+                const rayLen = (250 + (glareIntensity * 300)) * variation; // Sangat panjang
+                const rayWidth = 20 + (glareIntensity * 10); // Pangkal lebar
 
                 const grdRay = ctx.createLinearGradient(0, 0, rayLen, 0);
-                grdRay.addColorStop(0, "rgba(255, 255, 255, 0.7)"); // Opacity naik (0.5 -> 0.7)
-                grdRay.addColorStop(0.3, "rgba(255, 200, 120, 0.3)"); // Warna Orange lebih terlihat
+                grdRay.addColorStop(0, "rgba(255, 255, 255, 0.4)"); // Putih Transparan di pangkal
+                grdRay.addColorStop(0.4, "rgba(255, 255, 255, 0.1)"); // Fade di tengah
                 grdRay.addColorStop(1, "rgba(255, 255, 255, 0)");
 
                 ctx.fillStyle = grdRay;
@@ -1117,24 +1116,27 @@ function drawLandscape() {
     const backColor = lerpColor(baseColor, '#020617', 0.4); // Gelapkan 40% untuk gunung belakang
     const frontColor = lerpColor(baseColor, '#020617', 0.7); // Gelapkan 70% untuk gunung depan
 
-    // 1. Gunung Belakang (Layer Jauh - Lebih Pudar)
+    // 1. Gunung Belakang (Layer Jauh - Puncak Gunung Megah)
     ctx.fillStyle = backColor;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.48); // MODIFIED: Naikkan ke 48% agar benar-benar menutupi horizon 50%
-    ctx.bezierCurveTo(w * 0.15, h * 0.45, w * 0.3, h * 0.65, w * 0.4, h * 0.55);
-    ctx.bezierCurveTo(w * 0.55, h * 0.40, w * 0.7, h * 0.60, w * 0.8, h * 0.55);
-    ctx.lineTo(w, h * 0.60);
+    ctx.lineTo(0, h * 0.7); 
+    // Naik curam ke puncak gunung (segitiga melengkung natural)
+    ctx.bezierCurveTo(w * 0.2, h * 0.65, w * 0.35, h * 0.25, w * 0.5, h * 0.3);
+    // Turun landai ke kanan dengan lekukan
+    ctx.bezierCurveTo(w * 0.65, h * 0.35, w * 0.85, h * 0.65, w, h * 0.6);
     ctx.lineTo(w, h);
     ctx.fill();
 
-    // 2. Gunung Depan (Layer Dekat - Lebih Gelap)
+    // 2. Gunung Depan (Layer Dekat - Bukit & Tebing)
     ctx.fillStyle = frontColor;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.65);
-    ctx.bezierCurveTo(w * 0.2, h * 0.75, w * 0.35, h * 0.55, w * 0.5, h * 0.70);
-    ctx.bezierCurveTo(w * 0.7, h * 0.85, w * 0.85, h * 0.65, w, h * 0.70);
+    ctx.lineTo(0, h * 0.85);
+    // Bukit kiri
+    ctx.bezierCurveTo(w * 0.25, h * 0.75, w * 0.4, h * 0.85, w * 0.55, h * 0.75);
+    // Bukit kanan lebih tinggi
+    ctx.bezierCurveTo(w * 0.7, h * 0.65, w * 0.9, h * 0.8, w, h * 0.75);
     ctx.lineTo(w, h);
     ctx.fill();
 
