@@ -857,21 +857,132 @@ function drawCelestialBodies() {
         // Altitude 0 (Horizon) -> 1 (Zenith)
         let p = Math.min(1, Math.max(0, sunAlt / 0.8)); 
         
-        const colorHigh = "#facc15"; // Kuning Siang
-        const colorLow = "#f97316";  // Orange Senja
-        const colorCore = lerpColor(colorLow, colorHigh, p);
-        const glowRgb = hexToRgb(colorCore);
+        if (p < 0.3) {
+            // --- MODE SUNRISE/SUNSET (Original Style) ---
+            // Tetap bulat dan berwarna oranye/kuning tegas saat rendah
+            const colorHigh = "#facc15"; 
+            const colorLow = "#f97316";  
+            const localP = p / 0.3; // Normalisasi p untuk range 0 - 0.3
+            const colorCore = lerpColor(colorLow, colorHigh, localP);
+            const glowRgb = hexToRgb(colorCore);
 
-        // Glow Luar
-        const grd = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 80);
-        grd.addColorStop(0, `rgba(${glowRgb}, 0.6)`);
-        grd.addColorStop(1, `rgba(${glowRgb}, 0)`);
-        ctx.fillStyle = grd;
-        ctx.beginPath(); ctx.arc(sunX, sunY, 80, 0, Math.PI * 2); ctx.fill();
+            // Glow Luar
+            const grd = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 80);
+            grd.addColorStop(0, `rgba(${glowRgb}, 0.6)`);
+            grd.addColorStop(1, `rgba(${glowRgb}, 0)`);
+            ctx.fillStyle = grd;
+            ctx.beginPath(); ctx.arc(sunX, sunY, 80, 0, Math.PI * 2); ctx.fill();
 
-        // Inti Matahari
-        ctx.fillStyle = colorCore;
-        ctx.beginPath(); ctx.arc(sunX, sunY, 30, 0, Math.PI * 2); ctx.fill();
+            // Inti Matahari
+            ctx.fillStyle = colorCore;
+            ctx.beginPath(); ctx.arc(sunX, sunY, 30, 0, Math.PI * 2); ctx.fill();
+        } else {
+            // --- MODE SIANG (Realistic Glare & Lens Flare) ---
+            const glareIntensity = (p - 0.3) / 0.7; // 0.0 -> 1.0
+            
+            // 1. Main Sun Glare (Blinding Light - Not Round)
+            // Gunakan gradient yang sangat besar dan halus untuk menyamarkan bentuk bulat
+            const outerRadius = 200 + (glareIntensity * 300); // Lebih besar & soft (200-500px)
+            
+            const grdMain = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, outerRadius);
+            grdMain.addColorStop(0, "rgba(255, 255, 255, 1.0)"); // Pusat Putih Silau
+            grdMain.addColorStop(0.05, "rgba(255, 255, 255, 0.9)"); 
+            grdMain.addColorStop(0.15, "rgba(255, 245, 220, 0.6)"); // Putih Kekuningan
+            grdMain.addColorStop(0.35, "rgba(255, 200, 150, 0.25)"); // Gradasi Orange Halus (Permintaan User)
+            grdMain.addColorStop(0.6, "rgba(255, 255, 255, 0.05)"); 
+            grdMain.addColorStop(1, "rgba(255, 255, 255, 0)");
+            
+            ctx.fillStyle = grdMain;
+            ctx.beginPath(); ctx.arc(sunX, sunY, outerRadius, 0, Math.PI * 2); ctx.fill();
+
+            // 2. Subtle Rays / Duri-duri (Soft Spikes)
+            ctx.save();
+            ctx.translate(sunX, sunY);
+            ctx.rotate(Date.now() * 0.00015); // Rotasi sangat pelan agar hidup
+
+            // PERUBAHAN: Blur dikurangi sedikit, Warna diperjelas
+            ctx.filter = "blur(5px)"; // Blur dikurangi (8px -> 5px) agar bentuk lebih terlihat
+            const rayCount = 12; // Jumlah ditambah (8 -> 12) agar seperti sinar
+            
+            for (let i = 0; i < rayCount; i++) {
+                ctx.rotate((Math.PI * 2) / rayCount);
+                ctx.beginPath();
+                
+                // Panjang duri selang-seling (Panjang-Pendek) agar natural
+                const variation = (i % 2 === 0) ? 1.0 : 0.6;
+                // Panjang sedikit ditambah agar terlihat sebagai sinar (90 -> 110)
+                const rayLen = (110 + (glareIntensity * 120)) * variation;
+                const rayWidth = 6 + (glareIntensity * 3); // Lebih ramping agar elegan
+
+                const grdRay = ctx.createLinearGradient(0, 0, rayLen, 0);
+                grdRay.addColorStop(0, "rgba(255, 255, 255, 0.7)"); // Opacity naik (0.5 -> 0.7)
+                grdRay.addColorStop(0.3, "rgba(255, 200, 120, 0.3)"); // Warna Orange lebih terlihat
+                grdRay.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+                ctx.fillStyle = grdRay;
+                
+                // Gambar Segitiga (Duri)
+                ctx.moveTo(0, -rayWidth/2); 
+                ctx.lineTo(rayLen, 0); 
+                ctx.lineTo(0, rayWidth/2); 
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // 3. Lens Flare (Efek Pelangi di Bawah)
+            // Hitung arah ke pusat layar (agar flare bergerak realistis)
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const dirX = centerX - sunX;
+            const dirY = centerY - sunY;
+            const dist = Math.sqrt(dirX*dirX + dirY*dirY);
+            
+            if (dist > 0) {
+                const uX = dirX / dist;
+                const uY = dirY / dist;
+
+                // Helper function flare
+                const drawFlare = (pos, size, color, alpha) => {
+                    const fx = sunX + uX * (dist * pos);
+                    const fy = sunY + uY * (dist * pos);
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = alpha * glareIntensity;
+                    ctx.beginPath(); ctx.arc(fx, fy, size, 0, Math.PI * 2); ctx.fill();
+                };
+
+                // Flare 1: Lingkaran Cahaya Dekat (Kuning Pudar)
+                drawFlare(0.3, 40, "rgba(255, 255, 200, 0.4)", 0.3);
+
+                // Flare 2: Hexagon/Lingkaran (Hijau/Biru Pudar)
+                drawFlare(0.6, 25, "rgba(150, 255, 200, 0.3)", 0.2);
+
+                // Flare 3: Cincin Pelangi (Rainbow Ring) - "kayak efek pelangi"
+                const ringPos = 1.3; // Jauh di bawah
+                const rx = sunX + uX * (dist * ringPos);
+                const ry = sunY + uY * (dist * ringPos);
+                
+                ctx.globalAlpha = 0.15 * glareIntensity;
+                // Gradient Pelangi Radial
+                const grdRing = ctx.createRadialGradient(rx, ry, 30, rx, ry, 70);
+                grdRing.addColorStop(0, "rgba(255, 255, 255, 0)");
+                grdRing.addColorStop(0.2, "rgba(255, 0, 0, 0.3)"); // Merah
+                grdRing.addColorStop(0.4, "rgba(255, 255, 0, 0.3)"); // Kuning
+                grdRing.addColorStop(0.6, "rgba(0, 255, 0, 0.3)"); // Hijau
+                grdRing.addColorStop(0.8, "rgba(0, 0, 255, 0.3)"); // Biru
+                grdRing.addColorStop(1, "rgba(255, 0, 255, 0)"); // Ungu
+                
+                ctx.fillStyle = grdRing;
+                ctx.beginPath(); ctx.arc(rx, ry, 70, 0, Math.PI * 2); ctx.fill();
+
+                // Flare 4: Titik Kecil Tajam (Putih)
+                drawFlare(0.9, 4, "rgba(255, 255, 255, 0.9)", 0.6);
+                
+                // Flare 5: Glow Ungu Besar (Jauh)
+                drawFlare(1.6, 100, "rgba(100, 100, 255, 0.15)", 0.15);
+                
+                ctx.globalAlpha = 1.0; // Reset
+            }
+        }
     }
 
     // --- Draw Moon (Bulan) ---
