@@ -104,6 +104,13 @@
             const body = document.body;
             const btn = document.getElementById('theme-btn');
             
+            // --- UPDATE STATUS BAR (Full Screen Look) ---
+            const sbColor = theme === 'light' ? '#ffffff' : '#0f172a';
+            let meta = document.querySelector('meta[name="theme-color"]');
+            if(!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
+            meta.content = sbColor;
+            meta.dataset.originalColor = sbColor;
+            
             if(theme === 'light') {
                 body.classList.add('light-mode');
                 if(btn) { btn.innerHTML = '<i data-lucide="sun" class="w-3 h-3 inline mr-1"></i> Light'; btn.className = "bg-white text-slate-900 text-xs px-3 py-2 rounded-lg border border-slate-200 font-bold shadow-sm"; }
@@ -760,6 +767,25 @@
         });
 
         function initApp() {
+            // --- SETUP FULL SCREEN & SAFE AREA ---
+            // 1. Viewport Fit Cover (Edge-to-Edge)
+            let vp = document.querySelector('meta[name="viewport"]');
+            if(!vp) { 
+                vp = document.createElement('meta'); vp.name = 'viewport'; 
+                vp.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+                document.head.appendChild(vp); 
+            } else if(!vp.content.includes('viewport-fit=cover')) {
+                vp.content += ', viewport-fit=cover';
+            }
+
+            // 2. Inject CSS Safe Area (Notch Support)
+            const saStyle = document.createElement('style');
+            saStyle.innerHTML = `
+                .leaflet-top { top: env(safe-area-inset-top, 0px) !important; }
+                .absolute.top-0, .absolute.top-2, .absolute.top-4, .absolute.top-6 { margin-top: env(safe-area-inset-top, 0px) !important; }
+            `;
+            document.head.appendChild(saStyle);
+
             // Set user default (Guest) agar fungsi penyimpanan tetap berjalan
             currentUser = { email: 'Guest', uid: 'guest_user' };
             
