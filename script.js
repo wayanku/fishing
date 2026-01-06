@@ -705,7 +705,7 @@
 
             // 1. Notifikasi Visual
             const toast = document.createElement('div');
-            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] flex items-center gap-2 animate-bounce toast-safe-top";
+            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] flex items-center gap-2 animate-bounce";
             toast.innerHTML = `<i data-lucide="wifi" class="w-4 h-4"></i> Online: Memuat Ulang Data...`;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
@@ -730,59 +730,14 @@
 
         window.addEventListener('offline', () => {
             const toast = document.createElement('div');
-            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-400 px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[3000] flex items-center gap-2 toast-safe-top";
+            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-400 px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[3000] flex items-center gap-2";
             toast.innerHTML = `<i data-lucide="wifi-off" class="w-4 h-4"></i> Koneksi Terputus`;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
             lucide.createIcons();
         });
 
-        function initIOSStatusBar() {
-            // 1. Paksa Meta Tag untuk iOS Translucent Status Bar
-            let metaStatus = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-            if (!metaStatus) {
-                metaStatus = document.createElement('meta');
-                metaStatus.name = 'apple-mobile-web-app-status-bar-style';
-                document.head.appendChild(metaStatus);
-            }
-            metaStatus.content = 'black-translucent';
-
-            let metaViewport = document.querySelector('meta[name="viewport"]');
-            if (!metaViewport) {
-                metaViewport = document.createElement('meta');
-                metaViewport.name = 'viewport';
-                document.head.appendChild(metaViewport);
-            }
-            if (!metaViewport.content.includes('viewport-fit=cover')) {
-                metaViewport.content += ', viewport-fit=cover';
-            }
-
-            // 2. Inject CSS Safe Area & Fullscreen Map
-            const style = document.createElement('style');
-            style.innerHTML = `
-                html, body { height: 100%; width: 100%; overflow: hidden; background-color: #0f172a; }
-                #map { height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; z-index: 0; }
-                .toast-safe-top { top: calc(6rem + env(safe-area-inset-top)) !important; }
-            `;
-            document.head.appendChild(style);
-
-            // 3. Sesuaikan Posisi Search Bar (Heuristik)
-            const searchInput = document.getElementById('search-input');
-            if (searchInput) {
-                let container = searchInput.parentElement;
-                while(container && container !== document.body) {
-                    const pos = window.getComputedStyle(container).position;
-                    if (pos === 'absolute' || pos === 'fixed') {
-                        container.style.top = 'calc(1rem + env(safe-area-inset-top))';
-                        break;
-                    }
-                    container = container.parentElement;
-                }
-            }
-        }
-
         function initApp() {
-            initIOSStatusBar();
             // Set user default (Guest) agar fungsi penyimpanan tetap berjalan
             currentUser = { email: 'Guest', uid: 'guest_user' };
             
@@ -1726,7 +1681,7 @@
                     document.body.appendChild(closeBtn);
                     
                     closeBtn.style.position = 'fixed';
-                    closeBtn.style.top = 'calc(20px + env(safe-area-inset-top))';
+                    closeBtn.style.top = '20px';
                     closeBtn.style.right = '20px';
                     closeBtn.style.zIndex = '10000';
                     closeBtn.className = "bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-full p-2 hover:bg-red-500/20 transition-all text-white";
@@ -2012,7 +1967,7 @@
                     container.style.alignItems = 'center';
                     container.style.justifyContent = 'center';
                     container.style.cursor = 'pointer';
-                    container.style.marginTop = 'calc(80px + env(safe-area-inset-top))'; // Turunkan posisi agar tidak tertutup search bar & notch
+                    container.style.marginTop = '80px'; // Turunkan posisi agar tidak tertutup search bar
                     container.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
                     
                     // Ikon Kompas Custom (Jarum Merah = Utara)
@@ -2231,7 +2186,7 @@
                 }).addTo(map);
                 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Layer Angin Ditampilkan`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2269,7 +2224,7 @@
                     }).addTo(map);
 
                     const toast = document.createElement('div');
-                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
+                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                     toast.innerHTML = `<i data-lucide="activity" class="w-4 h-4 text-red-500"></i> Data Gempa Ditampilkan`;
                     document.body.appendChild(toast);
                     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2287,7 +2242,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="anchor" class="w-4 h-4 text-orange-400"></i> Peta Navigasi Laut`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2305,7 +2260,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="gauge" class="w-4 h-4 text-purple-400"></i> Peta Tekanan Udara`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2343,7 +2298,7 @@
                 activeLayers[type] = L.heatLayer(heatPoints, { radius: 25, blur: 15, maxZoom: 17, gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'} }).addTo(map);
                 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="scan-line" class="w-4 h-4 text-pink-400"></i> Heatmap Ikan Aktif`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2366,7 +2321,7 @@
                 }).addTo(map);
                 
                 showLegend('sst'); // Tampilkan Indikator Warna
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // CHLOROPHYLL LAYER - NASA GIBS (Free)
@@ -2384,7 +2339,7 @@
                 }).addTo(map);
                 
                 showLegend('chlorophyll'); // Tampilkan Indikator Warna
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // BATHYMETRY LAYER (GEBCO)
@@ -2399,7 +2354,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="waves" class="w-4 h-4 text-cyan-400"></i> Peta Kedalaman Aktif`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2451,7 +2406,7 @@
                 activeLayers[type] = L.layerGroup(layers).addTo(map);
                 
                 showLegend('sonar');
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top"; toast.innerHTML = `<i data-lucide="radar" class="w-4 h-4 text-emerald-400"></i> Peta Laut (Chart) Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="radar" class="w-4 h-4 text-emerald-400"></i> Peta Laut (Chart) Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // LIVE SHIP RADAR (AIS)
@@ -2470,7 +2425,7 @@
 
                 activeLayers[type] = shipLayer;
 
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top"; 
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; 
                 toast.innerHTML = `<i data-lucide="ship" class="w-4 h-4 text-red-400"></i> Radar Kapal Aktif`; 
                 document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons();
                 return;
@@ -2517,7 +2472,7 @@
 
                     // Feedback Visual (Toast)
                     const toast = document.createElement('div');
-                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2 toast-safe-top";
+                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                     toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Layer ${type === 'rain' ? 'Hujan' : 'Awan'} Ditampilkan`;
                     document.body.appendChild(toast);
                     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2572,7 +2527,7 @@
                     <div id="precip-map-large" class="w-full h-full bg-slate-950"></div>
                     
                     <!-- Header Floating -->
-                    <div class="absolute top-0 left-0 w-full p-4 pt-12 flex items-center justify-between z-[1000] bg-gradient-to-b from-black/80 to-transparent pointer-events-none" style="padding-top: calc(3rem + env(safe-area-inset-top))">
+                    <div class="absolute top-0 left-0 w-full p-4 pt-12 flex items-center justify-between z-[1000] bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
                         <button onclick="closePrecipMap()" class="pointer-events-auto bg-slate-800/50 backdrop-blur-md text-white rounded-full p-3 shadow-lg border border-white/10 hover:bg-slate-700 transition-all">
                             <i data-lucide="chevron-left" class="w-6 h-6"></i>
                         </button>
