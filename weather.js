@@ -929,6 +929,54 @@ function drawCelestialBodies() {
             }
             ctx.restore();
 
+            // 2.5. Crescent Rainbow Halo (Efek Pelangi Bulan Sabit)
+            ctx.save();
+            ctx.translate(sunX, sunY);
+            
+            // Scale agar oval (Pipih)
+            ctx.scale(1.4, 0.9); 
+            
+            // Radius dasar - Dikurangi sesuai permintaan (130 -> 70)
+            const rBase = 70 + (glareIntensity * 40); 
+            
+            // Buat Path Bulan Sabit (Smile)
+            ctx.beginPath();
+            
+            // Koordinat Tip Kiri dan Kanan
+            const tipX = rBase * 1.4;
+            const tipY = rBase * 0.1; // Mulai sedikit di bawah pusat
+            
+            // Gambar kurva luar (Bawah Lebar)
+            ctx.moveTo(-tipX, tipY);
+            // Control point Y lebih besar = lebih melengkung ke bawah
+            ctx.bezierCurveTo(-tipX * 0.4, rBase * 1.6, tipX * 0.4, rBase * 1.6, tipX, tipY);
+            
+            // Gambar kurva dalam (Atas - membuat efek menipis di ujung)
+            // Control point Y lebih kecil = kurang melengkung, sehingga ada jarak di tengah (tebal)
+            ctx.bezierCurveTo(tipX * 0.4, rBase * 1.1, -tipX * 0.4, rBase * 1.1, -tipX, tipY);
+            
+            ctx.closePath();
+
+            // Gradient Pelangi Radial (Centered at 0,0)
+            const grdRainbow = ctx.createRadialGradient(0, 0, rBase * 0.8, 0, 0, rBase * 1.6);
+            
+            // Urutan warna pelangi (Dalam: Biru -> Luar: Merah)
+            grdRainbow.addColorStop(0, "rgba(255, 255, 255, 0)");
+            grdRainbow.addColorStop(0.3, "rgba(100, 150, 255, 0.15)"); // Biru
+            grdRainbow.addColorStop(0.5, "rgba(100, 255, 100, 0.15)"); // Hijau
+            grdRainbow.addColorStop(0.7, "rgba(255, 200, 50, 0.15)");  // Kuning
+            grdRainbow.addColorStop(0.9, "rgba(255, 100, 100, 0.15)"); // Merah
+            grdRainbow.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+            ctx.fillStyle = grdRainbow;
+            
+            // Blur agar tidak tajam pinggirannya
+            ctx.filter = "blur(6px)";
+            ctx.fill();
+            ctx.filter = "none"; // Reset filter
+            
+            ctx.restore();
+
             // 3. Lens Flare (Efek Pelangi di Bawah)
             // Hitung arah ke pusat layar (agar flare bergerak realistis)
             const centerX = canvas.width / 2;
