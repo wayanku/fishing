@@ -4,13 +4,14 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fishing Spot by Wayan & StoryBali</title>
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#000000">
     
     <!-- PWA Manifest & Icons -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,21 +39,57 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js"></script>
 
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Styles untuk Sistem Halaman (View System) */
+        .view-section {
+            display: none;
+            height: 100vh;
+            width: 100%;
+            overflow-y: auto;
+            padding-bottom: 100px; /* Ruang untuk navigasi bawah */
+            /* background: #0f172a; REMOVED: Handle per view */
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 50;
+        }
+        .view-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+        /* Map View specific */
+        #view-map {
+            overflow: hidden;
+            z-index: 1; /* Map layer paling bawah saat aktif */
+        }
+        /* View Specific Backgrounds */
+        #view-home, #view-settings {
+            background: #000000;
+        }
+        #view-weather {
+            background: transparent; /* Transparent to show canvas */
+        }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
 <body class="overflow-hidden">
 
     <!-- LOGIN / REGISTER OVERLAY -->
     <canvas id="weather-canvas" class="fixed inset-0 z-[9990] pointer-events-none"></canvas>
 
-    <div id="auth-overlay" class="fixed inset-0 flex items-center justify-center p-6 hidden">
+    <div id="auth-overlay" class="fixed inset-0 z-[10000] flex items-center justify-center p-6 hidden bg-black/90 backdrop-blur-sm">
         <div class="glass w-full max-w-md p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-white/10 m-4 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
             <!-- Language Selector (Auth) -->
             <div class="absolute top-6 right-6">
-                <select onchange="changeLanguage(this.value)" class="bg-slate-800/50 text-white text-xs p-1.5 rounded-lg border border-white/10 outline-none">
+                <select onchange="changeLanguage(this.value)" class="bg-neutral-800/50 text-white text-xs p-1.5 rounded-lg border border-white/10 outline-none">
                     <option value="id">🇮🇩 ID</option><option value="en">🇺🇸 EN</option><option value="jp">🇯🇵 JP</option>
                 </select>
             </div>
+            <!-- Close Button (Hidden by default, shown when opened from profile) -->
+            <button id="auth-close-btn" onclick="closeAuthOverlay()" class="absolute top-6 left-6 text-slate-400 hover:text-white hidden transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+
             <div class="text-center mb-8">
                 <div class="bg-gradient-to-br from-blue-500 to-blue-700 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20 ring-4 ring-blue-500/10">
                     <i data-lucide="anchor" class="text-white w-8 h-8"></i>
@@ -63,16 +100,10 @@
             </div>
             
             <div class="space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Email</label>
-                    <input type="email" id="auth-email" class="w-full bg-slate-900/50 border border-white/10 rounded-2xl p-4 mt-1 outline-none focus:border-blue-500 focus:bg-slate-900/80 transition-all text-sm font-medium">
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
-                    <input type="password" id="auth-pass" class="w-full bg-slate-900/50 border border-white/10 rounded-2xl p-4 mt-1 outline-none focus:border-blue-500 focus:bg-slate-900/80 transition-all text-sm font-medium">
-                </div>
-                <button onclick="handleAuth('login')" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-blue-500/25 active:scale-95" data-i18n="btn_login">Masuk Sekarang</button>
-                <button onclick="handleAuth('register')" class="w-full py-2 text-slate-400 text-sm hover:text-white" data-i18n="btn_register">Belum punya akun? Daftar gratis</button>
+                <button onclick="handleAuth('google')" class="w-full bg-white text-slate-900 py-4 rounded-2xl font-bold transition-all shadow-lg hover:bg-slate-100 active:scale-95 flex items-center justify-center gap-3">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    Masuk dengan Google
+                </button>
             </div>
             <p id="auth-error" class="text-red-400 text-xs mt-4 text-center hidden"></p>
         </div>
@@ -81,10 +112,60 @@
     <!-- MAIN APP CONTENT (Hidden until login) -->
     <div id="app-content" class="">
 
-        <!-- Search Bar (New Feature) -->
-        <div class="fixed top-6 left-4 right-4 z-[1000] transition-all duration-300 pointer-events-none">
-            <div class="glass rounded-full flex items-center p-2 max-w-lg mx-auto shadow-2xl border border-white/10 backdrop-blur-xl pointer-events-auto transform hover:scale-[1.02] transition-transform bg-slate-900/40 ring-1 ring-white/5">
-                <button onclick="startVoiceSearch()" id="mic-btn" class="p-2 text-slate-400 hover:text-white transition-colors" aria-label="Cari dengan suara">
+        <!-- === HALAMAN 1: HOME (FEED) === -->
+        <div id="view-home" class="view-section active">
+            <div class="pt-4 pb-24">
+                <div class="flex items-center justify-between mb-6 px-4 md:px-6">
+                    <div>
+                        <h1 class="text-2xl font-black text-white tracking-tight">Fishing Spot</h1>
+                        <p class="text-xs text-slate-400">Jelajahi spot terbaik hari ini</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 p-0.5 cursor-pointer hover:scale-105 transition-transform" onclick="openProfile()">
+                        <img id="home-profile-img" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Guest" class="w-full h-full rounded-full bg-black">
+                    </div>
+                </div>
+                
+                <!-- Stories / Highlights -->
+                <div id="ai-stories-container" class="flex gap-4 overflow-x-auto no-scrollbar mb-8 pb-2 px-4 md:px-6">
+                    <!-- Skeleton Loading Story -->
+                    <div class="flex flex-col items-center gap-1 shrink-0 animate-pulse">
+                        <div class="w-[4.5rem] h-[4.5rem] rounded-full bg-slate-800 border-2 border-slate-900"></div>
+                        <div class="h-2 w-12 bg-slate-800 rounded"></div>
+                    </div>
+                    <div class="flex flex-col items-center gap-1 shrink-0 animate-pulse">
+                        <div class="w-[4.5rem] h-[4.5rem] rounded-full bg-slate-800 border-2 border-slate-900"></div>
+                        <div class="h-2 w-12 bg-slate-800 rounded"></div>
+                    </div>
+                </div>
+
+                <!-- Feed -->
+                <div id="home-feed-container" class="space-y-0">
+                    <!-- Skeleton Feed (Struktur Loading) -->
+                    <div class="mb-4 border-b border-white/5 pb-4 animate-pulse">
+                        <div class="flex items-center gap-3 px-4 py-3">
+                            <div class="w-10 h-10 rounded-full bg-neutral-800"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="h-3 w-24 bg-neutral-800 rounded"></div>
+                                <div class="h-2 w-16 bg-neutral-800 rounded"></div>
+                            </div>
+                        </div>
+                        <div class="w-full aspect-[4/5] bg-neutral-800"></div>
+                        <div class="px-4 pt-3 space-y-2">
+                            <div class="h-3 w-20 bg-neutral-800 rounded"></div>
+                            <div class="h-2 w-full bg-neutral-800 rounded"></div>
+                            <div class="h-2 w-3/4 bg-neutral-800 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- === HALAMAN 2: PETA (MAP) === -->
+        <div id="view-map" class="view-section">
+            <!-- Search Bar (Moved inside Map View) -->
+            <div class="absolute top-6 left-4 right-4 z-[1000] transition-all duration-300">
+                <div class="glass rounded-full flex items-center p-2 max-w-lg mx-auto shadow-2xl border border-white/10 backdrop-blur-xl bg-neutral-900/60 ring-1 ring-white/5">
+                    <button onclick="startVoiceSearch()" id="mic-btn" class="p-2 text-slate-400 hover:text-white transition-colors">
                     <i data-lucide="mic" class="w-4 h-4"></i>
                 </button>
                 <input type="text" id="search-input" data-i18n-placeholder="search_placeholder" placeholder="Cari lokasi (Desa, Kota, Laut)..." 
@@ -99,7 +180,7 @@
         <div id="map"></div>
 
         <!-- Map Legends (For NASA Layers) -->
-        <div id="map-legends" class="fixed bottom-24 md:bottom-8 left-4 z-[950] pointer-events-auto space-y-2">
+        <div id="map-legends" class="absolute bottom-24 md:bottom-8 left-4 z-[950] pointer-events-auto space-y-2">
             <div id="sst-legend" class="hidden glass p-2 rounded-lg w-48 shadow-lg animate-in fade-in duration-300">
                 <p class="text-[9px] font-bold text-slate-300 mb-1 text-center">Suhu Laut (°C)</p>
                 <div class="w-full h-3 rounded-md border border-white/10" style="background: linear-gradient(to right, #9333ea, #3b82f6, #22c55e, #eab308, #ef4444);"></div>
@@ -109,12 +190,18 @@
                 <div class="w-full h-3 rounded-md border border-white/10" style="background: linear-gradient(to right, #3b82f6, #22c55e, #eab308);"></div>
             </div>
         </div>
+        
+        <!-- Floating Buttons -->
+        <button onclick="locateUser()" class="absolute bottom-28 right-4 md:bottom-32 md:right-8 z-[900] glass p-3 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform active:scale-90 animate-float"><i data-lucide="navigation" class="w-6 h-6"></i></button>
+        <button onclick="findNearestSpot()" class="absolute bottom-44 right-4 md:bottom-48 md:right-8 z-[900] glass p-3 rounded-full text-emerald-400 shadow-xl hover:scale-110 transition-transform active:scale-90 animate-float-delay"><i data-lucide="locate-fixed" class="w-6 h-6"></i></button>
+        <button onclick="openMapSettings()" class="absolute bottom-60 right-4 md:bottom-64 md:right-8 z-[900] glass p-3 rounded-full text-yellow-400 shadow-xl hover:scale-110 transition-transform active:scale-90 animate-float" aria-label="Layer Peta"><i data-lucide="layers" class="w-6 h-6"></i></button>
+        </div>
 
-        <!-- WEATHER & ACTION PANEL (Bottom Sheet) -->
-        <div id="location-panel" class="fixed bottom-0 left-0 right-0 z-[1000] translate-y-full transition-transform duration-300 ease-out">
-            <div class="glass rounded-t-[2rem] md:rounded-t-[2.5rem] p-5 md:p-6 pb-8 max-w-2xl mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 max-h-[80vh] overflow-y-auto">
-                <!-- Drag Handle -->
-                <div class="w-16 h-1.5 bg-slate-600/50 rounded-full mx-auto mb-6 cursor-pointer hover:bg-slate-500 transition-colors" onclick="closeLocationPanel()"></div>
+        <!-- === HALAMAN 3: CUACA (WEATHER) === -->
+        <div id="view-weather" class="view-section">
+            <!-- Container ID 'location-panel' dipertahankan agar script.js tetap bisa mengisi data -->
+            <div id="location-panel" class="p-6 pt-10 max-w-2xl mx-auto">
+                <h2 class="text-2xl font-black text-white mb-6">Kondisi Cuaca</h2>
                 
                 <div class="flex items-start justify-between mb-6">
                     <div>
@@ -123,7 +210,6 @@
                         </h3>
                         <p id="panel-coords" class="text-xs text-slate-400 font-mono mt-1">-</p>
                     </div>
-                    <button onclick="closeLocationPanel()" class="p-2 bg-slate-800 rounded-full hover:bg-slate-700" aria-label="Tutup panel lokasi"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
 
                 <!-- Weather Grid (Updated to 3x2 for more info) -->
@@ -180,7 +266,7 @@
                 <div id="scroll-dots" class="flex justify-center gap-1.5 mb-6"></div>
 
                 <!-- AI Insight Panel (New) -->
-                <div id="weather-insight-panel" class="hidden mb-6 bg-slate-800/50 p-4 rounded-2xl border border-blue-500/30 relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+                <div id="weather-insight-panel" class="hidden mb-6 bg-neutral-900/50 p-4 rounded-2xl border border-blue-500/30 relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
                     <div class="absolute top-0 right-0 p-2 opacity-10"><i data-lucide="bot" class="w-12 h-12 text-blue-400"></i></div>
                     <div class="flex items-start gap-3">
                         <div class="bg-blue-500/20 p-2 rounded-lg text-blue-400 shrink-0 mt-1">
@@ -202,7 +288,7 @@
 
                 <!-- Actions -->
                 <div class="grid grid-cols-2 gap-3">
-                    <button onclick="openStreetViewFromPanel()" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-600 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95">
+                    <button onclick="openStreetViewFromPanel()" class="bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-600 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95">
                         <i data-lucide="eye" class="w-4 h-4"></i> Street View
                     </button>
                     <button onclick="openRouteModal()" class="bg-blue-600 hover:bg-blue-500 border border-blue-500 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/50 text-white">
@@ -211,47 +297,51 @@
                 </div>
             </div>
         </div>
-
-        <!-- Floating Locate Button -->
-        <button onclick="locateUser()" class="fixed bottom-28 right-4 md:bottom-32 md:right-8 z-[900] glass p-3 rounded-full text-blue-400 shadow-xl hover:scale-110 transition-transform active:scale-90 animate-float" aria-label="Lokasi saya"><i data-lucide="navigation" class="w-6 h-6"></i></button>
-
-        <!-- Floating Find Nearest Button -->
-        <button onclick="findNearestSpot()" class="fixed bottom-44 right-4 md:bottom-48 md:right-8 z-[900] glass p-3 rounded-full text-emerald-400 shadow-xl hover:scale-110 transition-transform active:scale-90 animate-float-delay" aria-label="Cari spot terdekat"><i data-lucide="locate-fixed" class="w-6 h-6"></i></button>
+        
+        <!-- === HALAMAN 4: MENU / SETTINGS === -->
+        <div id="view-settings" class="view-section">
+            <div class="p-6 pt-10 max-w-2xl mx-auto">
+                <h2 class="text-2xl font-black text-white mb-6">Menu & Pengaturan</h2>
+                <!-- Konten dipindahkan dari legendModal -->
+                <div id="settings-content-placeholder"></div> 
+                <!-- Script di bawah akan memindahkan konten asli ke sini -->
+            </div>
+        </div>
 
         <!-- Bottom Navigation Bar (Instagram Style) -->
-        <div class="fixed bottom-0 left-0 right-0 md:bottom-6 md:w-[500px] md:left-1/2 md:-translate-x-1/2 z-[900] glass md:rounded-3xl pb-6 pt-3 px-2 md:pb-3 md:px-8 grid grid-cols-5 justify-items-center items-end md:items-center shadow-2xl transition-all duration-300 border-t md:border border-white/10">
-            <button onclick="openMapSettings()" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
-                <i data-lucide="layers" class="w-6 h-6"></i>
-                <span class="text-[10px] font-medium">Peta</span>
+        <div class="fixed bottom-0 left-0 right-0 md:bottom-6 md:w-[500px] md:left-1/2 md:-translate-x-1/2 z-[900] bg-black/80 backdrop-blur-xl md:rounded-3xl pb-6 pt-3 px-2 md:pb-3 md:px-8 grid grid-cols-5 justify-items-center items-end md:items-center shadow-2xl transition-all duration-300 border-t md:border border-white/10">
+            <button onclick="navigateTo('home')" class="nav-btn p-2 text-blue-400 flex flex-col items-center gap-1 transition-colors" id="nav-home">
+                <i data-lucide="home" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Home</span>
             </button>
-            <button onclick="showUserWeatherPanel()" class="p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors">
-                <i data-lucide="cloud-sun" class="w-6 h-6"></i>
-                <span class="text-[10px] font-medium">Cuaca</span>
+            <button onclick="navigateTo('map')" class="nav-btn p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors" id="nav-map">
+                <i data-lucide="map" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Peta</span>
             </button>
             
             <!-- Center Add Button -->
             <div class="relative -top-6">
-                <button onclick="openAddModal()" class="bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/40 border-[6px] border-slate-900 hover:scale-110 transition-transform active:scale-95 ring-2 ring-white/10 hover:shadow-blue-500/60" aria-label="Tambah spot baru">
+                <button onclick="openAddModal()" class="bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/40 border-[6px] border-black hover:scale-110 transition-transform active:scale-95 ring-2 ring-white/10 hover:shadow-blue-500/60" aria-label="Tambah spot baru">
                     <i data-lucide="plus" class="w-8 h-8"></i>
                 </button>
             </div>
 
-            <button onclick="openFavorites()" class="p-2 text-slate-400 hover:text-red-400 flex flex-col items-center gap-1 transition-colors">
-                <i data-lucide="heart" class="w-6 h-6"></i>
-                <span class="text-[10px] font-medium">Favorit</span>
+            <button onclick="navigateTo('weather')" class="nav-btn p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors" id="nav-weather">
+                <i data-lucide="cloud-sun" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Cuaca</span>
             </button>
-            <button onclick="openLegend()" class="p-2 text-slate-400 hover:text-yellow-400 flex flex-col items-center gap-1 transition-colors">
-                <i data-lucide="settings" class="w-6 h-6"></i>
-                <span class="text-[10px] font-medium">Pengaturan</span>
+            <button onclick="navigateTo('settings')" class="nav-btn p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors" id="nav-settings">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Menu</span>
             </button>
         </div>
     </div>
 
     <!-- MODAL MAP SETTINGS (New Feature: iPhone Style Layers) -->
-    <div id="mapSettingsModal" class="fixed inset-0 z-[10000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+    <div id="mapSettingsModal" class="fixed inset-0 z-[10000] bg-black translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
         <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
             <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="layers" class="text-blue-400"></i> Tampilan Peta</h3>
-            <button onclick="closeMapSettings()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button onclick="closeMapSettings()" class="p-2 text-slate-400 hover:bg-neutral-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <div class="p-6 overflow-y-auto flex-1">
             <div class="space-y-6 max-w-2xl mx-auto">
@@ -275,10 +365,10 @@
                 </div>
 
                 <!-- Offline Map Section -->
-                <div class="bg-slate-800/50 p-4 rounded-xl border border-white/5">
+                <div class="bg-neutral-900/50 p-4 rounded-xl border border-white/5">
                     <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Mode Offline (Laut Lepas)</h4>
                     <p class="text-[10px] text-slate-400 mb-3 leading-relaxed">Download area peta yang sedang tampil di layar agar tetap bisa dibuka saat tidak ada sinyal (Blank Spot).</p>
-                    <button id="btn-download-map" onclick="downloadOfflineMap()" class="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/10"><i data-lucide="download-cloud" class="w-4 h-4"></i> Download Area Ini</button>
+                    <button id="btn-download-map" onclick="downloadOfflineMap()" class="w-full bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-white/10"><i data-lucide="download-cloud" class="w-4 h-4"></i> Download Area Ini</button>
                     
                     <!-- Daftar Peta Offline -->
                     <div id="offline-maps-list" class="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar"></div>
@@ -289,114 +379,114 @@
                     <h4 class="text-xs font-bold text-slate-400 uppercase mb-3">Lapisan Peta (Multi-Layer)</h4>
                     <div class="space-y-3">
                         <!-- Rain Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-blue-500/20 p-2 rounded-lg text-blue-400"><i data-lucide="cloud-rain" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Hujan</p><p class="text-[10px] text-slate-400">Radar presipitasi</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('rain')" id="toggle-rain"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('rain')" id="toggle-rain"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Clouds Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
-                                <div class="bg-slate-500/20 p-2 rounded-lg text-slate-300"><i data-lucide="cloud" class="w-5 h-5"></i></div>
+                                <div class="bg-neutral-700/20 p-2 rounded-lg text-slate-300"><i data-lucide="cloud" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Awan</p><p class="text-[10px] text-slate-400">Tutupan awan satelit</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('clouds')" id="toggle-clouds"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('clouds')" id="toggle-clouds"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Wind Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-emerald-500/20 p-2 rounded-lg text-emerald-400"><i data-lucide="wind" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Angin</p><p class="text-[10px] text-slate-400">Kecepatan angin (OWM)</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('wind')" id="toggle-wind"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('wind')" id="toggle-wind"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Quake Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-red-500/20 p-2 rounded-lg text-red-400"><i data-lucide="activity" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Gempa</p><p class="text-[10px] text-slate-400">Gempa terkini > 2.5SR</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('quake')" id="toggle-quake"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('quake')" id="toggle-quake"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Seamap Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-orange-500/20 p-2 rounded-lg text-orange-400"><i data-lucide="anchor" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Navigasi</p><p class="text-[10px] text-slate-400">OpenSeaMap</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('seamap')" id="toggle-seamap"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('seamap')" id="toggle-seamap"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Pressure Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-purple-500/20 p-2 rounded-lg text-purple-400"><i data-lucide="gauge" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Tekanan</p><p class="text-[10px] text-slate-400">Isobar Udara</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('pressure')" id="toggle-pressure"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('pressure')" id="toggle-pressure"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Fish Heatmap Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-pink-500/20 p-2 rounded-lg text-pink-400"><i data-lucide="scan-line" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Heatmap Ikan</p><p class="text-[10px] text-slate-400">Area tangkapan terbanyak (Komunitas)</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('fish_heat')" id="toggle-fish_heat"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('fish_heat')" id="toggle-fish_heat"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Sea Temp (SST) Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-indigo-500/20 p-2 rounded-lg text-indigo-400"><i data-lucide="thermometer-sun" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Suhu Laut (SST)</p><p class="text-[10px] text-slate-400">NASA GHRSST (Gratis)</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('sst')" id="toggle-sst"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('sst')" id="toggle-sst"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Chlorophyll Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-emerald-500/20 p-2 rounded-lg text-emerald-400"><i data-lucide="sprout" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Klorofil-a</p><p class="text-[10px] text-slate-400">Plankton/PPDPI (NASA)</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('chlorophyll')" id="toggle-chlorophyll"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('chlorophyll')" id="toggle-chlorophyll"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Bathymetry (GEBCO) Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-cyan-500/20 p-2 rounded-lg text-cyan-400"><i data-lucide="waves" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Kontur Kedalaman</p><p class="text-[10px] text-slate-400">Overlay GEBCO (Shaded Relief)</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('bathymetry')" id="toggle-bathymetry"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('bathymetry')" id="toggle-bathymetry"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Sonar Toggle (New Feature) -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-emerald-500/20 p-2 rounded-lg text-emerald-400"><i data-lucide="radar" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Peta Laut (Chart)</p><p class="text-[10px] text-slate-400">Kontur Kedalaman & Navigasi</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('sonar')" id="toggle-sonar"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('sonar')" id="toggle-sonar"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
 
                         <!-- Live Ship Radar Toggle -->
-                        <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                        <div class="flex items-center justify-between bg-neutral-900/50 p-3 rounded-xl border border-white/5">
                             <div class="flex items-center gap-3">
                                 <div class="bg-red-500/20 p-2 rounded-lg text-red-400"><i data-lucide="ship" class="w-5 h-5"></i></div>
                                 <div><p class="font-bold text-sm text-white">Live Radar Kapal</p><p class="text-[10px] text-slate-400">Posisi kapal real-time (AIS)</p></div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('ship_radar')" id="toggle-ship_radar"><div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
+                            <label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" class="sr-only peer" onchange="toggleLayer('ship_radar')" id="toggle-ship_radar"><div class="w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label>
                         </div>
                     </div>
-                    <p class="text-[10px] text-slate-500 mt-4 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-white/5">
+                    <p class="text-[10px] text-slate-500 mt-4 leading-relaxed bg-black/50 p-3 rounded-lg border border-white/5">
                         <i data-lucide="info" class="w-3 h-3 inline mr-1"></i> 
                         <b>Hujan, Awan, Suhu & Klorofil</b> (Gratis). <b>Angin</b> memerlukan API Key.
                     </p>
@@ -418,12 +508,12 @@
     </div>
 
     <!-- MODAL ROUTE STEPS (New Feature: Internal Navigation) -->
-    <div id="routeModal" class="fixed inset-0 z-[10000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+    <div id="routeModal" class="fixed inset-0 z-[10000] bg-black translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
         <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
             <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="navigation" class="text-blue-400"></i> Rute Perjalanan</h3>
-            <button onclick="closeRouteModal()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button onclick="closeRouteModal()" class="p-2 text-slate-400 hover:bg-neutral-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
-        <div class="p-0 overflow-y-auto flex-1 bg-slate-900/50">
+        <div class="p-0 overflow-y-auto flex-1 bg-neutral-900/50">
             <div id="route-steps-list" class="divide-y divide-white/5">
                 <!-- Steps injected here -->
             </div>
@@ -431,18 +521,18 @@
     </div>
 
     <!-- MODAL WINDY (New Feature: Full Windy Embed) -->
-    <div id="windyModal" class="fixed inset-0 z-[11000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0 bg-slate-900">
+    <div id="windyModal" class="fixed inset-0 z-[11000] bg-black translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0 bg-black">
             <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="wind" class="text-red-400"></i> Windy Map</h3>
-            <button onclick="closeWindy()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button onclick="closeWindy()" class="p-2 text-slate-400 hover:bg-neutral-800 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
-        <div class="flex-1 relative bg-slate-900">
+        <div class="flex-1 relative bg-black">
             <iframe id="windy-frame" class="absolute inset-0 w-full h-full border-none" src="" allow="geolocation"></iframe>
         </div>
     </div>
 
     <!-- MODAL ADD SPOT -->
-    <div id="addModal" class="fixed inset-0 z-[10000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+    <div id="addModal" class="fixed inset-0 z-[10000] bg-black translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
             <h3 id="addModalTitle" class="text-lg font-bold flex items-center gap-2"><i data-lucide="map-pin" class="text-blue-500"></i> <span data-i18n="modal_add_title">Tambah Spot</span></h3>
@@ -457,8 +547,8 @@
                     <input type="file" id="spotPhoto" accept="image/*" class="hidden" onchange="previewImage(this)">
                     
                     <!-- Placeholder State -->
-                    <div id="upload-placeholder" class="w-full aspect-video bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-600 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-800 hover:border-blue-500 hover:text-blue-400 transition-all group-hover:shadow-lg group-hover:shadow-blue-900/20" onclick="document.getElementById('spotPhoto').click()">
-                        <div class="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <div id="upload-placeholder" class="w-full aspect-video bg-neutral-800/50 rounded-2xl border-2 border-dashed border-neutral-600 flex flex-col items-center justify-center cursor-pointer hover:bg-neutral-800 hover:border-blue-500 hover:text-blue-400 transition-all group-hover:shadow-lg group-hover:shadow-blue-900/20" onclick="document.getElementById('spotPhoto').click()">
+                        <div class="w-16 h-16 bg-neutral-700/50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                             <i data-lucide="camera" class="w-8 h-8 text-slate-400 group-hover:text-blue-400"></i>
                         </div>
                         <span class="text-xs font-bold uppercase tracking-wider text-slate-400" data-i18n="label_add_photo">Tambah Foto (Opsional)</span>
@@ -477,7 +567,7 @@
                 <!-- Form Inputs -->
                 <div class="space-y-4">
                     <!-- Name -->
-                    <div class="bg-slate-800/50 border border-white/5 rounded-xl p-1 focus-within:border-blue-500/50 focus-within:bg-slate-800 transition-all">
+                    <div class="bg-neutral-800/50 border border-white/5 rounded-xl p-1 focus-within:border-blue-500/50 focus-within:bg-neutral-800 transition-all">
                         <label class="block text-[10px] font-bold text-slate-500 uppercase px-3 pt-2">Nama Spot / Ikan</label>
                         <input type="text" id="spotName" data-i18n-placeholder="placeholder_spotname" placeholder="Contoh: Ikan Kakap Merah" class="w-full bg-transparent border-none text-white p-3 pt-1 outline-none font-bold text-lg placeholder-slate-600">
                     </div>
@@ -485,7 +575,7 @@
                     <!-- Grid -->
                     <div class="grid grid-cols-2 gap-4">
                         <!-- Weight -->
-                        <div class="bg-slate-800/50 border border-white/5 rounded-xl p-1 focus-within:border-emerald-500/50 focus-within:bg-slate-800 transition-all">
+                        <div class="bg-neutral-800/50 border border-white/5 rounded-xl p-1 focus-within:border-emerald-500/50 focus-within:bg-neutral-800 transition-all">
                             <label class="block text-[10px] font-bold text-slate-500 uppercase px-3 pt-2">Berat (Kg)</label>
                             <div class="flex items-center px-3 pb-1">
                                 <input type="number" id="spotWeight" placeholder="0.0" step="0.1" class="w-full bg-transparent border-none text-emerald-400 p-0 outline-none font-black text-2xl placeholder-slate-700">
@@ -494,7 +584,7 @@
                         </div>
 
                         <!-- Rating -->
-                        <div class="bg-slate-800/50 border border-white/5 rounded-xl p-1 flex flex-col items-center justify-center">
+                        <div class="bg-neutral-800/50 border border-white/5 rounded-xl p-1 flex flex-col items-center justify-center">
                             <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rating Spot</label>
                             <div class="flex gap-1" id="star-rating-container">
                                 <button type="button" onclick="setRating(1)" class="star-btn p-1 text-slate-600 hover:text-yellow-400 transition-colors"><i data-lucide="star" class="w-5 h-5 fill-current"></i></button>
@@ -508,15 +598,15 @@
                     </div>
 
                     <!-- Comment -->
-                    <div class="bg-slate-800/50 border border-white/5 rounded-xl p-1 focus-within:border-blue-500/50 focus-within:bg-slate-800 transition-all">
+                    <div class="bg-neutral-800/50 border border-white/5 rounded-xl p-1 focus-within:border-blue-500/50 focus-within:bg-neutral-800 transition-all">
                         <label class="block text-[10px] font-bold text-slate-500 uppercase px-3 pt-2">Catatan / Cerita</label>
                         <textarea id="spotComment" rows="3" data-i18n-placeholder="placeholder_comment" placeholder="Ceritakan pengalaman memancing di sini..." class="w-full bg-transparent border-none text-slate-300 p-3 pt-1 outline-none text-sm placeholder-slate-600 resize-none"></textarea>
                     </div>
                 </div>
 
                 <!-- Street View Info -->
-                <div id="sv-preview" class="bg-slate-900/80 p-4 rounded-xl border border-dashed border-slate-700 flex items-start gap-3">
-                    <div class="bg-slate-800 p-2 rounded-lg shrink-0">
+                <div id="sv-preview" class="bg-neutral-900/80 p-4 rounded-xl border border-dashed border-neutral-700 flex items-start gap-3">
+                    <div class="bg-neutral-800 p-2 rounded-lg shrink-0">
                         <i data-lucide="map-pin" class="w-5 h-5 text-blue-400"></i>
                     </div>
                     <div>
@@ -527,7 +617,7 @@
             </div>
         </div>
         <!-- Footer -->
-        <div class="p-4 border-t border-white/10 shrink-0 bg-slate-950">
+        <div class="p-4 border-t border-white/10 shrink-0 bg-black">
             <div class="max-w-2xl mx-auto">
                 <button id="btnSaveSpot" onclick="saveSpotCloud()" class="w-full bg-blue-600 py-4 rounded-xl font-bold hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/50" data-i18n="btn_save_cloud">Simpan ke Cloud</button>
             </div>
@@ -536,18 +626,18 @@
 
     <!-- MODAL SPOT DETAIL (New Feature) -->
     <div id="spotDetailModal" class="fixed inset-0 z-[10000] bg-black/90 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-950 w-full max-w-xl p-0 rounded-[2.5rem] animate-in zoom-in duration-300 relative m-0 shadow-2xl border border-white/5 overflow-hidden flex flex-col h-[90vh] md:h-auto md:max-h-[90vh]">
+        <div class="bg-black w-full max-w-xl p-0 rounded-[2.5rem] animate-in zoom-in duration-300 relative m-0 shadow-2xl border border-white/5 overflow-hidden flex flex-col h-[90vh] md:h-auto md:max-h-[90vh]">
             <!-- Header Image -->
-            <div class="relative h-72 md:h-96 bg-slate-900 shrink-0 group">
+            <div class="relative h-72 md:h-96 bg-black shrink-0 group">
                 <img id="detail-img" src="" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
                 
                 <!-- Favorite Button -->
                 <button onclick="toggleFavorite()" id="btn-favorite" class="absolute top-4 right-16 p-3 bg-black/30 rounded-full hover:bg-black/50 text-white backdrop-blur-md border border-white/10 transition-all active:scale-90" aria-label="Tambah ke favorit"><i data-lucide="heart" class="w-6 h-6"></i></button>
                 
                 <button onclick="closeSpotDetail()" class="absolute top-4 right-4 p-3 bg-black/30 rounded-full hover:bg-black/50 text-white backdrop-blur-md border border-white/10 transition-all active:scale-90" aria-label="Tutup detail"><i data-lucide="x" class="w-6 h-6"></i></button>
                 
-                <div class="absolute bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-slate-950 to-transparent">
+                <div class="absolute bottom-0 left-0 right-0 p-6 pb-8 bg-gradient-to-t from-black to-transparent">
                     <h3 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 leading-tight drop-shadow-sm" id="detail-name">Nama Spot</h3>
                     <div class="flex items-center gap-3 mt-3">
                         <div class="flex items-center gap-1 text-yellow-400" id="detail-rating-stars"></div>
@@ -558,7 +648,7 @@
             
             <!-- Content -->
             <div class="px-6 pb-6 overflow-y-auto no-scrollbar flex-1 -mt-4 relative z-10">
-                <div class="flex items-center justify-between mb-8 bg-slate-900/80 backdrop-blur-md p-4 rounded-3xl border border-white/5 shadow-xl">
+                <div class="flex items-center justify-between mb-8 bg-neutral-900/80 backdrop-blur-md p-4 rounded-3xl border border-white/5 shadow-xl">
                     <div class="text-center">
                         <p class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="label_contributors">Kontributor</p>
                         <p class="text-2xl font-black text-white" id="detail-count">0</p>
@@ -575,7 +665,7 @@
             </div>
 
             <!-- Footer Action -->
-            <div class="absolute bottom-0 left-0 right-0 p-4 bg-slate-950/80 backdrop-blur-xl border-t border-white/5 z-20">
+            <div class="absolute bottom-0 left-0 right-0 p-4 bg-black/80 backdrop-blur-xl border-t border-white/5 z-20">
                 <button onclick="addContribution()" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 py-4 rounded-2xl font-bold shadow-lg hover:shadow-blue-500/25 transition-all flex items-center justify-center gap-2 text-white">
                     <i data-lucide="camera" class="w-4 h-4"></i> <span data-i18n="btn_add_review">Tambah Foto / Ulasan Disini</span>
                 </button>
@@ -584,14 +674,14 @@
     </div>
 
     <!-- MODAL WEATHER DETAIL (New Feature) -->
-    <div id="weatherDetailModal" class="fixed inset-0 z-[10000] bg-slate-950 hidden animate-in slide-in-from-bottom duration-300">
+    <div id="weatherDetailModal" class="fixed inset-0 z-[10000] bg-black hidden animate-in slide-in-from-bottom duration-300">
         <div class="w-full h-full p-6 overflow-y-auto no-scrollbar relative">
-            <button onclick="closeDetailModal()" class="absolute top-4 right-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700" aria-label="Tutup detail cuaca"><i data-lucide="x" class="w-4 h-4"></i></button>
+            <button onclick="closeDetailModal()" class="absolute top-4 right-4 p-2 bg-neutral-800 rounded-full hover:bg-neutral-700" aria-label="Tutup detail cuaca"><i data-lucide="x" class="w-4 h-4"></i></button>
             <h3 class="text-xl font-bold mb-1 flex items-center gap-2" id="detail-title">Detail Cuaca</h3>
             <p class="text-xs text-slate-400 mb-4" id="detail-date">...</p>
             
             <!-- AI Insight Box (New Feature) -->
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-2xl border border-blue-500/30 mb-5 relative overflow-hidden shadow-lg group">
+            <div class="bg-gradient-to-br from-neutral-800 to-neutral-900 p-4 rounded-2xl border border-blue-500/30 mb-5 relative overflow-hidden shadow-lg group">
                 <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><i data-lucide="bot" class="w-16 h-16 text-blue-400"></i></div>
                 <h4 class="text-xs font-bold text-blue-300 uppercase mb-3 flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i> Analisa Cerdas (AI)</h4>
                 <div id="ai-insight-content" class="grid md:grid-cols-2 gap-4 text-sm text-slate-200 leading-relaxed">
@@ -606,10 +696,10 @@
 
             <!-- Chart Tabs -->
             <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
-                <button onclick="switchChart('temp')" id="tab-temp" class="chart-tab active px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-slate-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="thermometer" class="w-3 h-3"></i> Suhu & Hujan</button>
-                <button onclick="switchChart('solunar')" id="tab-solunar" class="chart-tab px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-slate-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="moon-star" class="w-3 h-3"></i> Aktivitas Ikan</button>
-                <button onclick="switchChart('wind')" id="tab-wind" class="chart-tab px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-slate-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="wind" class="w-3 h-3"></i> Angin</button>
-                <button onclick="switchChart('wave')" id="tab-wave" class="chart-tab px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-slate-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="waves" class="w-3 h-3"></i> Ombak</button>
+                <button onclick="switchChart('temp')" id="tab-temp" class="chart-tab active px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-neutral-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="thermometer" class="w-3 h-3"></i> Suhu & Hujan</button>
+                <button onclick="switchChart('solunar')" id="tab-solunar" class="chart-tab px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-neutral-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="moon-star" class="w-3 h-3"></i> Aktivitas Ikan</button>
+                <button onclick="switchChart('wind')" id="tab-wind" class="chart-tab px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-neutral-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="wind" class="w-3 h-3"></i> Angin</button>
+                <button onclick="switchChart('wave')" id="tab-wave" class="chart-tab px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-neutral-800/50 text-slate-400 transition-all whitespace-nowrap flex items-center gap-1"><i data-lucide="waves" class="w-3 h-3"></i> Ombak</button>
             </div>
 
             <!-- Chart Container -->
@@ -623,33 +713,33 @@
             <!-- Advanced Details Grid -->
             <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Data Atmosfer</h4>
             <div class="grid grid-cols-3 gap-2 mb-4">
-                <div class="bg-slate-800/30 p-2 rounded-xl border border-white/5 text-center">
+                <div class="bg-neutral-800/30 p-2 rounded-xl border border-white/5 text-center">
                     <p class="text-[9px] text-slate-500 uppercase">Kelembaban</p>
                     <p class="text-sm font-bold text-blue-300" id="det-humidity">-%</p>
                 </div>
-                <div class="bg-slate-800/30 p-2 rounded-xl border border-white/5 text-center">
+                <div class="bg-neutral-800/30 p-2 rounded-xl border border-white/5 text-center">
                     <p class="text-[9px] text-slate-500 uppercase">Tekanan</p>
                     <p class="text-sm font-bold text-emerald-300" id="det-pressure">- hPa</p>
                 </div>
-                <div class="bg-slate-800/30 p-2 rounded-xl border border-white/5 text-center">
+                <div class="bg-neutral-800/30 p-2 rounded-xl border border-white/5 text-center">
                     <p class="text-[9px] text-slate-500 uppercase">UV Index</p>
                     <p class="text-sm font-bold text-yellow-300" id="det-uv">-</p>
                 </div>
             </div>
             
             <!-- Summary -->
-            <div class="p-3 bg-slate-800/50 rounded-xl border border-slate-700/50 text-xs text-slate-300" id="rain-summary">
+            <div class="p-3 bg-neutral-800/50 rounded-xl border border-neutral-700/50 text-xs text-slate-300" id="rain-summary">
                 <!-- Summary -->
             </div>
         </div>
     </div>
 
     <!-- MODAL FAVORITES LIST -->
-    <div id="favoritesModal" class="fixed inset-0 z-[10000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
+    <div id="favoritesModal" class="fixed inset-0 z-[10000] bg-black translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
                 <h3 class="text-xl font-bold flex items-center gap-2 text-white"><i data-lucide="heart" class="text-red-500 fill-red-500"></i> Spot Favorit</h3>
-            <button onclick="closeFavorites()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full" aria-label="Tutup favorit"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button onclick="closeFavorites()" class="p-2 text-slate-400 hover:bg-neutral-800 rounded-full" aria-label="Tutup favorit"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <!-- Content -->
         <div class="p-6 overflow-y-auto flex-1">
@@ -660,53 +750,44 @@
     </div>
 
     <!-- MODAL LEGEND / INFO MARKER -->
-    <div id="legendModal" class="fixed inset-0 z-[10000] bg-slate-950 translate-y-full transition-transform duration-300 ease-in-out flex flex-col">
-        <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
-                <h3 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="settings" class="text-blue-400"></i> Pengaturan</h3>
-            <button onclick="closeLegend()" class="p-2 text-slate-400 hover:bg-slate-800 rounded-full" aria-label="Tutup pengaturan"><i data-lucide="x" class="w-5 h-5"></i></button>
-        </div>
+    <!-- Diubah menjadi hidden container untuk dipindahkan ke view-settings -->
+    <div id="legendModal" class="hidden">
         <!-- Content -->
-        <div class="p-6 overflow-y-auto flex-1">
+        <div class="space-y-4">
             <div class="space-y-4 max-w-2xl mx-auto">
                 <!-- Language Selector (Moved here) -->
-                <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                <div class="flex items-center justify-between bg-neutral-800/50 p-3 rounded-xl border border-white/5">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center"><i data-lucide="languages" class="text-white w-4 h-4"></i></div>
+                        <div class="w-8 h-8 bg-neutral-700 rounded-full flex items-center justify-center"><i data-lucide="languages" class="text-white w-4 h-4"></i></div>
                         <span class="font-bold text-white text-sm">Bahasa / Language</span>
                     </div>
-                    <select onchange="changeLanguage(this.value)" class="bg-slate-900 text-white text-xs p-2 rounded-lg border border-white/10 outline-none"><option value="id">🇮🇩 ID</option><option value="en">🇺🇸 EN</option><option value="jp">🇯🇵 JP</option></select>
+                    <select onchange="changeLanguage(this.value)" class="bg-black text-white text-xs p-2 rounded-lg border border-white/10 outline-none"><option value="id">🇮🇩 ID</option><option value="en">🇺🇸 EN</option><option value="jp">🇯🇵 JP</option></select>
                 </div>
 
                 <!-- Theme Toggle (New Feature) -->
-                <div class="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                <div class="flex items-center justify-between bg-neutral-800/50 p-3 rounded-xl border border-white/5">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center"><i data-lucide="sun-moon" class="text-white w-4 h-4"></i></div>
+                        <div class="w-8 h-8 bg-neutral-700 rounded-full flex items-center justify-center"><i data-lucide="sun-moon" class="text-white w-4 h-4"></i></div>
                         <span class="font-bold text-white text-sm">Tampilan / Theme</span>
                     </div>
-                    <button onclick="toggleTheme()" id="theme-btn" class="bg-slate-900 text-white text-xs px-3 py-2 rounded-lg border border-white/10 font-bold transition-colors">☀️ Light</button>
+                    <button onclick="toggleTheme()" id="theme-btn" class="bg-black text-white text-xs px-3 py-2 rounded-lg border border-white/10 font-bold transition-colors">☀️ Light</button>
                 </div>
 
-                <!-- Reset Tour Button -->
-                <button onclick="resetTour()" class="w-full bg-slate-800/50 text-blue-400 text-xs py-3 rounded-xl border border-blue-500/20 font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10">
-                    <i data-lucide="play-circle" class="w-4 h-4"></i> Putar Ulang Tutorial Pemula
-                </button>
-
-                <div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                <div class="flex items-center gap-3 bg-neutral-800/50 p-3 rounded-xl border border-white/5">
                     <div class="w-8 h-8 bg-blue-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center shrink-0"><i data-lucide="fish" class="text-white w-4 h-4"></i></div>
                     <div>
                         <p class="font-bold text-white">Biru (Biasa)</p>
                         <p class="text-xs text-slate-400">Ikan kecil (< 3kg) atau belum ada data berat.</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                <div class="flex items-center gap-3 bg-neutral-800/50 p-3 rounded-xl border border-white/5">
                     <div class="w-8 h-8 bg-yellow-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center shrink-0"><i data-lucide="fish" class="text-white w-4 h-4"></i></div>
                     <div>
                         <p class="font-bold text-white">Kuning (Sedang)</p>
                         <p class="text-xs text-slate-400">Ikan lumayan besar (3kg - 10kg).</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                <div class="flex items-center gap-3 bg-neutral-800/50 p-3 rounded-xl border border-white/5">
                     <div class="w-8 h-8 bg-red-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center shrink-0 relative">
                         <i data-lucide="fish" class="text-white w-4 h-4"></i>
                         <div class="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full flex items-center justify-center"><div class="w-1 h-1 bg-red-600 rounded-full animate-ping"></div></div>
@@ -720,48 +801,56 @@
                 <!-- Icon Guide Section -->
                 <h4 class="text-xs font-bold text-slate-400 uppercase mt-6 mb-2">Panduan Ikon & Fitur</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div class="bg-slate-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
-                        <div class="bg-slate-700 p-2 rounded-lg shrink-0"><i data-lucide="star" class="w-4 h-4 text-yellow-400 fill-yellow-400"></i></div>
+                    <div class="bg-neutral-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                        <div class="bg-neutral-700 p-2 rounded-lg shrink-0"><i data-lucide="star" class="w-4 h-4 text-yellow-400 fill-yellow-400"></i></div>
                         <div>
                             <p class="text-xs font-bold text-white">Rating Spot</p>
                             <p class="text-[10px] text-slate-400">Menunjukkan kualitas spot berdasarkan ulasan pemancing lain.</p>
                         </div>
                     </div>
-                    <div class="bg-slate-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
-                        <div class="bg-slate-700 p-2 rounded-lg shrink-0"><i data-lucide="layers" class="w-4 h-4 text-blue-400"></i></div>
+                    <div class="bg-neutral-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                        <div class="bg-neutral-700 p-2 rounded-lg shrink-0"><i data-lucide="layers" class="w-4 h-4 text-blue-400"></i></div>
                         <div>
                             <p class="text-xs font-bold text-white">Lapisan Peta</p>
                             <p class="text-[10px] text-slate-400">Mengganti mode Satelit/Jalan dan lapisan cuaca (Hujan/Angin).</p>
                         </div>
                     </div>
-                    <div class="bg-slate-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
-                        <div class="bg-slate-700 p-2 rounded-lg shrink-0"><i data-lucide="cloud-sun" class="w-4 h-4 text-white"></i></div>
+                    <div class="bg-neutral-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                        <div class="bg-neutral-700 p-2 rounded-lg shrink-0"><i data-lucide="cloud-sun" class="w-4 h-4 text-white"></i></div>
                         <div>
                             <p class="text-xs font-bold text-white">Info Cuaca</p>
                             <p class="text-[10px] text-slate-400">Melihat detail ombak, angin, suhu, dan pasang surut.</p>
                         </div>
                     </div>
-                    <div class="bg-slate-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
-                        <div class="bg-slate-700 p-2 rounded-lg shrink-0"><i data-lucide="navigation" class="w-4 h-4 text-blue-400"></i></div>
+                    <div class="bg-neutral-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                        <div class="bg-neutral-700 p-2 rounded-lg shrink-0"><i data-lucide="navigation" class="w-4 h-4 text-blue-400"></i></div>
                         <div>
                             <p class="text-xs font-bold text-white">Lokasi Saya</p>
                             <p class="text-[10px] text-slate-400">Memusatkan peta ke posisi GPS Anda saat ini.</p>
                         </div>
                     </div>
-                    <div class="bg-slate-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
-                        <div class="bg-slate-700 p-2 rounded-lg shrink-0"><i data-lucide="locate-fixed" class="w-4 h-4 text-emerald-400"></i></div>
+                    <div class="bg-neutral-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                        <div class="bg-neutral-700 p-2 rounded-lg shrink-0"><i data-lucide="locate-fixed" class="w-4 h-4 text-emerald-400"></i></div>
                         <div>
                             <p class="text-xs font-bold text-white">Spot Terdekat</p>
                             <p class="text-[10px] text-slate-400">Otomatis mencari dan mengarahkan ke spot mancing terdekat.</p>
                         </div>
                     </div>
-                    <div class="bg-slate-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
-                        <div class="bg-slate-700 p-2 rounded-lg shrink-0"><i data-lucide="heart" class="w-4 h-4 text-red-500 fill-red-500"></i></div>
+                    <div class="bg-neutral-800/30 p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                        <div class="bg-neutral-700 p-2 rounded-lg shrink-0"><i data-lucide="heart" class="w-4 h-4 text-red-500 fill-red-500"></i></div>
                         <div>
                             <p class="text-xs font-bold text-white">Favorit</p>
                             <p class="text-[10px] text-slate-400">Menyimpan spot pilihan agar mudah diakses kembali.</p>
                         </div>
                     </div>
+                    
+                    <!-- Tombol Tambahan untuk Favorites di Menu -->
+                    <div class="mt-6">
+                        <button onclick="openFavorites()" class="w-full bg-neutral-800 hover:bg-neutral-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 border border-white/10">
+                            <i data-lucide="heart" class="text-red-500 fill-red-500"></i> Buka Spot Favorit
+                        </button>
+                    </div>
+
                 </div>
 
                 <div class="pt-6 pb-2 text-center">
@@ -811,7 +900,1309 @@
         </div>
     </div>
 
+    <!-- MODAL STORY VIEWER (New Feature) -->
+    <div id="storyViewerModal" class="fixed inset-0 z-[11000] bg-black hidden animate-in fade-in duration-300 overflow-hidden">
+        <!-- Wrapper for Scaling Effect (Agar background hitam tetap full saat ditekan) -->
+        <div id="story-scale-wrapper" class="relative w-full h-full flex flex-col transition-transform duration-200 ease-out origin-center">
+            <!-- Progress Bar -->
+            <div id="story-bars-container" class="flex gap-1 p-2 pt-4 z-20 absolute top-0 left-0 w-full">
+                <!-- Bars injected via JS -->
+            </div>
+            
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 pt-8 pb-4 z-20 absolute top-0 left-0 w-full bg-gradient-to-b from-black/80 to-transparent">
+                <div class="flex items-center gap-3">
+                    <div id="story-header-icon" class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center border border-white/20"><i data-lucide="bot" class="w-4 h-4 text-white"></i></div>
+                    <div>
+                        <p id="story-header-title" class="font-bold text-white text-sm leading-none">AI Analysis</p>
+                        <p class="text-[10px] text-slate-300 leading-none mt-1">Live Update</p>
+                    </div>
+                </div>
+                <button onclick="closeStoryViewer()" class="text-white/80 hover:text-white p-2 bg-black/20 rounded-full backdrop-blur-md"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+
+            <!-- Content Area -->
+            <div id="story-content" class="flex-1 flex flex-col items-center justify-center p-6 relative h-full w-full">
+                <!-- Dynamic Content Injected Here -->
+            </div>
+        </div>
+
+        <!-- Navigation Overlay (Invisible) -->
+        <div class="absolute inset-0 z-10 flex">
+            <div class="w-1/3 h-full" onmousedown="handleStoryTouch('start')" onmouseup="handleStoryTouch('end', 'prev')" ontouchstart="handleStoryTouch('start')" ontouchend="handleStoryTouch('end', 'prev')"></div>
+            <div class="w-2/3 h-full" onmousedown="handleStoryTouch('start')" onmouseup="handleStoryTouch('end', 'next')" ontouchstart="handleStoryTouch('start')" ontouchend="handleStoryTouch('end', 'next')"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (Compat version agar mudah digunakan) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
     <script src="weather.js"></script>
     <script src="script.js"></script>
+    
+    <script>
+        // --- NEW: Dynamic Home Feed Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Muat feed dan data widget secara paralel
+            loadHomeFeed();
+            loadHomeWidgetData(); // <-- FIX: Panggil fungsi untuk ambil data cuaca
+        });
+
+        // Template Skeleton Feed (Reusable)
+        const FEED_SKELETON_HTML = `
+            <div class="animate-pulse w-full">
+                <div class="flex items-center gap-3 px-4 py-3">
+                    <div class="w-10 h-10 rounded-full bg-neutral-800"></div>
+                    <div class="flex-1 space-y-2">
+                        <div class="h-3 w-32 bg-neutral-800 rounded"></div>
+                        <div class="h-2 w-20 bg-neutral-800 rounded"></div>
+                    </div>
+                </div>
+                <div class="w-full aspect-[4/5] bg-neutral-800"></div>
+                <div class="px-4 pt-3 space-y-2">
+                    <div class="h-3 w-24 bg-neutral-800 rounded"></div>
+                    <div class="h-2 w-full bg-neutral-800 rounded"></div>
+                    <div class="h-2 w-2/3 bg-neutral-800 rounded"></div>
+                </div>
+            </div>`;
+
+        async function loadHomeFeed() {
+            const container = document.getElementById('home-feed-container');
+            if(!container) return;
+            
+            // Reset cache postingan eksternal agar selalu update saat refresh feed (Navigasi)
+            externalPostDataCache = {};
+            
+            // Gunakan URL Google Sheet yang sudah ada di script.js
+            // Fallback URL jika variabel tidak ditemukan
+            const SHEET_URL = (typeof GOOGLE_SCRIPT_URL !== 'undefined') ? GOOGLE_SCRIPT_URL : "https://script.google.com/macros/s/AKfycbyuRtzzICS1qoBxWKdOJpHeqWCUN6Wt04xAIi_sYQHd0wSxjc89eumDWAYYcKPrT8jV/exec";
+
+            // Helper: Ubah Link YouTube jadi Embed
+            const getEmbedUrl = (url) => {
+                if (!url) return null;
+                let vId = '';
+                try {
+                    if (url.includes('shorts/')) vId = url.split('shorts/')[1].split('?')[0];
+                    else if (url.includes('v=')) vId = url.split('v=')[1].split('&')[0];
+                    else if (url.includes('youtu.be/')) vId = url.split('youtu.be/')[1].split('?')[0];
+                    if(vId) return `https://www.youtube.com/embed/${vId}?autoplay=0&controls=1&rel=0&playsinline=1&mute=1`;
+                } catch(e) { return null; }
+                return null;
+            };
+
+            // Helper Render (Agar bisa dipanggil 2x: Cache & Network)
+            const render = (rawData) => {
+                if (!Array.isArray(rawData)) return;
+
+                // Filter: Tampilkan jika ada Foto ATAU Video
+                const feedItems = rawData.filter(item => item.photo || item.video).map(item => ({
+                    data: {
+                        ...item,
+                        image: item.photo,
+                        video: item.video, // Pastikan ada kolom 'video' di Google Sheet
+                        userName: item.uid ? item.uid.split('@')[0] : 'Pengguna',
+                        userPhoto: `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.uid || 'User'}`,
+                        locationName: item.name || 'Lokasi Spot',
+                        likes: item.rating ? parseInt(item.rating) * 12 : 0,
+                        description: item.comment,
+                        weight: item.weight,
+                        lat: item.lat,
+                        lng: item.lng
+                    },
+                    time: item.createdAt ? new Date(item.createdAt) : new Date()
+                }));
+
+                feedItems.sort((a, b) => b.time - a.time);
+                const displayItems = feedItems.slice(0, 5);
+
+                container.innerHTML = '';
+                if (displayItems.length === 0) {
+                    container.innerHTML = '<div class="text-center text-slate-500 py-10 text-sm">Belum ada postingan terbaru.</div>';
+                    return;
+                }
+
+                // --- NEW: Randomize Widget Order (Agar posisi widget dinamis/natural) ---
+                // Hapus index 5 (Wikipedia Widget lama) karena akan kita buat jadi Postingan Tetap
+                let widgetIndices = [0, 1, 2, 3, 4];
+                // Fisher-Yates Shuffle (Algoritma Pengacakan)
+                for (let i = widgetIndices.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [widgetIndices[i], widgetIndices[j]] = [widgetIndices[j], widgetIndices[i]];
+                }
+
+                // Tentukan posisi video secara acak (antara index 2, 3, atau 4)
+                const videoPostIndex = Math.floor(Math.random() * 3) + 2;
+
+                displayItems.forEach((item, index) => {
+                    const d = item.data;
+                    const timeAgo = getTimeAgo(item.time);
+                    const weight = d.weight ? `${d.weight} KG` : null;
+                    const comment = d.description || d.comment || 'Spot baru ditambahkan!';
+                    const embedUrl = getEmbedUrl(d.video);
+
+                    // Verified Badge SVG (Instagram Style)
+                    const verifiedBadge = `<svg class="w-3.5 h-3.5 ml-1 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg>`;
+
+                    const el = document.createElement('div');
+                    // Instagram Style: Full width, no card wrapper
+                    el.className = "mb-4 border-b border-white/5 pb-4 animate-in fade-in slide-in-from-bottom-8 duration-700";
+                    el.innerHTML = `
+                        <!-- Header -->
+                        <div class="flex items-center gap-3 px-4 py-3">
+                            <div class="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
+                                <div class="w-full h-full rounded-full border-2 border-slate-900 overflow-hidden bg-slate-800">
+                                    <img src="${d.userPhoto}" class="w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center">
+                                    <p class="text-sm font-bold text-white truncate mr-0.5">${d.userName}</p>
+                                    ${verifiedBadge}
+                                </div>
+                                <button onclick="if(typeof navigateTo === 'function') { navigateTo('map'); if(typeof map !== 'undefined') map.flyTo([${d.lat || 0}, ${d.lng || 0}], 15); }" class="text-[10px] text-blue-400 font-bold truncate hover:text-blue-300 transition-colors flex items-center gap-1 text-left max-w-full">
+                                    <i data-lucide="map-pin" class="w-3 h-3 shrink-0"></i> Lihat Spot
+                                </button>
+                            </div>
+                            <button class="text-slate-500 hover:text-white"><i data-lucide="more-horizontal" class="w-5 h-5"></i></button>
+                        </div>
+
+                        <!-- Media (Video Prioritas, kalau tidak ada baru Gambar) -->
+                        <div class="w-full aspect-[4/5] bg-slate-800 relative group overflow-hidden">
+                            ${embedUrl ? 
+                                `<iframe src="${embedUrl}" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>` 
+                                : 
+                                `<img src="${d.image}" class="w-full h-full object-cover transition-transform duration-700" loading="lazy">`
+                            }
+                            ${!embedUrl && weight ? `<div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1 border border-white/10 shadow-lg"><i data-lucide="fish" class="w-3 h-3 text-emerald-400"></i> ${weight}</div>` : ''}
+                        </div>
+
+                        <!-- Actions & Caption -->
+                        <div class="px-4 pt-3">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-5">
+                                    <button class="text-white hover:text-red-500 transition-colors"><i data-lucide="heart" class="w-6 h-6"></i></button>
+                                    <button class="text-white hover:text-blue-400 transition-colors"><i data-lucide="message-circle" class="w-6 h-6"></i></button>
+                                    <button class="text-white hover:text-emerald-400 transition-colors"><i data-lucide="send" class="w-6 h-6"></i></button>
+                                </div>
+                            </div>
+                            
+                            <p class="text-sm font-bold text-white mb-1">${d.likes || 0} suka</p>
+                            
+                            <div class="text-sm text-slate-300 leading-relaxed mb-1">
+                                <span class="font-bold text-white mr-1">${d.userName}</span> ${comment}
+                            </div>
+                            
+                            <p class="text-[10px] text-slate-500 uppercase tracking-wide mt-2">${timeAgo}</p>
+                        </div>
+                    `;
+                    container.appendChild(el);
+
+                    // --- POSISI 1: Resep / Fakta (Di bawah postingan ke-1) ---
+                    if (index === 0) {
+                        const extEl = document.createElement('div');
+                        extEl.id = 'external-feed-post-mix';
+                        extEl.className = "mb-4 border-b border-white/5 pb-4";
+                        container.appendChild(extEl);
+                        loadExternalFeedPost('external-feed-post-mix', 'mix'); // Mode Mix (Resep/Wiki)
+                    }
+
+                    // --- POSISI 2: Video (Posisi Acak) ---
+                    if (index === videoPostIndex) {
+                        const vidEl = document.createElement('div');
+                        vidEl.id = 'external-feed-post-video';
+                        vidEl.className = "mb-4 border-b border-white/5 pb-4";
+                        container.appendChild(vidEl);
+                        loadExternalFeedPost('external-feed-post-video', 'video'); // Mode Video Only
+                    }
+
+                    // --- NEW: Inject Widget (AI/Weather) ---
+                    // Sisipkan widget di sela-sela postingan secara acak
+                    if (index < widgetIndices.length) {
+                        const widgetType = widgetIndices[index];
+                        const widget = createHomeWidget(widgetType);
+                        if(widget) {
+                            container.appendChild(widget);
+                        }
+                    }
+                });
+                if(typeof lucide !== 'undefined') lucide.createIcons();
+            };
+
+            // 1. CACHE FIRST: Tampilkan data tersimpan (Instan)
+            const cached = localStorage.getItem('feed_cache');
+            if (cached) {
+                try { render(JSON.parse(cached)); } catch (e) { console.warn("Cache invalid"); }
+            }
+
+            // 2. NETWORK SECOND: Ambil data baru di background
+            try {
+                const res = await fetch(SHEET_URL);
+                const data = await res.json();
+
+                if (Array.isArray(data)) {
+                    // Update Cache & UI
+                    localStorage.setItem('feed_cache', JSON.stringify(data));
+                    render(data);
+                }
+            } catch (e) {
+                console.warn("Gagal fetch Google Sheet, bertahan dengan cache:", e);
+                // Jika cache kosong, coba fallback ke data lokal user
+                if (!cached) {
+                    const local = JSON.parse(localStorage.getItem('spots') || '[]');
+                    render(local);
+                }
+            }
+        }
+
+        // --- NEW: Fetch Weather Data specifically for Home Widget ---
+        async function loadHomeWidgetData() {
+            // Prioritaskan GPS, fallback ke cache, lalu IP
+            let lat = localStorage.getItem('lastLat');
+            let lng = localStorage.getItem('lastLng');
+
+            if (!lat || !lng) {
+                try {
+                    const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 }));
+                    lat = pos.coords.latitude;
+                    lng = pos.coords.longitude;
+                } catch (e) {
+                    console.warn("GPS failed for widget, using IP estimate.");
+                    // Fallback to IP if everything else fails
+                    try {
+                        const res = await fetch('https://ipapi.co/json/');
+                        const data = await res.json();
+                        if (data.latitude) lat = data.latitude;
+                        if (data.longitude) lng = data.longitude;
+                    } catch (ipError) { /* Do nothing if IP fails */ }
+                }
+            }
+            if (!lat || !lng) return; // Cannot get location
+
+            // Fetch both weather and marine data in parallel
+            const [weatherRes, marineRes] = await Promise.allSettled([fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&hourly=temperature_2m,precipitation_probability,weathercode,uv_index&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset&minutely_15=precipitation&timezone=auto`), fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=sea_level_height_msl&timezone=auto`)]);
+            
+            if (weatherRes.status === 'fulfilled') {
+                currentWeatherData = await weatherRes.value.json();
+                // --- FIX: Force Update Widget UI Immediately ---
+                const w1 = document.getElementById('home-weather-widget');
+                if(w1) { w1.innerHTML = getHomeWidgetContent(); w1.dataset.status = 'loaded'; }
+                
+                const w2 = document.getElementById('home-storybali-widget');
+                if(w2) { w2.innerHTML = getStoryBaliContent(); w2.dataset.status = 'loaded'; }
+                
+                const w3 = document.getElementById('home-forecast-widget');
+                if(w3) { w3.innerHTML = getForecastWidgetContent(); w3.dataset.status = 'loaded'; }
+
+                updateAIStories(); // --- NEW: Update Stories ---
+                if(typeof lucide !== 'undefined') lucide.createIcons();
+            }
+            if (marineRes.status === 'fulfilled') currentMarineData = await marineRes.value.json();
+        }
+
+        function getTimeAgo(date) { const s = Math.floor((new Date() - date)/1000); if(s<60) return "Baru saja"; const m=Math.floor(s/60); if(m<60) return m+" mnt lalu"; const h=Math.floor(m/60); if(h<24) return h+" jam lalu"; const d=Math.floor(h/24); return d+" hari lalu"; }
+
+        // --- NEW: Home Widget Generator ---
+        function createHomeWidget(index) {
+            const el = document.createElement('div');
+            el.className = "mx-4 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500";
+
+            // Widget 1: AI Weather Insight (Postingan Wayan - Cuaca)
+            if (index === 0) {
+                el.id = 'home-weather-widget'; // ID untuk update otomatis
+                el.innerHTML = getHomeWidgetContent();
+                
+                // Tandai status loading agar bisa di-update nanti jika data belum siap
+                if (typeof currentWeatherData === 'undefined' || !currentWeatherData) {
+                    el.dataset.status = 'loading';
+                } else {
+                    el.dataset.status = 'loaded';
+                }
+                return el;
+            }
+
+            // Widget 2: StoryBali (New Conversational Profile)
+            if (index === 1) {
+                el.id = 'home-storybali-widget';
+                el.innerHTML = getStoryBaliContent();
+                if (typeof currentWeatherData === 'undefined' || !currentWeatherData) {
+                    el.dataset.status = 'loading';
+                } else {
+                    el.dataset.status = 'loaded';
+                }
+                return el;
+            }
+
+            // Widget 3: Info Gempa / Safety (Postingan Wayan - Safety)
+            if (index === 2) {
+                // Tampilan Statis ala Postingan untuk Info Keselamatan
+                el.innerHTML = `
+                    <div class="bg-slate-900 rounded-[1.5rem] p-4 border border-white/5 shadow-lg">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-white/10 p-[2px] bg-gradient-to-tr from-blue-500 to-cyan-500"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Wayan" class="w-full h-full object-cover rounded-full bg-slate-800"></div>
+                            <div>
+                                <p class="text-sm font-bold text-white flex items-center gap-1">Wayan <svg class="w-3.5 h-3.5 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></p>
+                                <p class="text-[10px] text-slate-400">AI Safety • Info Laut</p>
+                            </div>
+                            <div class="ml-auto text-[10px] px-2 py-1 rounded-full bg-red-500/20 text-red-400 border border-white/5">Peringatan</div>
+                        </div>
+                        
+                        <div class="bg-slate-900/50 rounded-2xl p-4 mb-3 border border-white/5 relative overflow-hidden">
+                             <div class="flex items-center gap-3">
+                                <div class="bg-red-500/20 p-2 rounded-lg text-red-400"><i data-lucide="activity" class="w-6 h-6"></i></div>
+                                <div>
+                                    <h4 class="font-bold text-white text-sm">Pantau Gempa & Tsunami</h4>
+                                    <p class="text-xs text-slate-400">Selalu waspada saat memancing di pinggir pantai.</p>
+                                </div>
+                             </div>
+                        </div>
+                        
+                        <p class="text-sm text-slate-300 mb-3 leading-relaxed">
+                            Jangan lupa cek info gempa terkini sebelum berangkat. Keselamatan adalah prioritas utama, kawan! 🎣
+                        </p>
+                        
+                        <div class="flex items-center gap-4 border-t border-white/5 pt-3">
+                            <button class="flex items-center gap-1 text-slate-400 hover:text-red-400 transition-colors"><i data-lucide="heart" class="w-4 h-4"></i> <span class="text-xs font-bold">88</span></button>
+                            <button onclick="navigateTo('weather')" class="ml-auto text-xs font-bold text-blue-400 hover:text-white transition-colors">Cek Data Gempa</button>
+                        </div>
+                    </div>`;
+                return el;
+            }
+
+            // Widget 4: Tips Mancing (Kapten Jack)
+            if (index === 3) {
+                el.innerHTML = getFishingTipWidget();
+                return el;
+            }
+
+            // Widget 5: Forecast Summary (Ringkasan Cuaca)
+            if (index === 4) {
+                el.id = 'home-forecast-widget';
+                el.innerHTML = getForecastWidgetContent();
+                if (typeof currentWeatherData === 'undefined' || !currentWeatherData) {
+                    el.dataset.status = 'loading';
+                } else {
+                    el.dataset.status = 'loaded';
+                }
+                return el;
+            }
+            return null;
+        }
+
+        // Helper: Generate Konten Widget AI (Dipisah agar bisa dipanggil ulang)
+        function getHomeWidgetContent() {
+            // Header Profile Wayan (Reusable)
+            const header = `
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-white/10 p-[2px] bg-gradient-to-tr from-blue-500 to-cyan-500"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Wayan" class="w-full h-full object-cover rounded-full bg-slate-800"></div>
+                    <div>
+                        <p class="text-sm font-bold text-white flex items-center gap-1">Wayan <svg class="w-3.5 h-3.5 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></p>
+                        <p class="text-[10px] text-slate-400">AI Fishing Assistant • Baru saja</p>
+                    </div>
+                    <div class="ml-auto text-[10px] px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-white/5">Saran AI</div>
+                </div>`;
+
+            // --- FALLBACK TAMPILAN LOADING (Skeleton Post) ---
+            if (typeof currentWeatherData === 'undefined' || !currentWeatherData || !currentWeatherData.current_weather) {
+                return `
+                    <div class="bg-neutral-900 rounded-[1.5rem] p-4 border border-white/5 shadow-lg animate-pulse">
+                        ${header}
+                        <div class="bg-neutral-800/50 rounded-2xl h-32 mb-3 border border-white/5"></div>
+                        <div class="h-4 w-3/4 bg-slate-700 rounded mb-2"></div>
+                        <div class="h-4 w-1/2 bg-slate-700 rounded animate-pulse"></div>
+                    </div>`;
+            }
+
+            // --- TAMPILAN UTAMA (SETELAH DATA SIAP) ---
+            const wx = currentWeatherData.current_weather;
+            const hourly = currentWeatherData.hourly;
+            const daily = currentWeatherData.daily;
+            const now = new Date();
+            const currentHour = now.getHours();
+
+            // --- ANALISIS AI (Disederhanakan untuk ringkasan) ---
+            let status = "Kondisi Stabil";
+            let message = `Cuaca ${wx.windspeed < 15 ? 'tenang' : 'berangin'} (${wx.windspeed} km/h). Suhu ${Math.round(wx.temperature)}°C.`;
+            let icon = "check-circle";
+            let color = "text-emerald-400";
+            let bg = "bg-emerald-500/10 border-emerald-500/10"; // Lebih gelap & menyatu
+
+            if (wx.weathercode >= 95) {
+                status = "BAHAYA PETIR"; message = "Badai petir terdeteksi! Segera cari tempat berlindung. Joran karbon menghantar listrik.";
+                icon = "cloud-lightning"; color = "text-red-500"; bg = "bg-red-500/10 border-red-500/10";
+            } else if (wx.windspeed > 25) {
+                status = "ANGIN KENCANG"; message = `Angin ${wx.windspeed} km/h. Waspada ombak tinggi.`;
+                icon = "wind"; color = "text-yellow-400"; bg = "bg-yellow-500/10 border-yellow-500/10";
+            } else if (wx.weathercode >= 51) {
+                status = "HUJAN"; message = "Hujan sedang turun. Hati-hati jalanan licin.";
+                icon = "cloud-rain"; color = "text-blue-400"; bg = "bg-blue-500/10 border-blue-500/10";
+            }
+
+            // --- DATA UNTUK MINI-CHART (6 Jam ke Depan) ---
+            const chartData = [];
+            const chartLabels = [];
+            for (let i = 0; i < 6; i++) {
+                const idx = currentHour + i;
+                if (idx < hourly.time.length) {
+                    chartLabels.push(`${(currentHour + i) % 24}:00`);
+                    chartData.push({
+                        temp: Math.round(hourly.temperature_2m[idx]),
+                        pop: hourly.precipitation_probability[idx]
+                    });
+                }
+            }
+
+            // --- FUNGSI RENDER MINI-CHART (SVG) ---
+            const renderMiniChart = () => {
+                if (chartData.length === 0) return '';
+                const w = 280, h = 80, pad = 5; // Lebar disesuaikan container
+                const temps = chartData.map(d => d.temp);
+                const minT = Math.min(...temps), maxT = Math.max(...temps);
+                const rangeT = (maxT - minT) || 1;
+
+                const getX = (i) => pad + (i / (chartData.length - 1)) * (w - 2 * pad);
+                const getTempY = (v) => h - pad - ((v - minT) / rangeT) * (h - 2 * pad - 20); 
+                const getRainY = (p) => h - ((p / 100) * (h * 0.5)); 
+
+                // 1. Rain Bars
+                let rainBars = chartData.map((d, i) =>
+                    `<rect x="${getX(i) - 8}" y="${getRainY(d.pop)}" width="16" height="${h - getRainY(d.pop)}" fill="#3b82f6" opacity="${d.pop > 10 ? '0.5' : '0.1'}" rx="2" />`
+                ).join('');
+
+                // 2. Temperature Line
+                let tempPath = `M ${getX(0)} ${getTempY(chartData[0].temp)}`;
+                for (let i = 1; i < chartData.length; i++) tempPath += ` L ${getX(i)} ${getTempY(chartData[i].temp)}`;
+
+                return `
+                    <svg viewBox="0 0 ${w} ${h}" class="w-full h-full overflow-visible" preserveAspectRatio="none">
+                        ${rainBars}
+                        <path d="${tempPath}" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));" />
+                        ${chartData.map((d, i) => `<circle cx="${getX(i)}" cy="${getTempY(d.temp)}" r="3" fill="#1e293b" stroke="#facc15" stroke-width="2" />`).join('')}
+                        ${chartData.map((d, i) => `<text x="${getX(i)}" y="${h+12}" font-size="10" fill="#64748b" text-anchor="middle">${chartLabels[i]}</text>`).join('')}
+                    </svg>`;
+            };
+
+            // --- DATA TAMBAHAN (UV & Humidity) ---
+            const uv = hourly.uv_index ? hourly.uv_index[currentHour] : '-';
+            const humidity = hourly.relativehumidity_2m ? hourly.relativehumidity_2m[currentHour] : '-';
+
+            // --- KONTEN FINAL (POST STYLE) ---
+            return `
+                <div class="bg-neutral-900 rounded-[1.5rem] p-4 border border-white/5 shadow-lg">
+                    ${header}
+                    
+                    <!-- Visual Content (Chart & Status) -->
+                    <div class="${bg} rounded-2xl p-4 mb-3 border relative overflow-hidden group cursor-pointer" onclick="navigateTo('weather')">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <div class="bg-slate-900/50 p-1.5 rounded-full ${color} shrink-0"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
+                                <h4 class="font-bold text-white text-sm">AI: ${status}</h4>
+                            </div>
+                            <div class="flex items-center gap-3 text-[10px] text-slate-400 font-bold">
+                                <span>UV: <span class="text-white">${uv}</span></span>
+                                <span>Lembap: <span class="text-white">${humidity}%</span></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart Area -->
+                        <div class="w-full h-20 relative">
+                            ${renderMiniChart()}
+                        </div>
+                    </div>
+
+                    <!-- Text Advice -->
+                    <p class="text-sm text-slate-300 mb-3 leading-relaxed">
+                        ${message}
+                    </p>
+
+                    <!-- Footer Actions -->
+                    <div class="flex items-center gap-4 border-t border-white/5 pt-3">
+                        <button class="flex items-center gap-1 text-slate-400 hover:text-red-400 transition-colors"><i data-lucide="heart" class="w-4 h-4"></i> <span class="text-xs font-bold">124</span></button>
+                        <button class="flex items-center gap-1 text-slate-400 hover:text-blue-400 transition-colors"><i data-lucide="message-circle" class="w-4 h-4"></i> <span class="text-xs font-bold">12</span></button>
+                        <button onclick="navigateTo('weather')" class="ml-auto text-xs font-bold text-blue-400 hover:text-white transition-colors flex items-center gap-1">Lihat Detail Cuaca <i data-lucide="arrow-right" class="w-3 h-3"></i></button>
+                    </div>
+                </div>`;
+        }
+
+        // --- NEW: StoryBali Widget Content (Conversational) ---
+        function getStoryBaliContent() {
+            // Fallback Loading
+            if (typeof currentWeatherData === 'undefined' || !currentWeatherData || !currentWeatherData.current_weather) {
+                return `
+                    <div class="bg-neutral-900 rounded-[1.5rem] p-4 border border-white/5 animate-pulse shadow-lg">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-slate-700"></div>
+                            <div class="h-4 w-32 bg-slate-700 rounded"></div>
+                        </div>
+                        <div class="h-20 bg-slate-700/50 rounded-xl"></div>
+                    </div>`;
+            }
+
+            const wx = currentWeatherData.current_weather;
+            const now = new Date();
+            const currentHour = now.getHours();
+            
+            // 1. Analisa Pasang Surut (Conversational)
+            let tideMsg = "Data laut lagi loading nih bro.";
+            let isGoodTide = false;
+            if (typeof currentMarineData !== 'undefined' && currentMarineData && currentMarineData.hourly) {
+                const tides = currentMarineData.hourly.sea_level_height_msl;
+                const tideNow = tides[currentHour];
+                const tideNext = tides[currentHour + 1];
+                if (tideNext > tideNow) {
+                    tideMsg = "Air laut lagi <b>Pasang Naik</b> nih, ikan biasanya lapar dan merapat ke pinggir.";
+                    isGoodTide = true;
+                } else {
+                    tideMsg = "Air laut sedang <b>Surut</b> perlahan. Coba cari lubuk yang agak dalam ya.";
+                }
+            }
+
+            // 2.5. Analisa Fase Bulan (jika ada)
+            let moonMsg = "";
+            if (typeof moonPhase !== 'undefined') {
+                // Fase Bulan Baru (0.0 - 0.05 atau 0.95 - 1.0)
+                if (moonPhase < 0.05 || moonPhase > 0.95) {
+                    moonMsg = "Langit gelap pas <b>Bulan Baru</b>, cocok buat mancing cumi atau ikan yang tertarik cahaya umpan.";
+                } 
+                // Fase Purnama (0.45 - 0.55)
+                else if (moonPhase > 0.45 && moonPhase < 0.55) {
+                    moonMsg = "Lagi <b>Bulan Purnama</b> bro! Arus pasang surut lagi kuat-kuatnya. Predator besar sering keluar cari makan.";
+                }
+            }
+
+            // 2. Analisa Cuaca & Saran (Conversational)
+            let greeting = "Halo Bro!";
+            let wxMsg = "";
+            let advice = "";
+            let buttonsHtml = '';
+            
+            if (wx.weathercode >= 95) {
+                greeting = "Waduh, Gawat Bro!";
+                wxMsg = "Ada <b>Badai Petir</b> di luar sana. Jangan nekat melaut ya, joran karbon itu magnet petir!";
+                advice = "Mending ngopi dulu di rumah sambil benerin tackle. Safety first!";
+                buttonsHtml = `<button onclick="navigateTo('weather')" class="flex-1 bg-red-600/20 text-red-300 text-xs font-bold py-2.5 rounded-lg border border-red-500/30 hover:bg-red-600/40 transition-colors flex items-center justify-center gap-1"><i data-lucide="cloud-lightning" class="w-4 h-4"></i> Lihat Detail Badai</button>`;
+            } else if (wx.weathercode >= 51) {
+                greeting = "Sedia Jas Hujan?";
+                wxMsg = "Hujan lagi turun membasahi spot. Agak licin dan pandangan terbatas.";
+                advice = "Kalau maksa berangkat, hati-hati masuk angin. Tapi biasanya ikan lele atau patin malah ganas pas hujan.";
+                buttonsHtml = `<button onclick="navigateTo('weather')" class="flex-1 bg-blue-600/20 text-blue-300 text-xs font-bold py-2.5 rounded-lg border border-blue-500/30 hover:bg-blue-600/40 transition-colors flex items-center justify-center gap-1"><i data-lucide="cloud-rain" class="w-4 h-4"></i> Cek Prediksi Hujan</button>`;
+            } else if (wx.windspeed > 25) {
+                greeting = "Angin Kencang Nih!";
+                wxMsg = `Angin ${wx.windspeed} km/h, ombak pasti goyang dombret di tengah.`;
+                advice = "Cari spot di muara atau teluk yang terlindung bukit biar aman dari angin.";
+                buttonsHtml = `<button onclick="navigateTo('weather')" class="flex-1 bg-yellow-600/20 text-yellow-300 text-xs font-bold py-2.5 rounded-lg border border-yellow-500/30 hover:bg-yellow-600/40 transition-colors flex items-center justify-center gap-1"><i data-lucide="wind" class="w-4 h-4"></i> Cek Arah Angin</button>`;
+            } else {
+                greeting = "Cuaca Mantap Jiwa!";
+                wxMsg = `Langit cerah, angin santai (${wx.windspeed} km/h). Asik banget buat casting atau dasaran.`;
+                advice = isGoodTide ? "Kombinasi cuaca cerah & air pasang = <b>Potensi Strike Besar!</b> Gas sekarang bro!" : "Cuaca bagus, meski air surut, masih oke buat mancing santai di pinggiran.";
+                buttonsHtml = `
+                    <button onclick="navigateTo('weather')" class="flex-1 bg-blue-600/20 text-blue-300 text-xs font-bold py-2.5 rounded-lg border border-blue-500/30 hover:bg-blue-600/40 transition-colors">Info Cuaca</button>
+                    <button onclick="if(typeof findNearestSpot === 'function') findNearestSpot()" class="flex-1 bg-emerald-600/20 text-emerald-300 text-xs font-bold py-2.5 rounded-lg border border-emerald-500/30 hover:bg-emerald-600/40 transition-colors">Cari Spot</button>
+                `;
+            }
+
+            return `
+                <div class="bg-gradient-to-br from-indigo-950 to-neutral-900 rounded-[1.5rem] p-4 border border-indigo-500/20 relative overflow-hidden shadow-xl mb-6">
+                    <!-- Header -->
+                    <div class="flex items-center gap-3 mb-4 relative z-10">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500 overflow-hidden border-2 border-white/20 shadow-md p-[2px] bg-gradient-to-tr from-indigo-400 to-purple-400">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=StoryBali&backgroundColor=b6e3f4" class="w-full h-full object-cover rounded-full bg-indigo-900">
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-white flex items-center gap-1">StoryBali <svg class="w-3.5 h-3.5 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></p>
+                            <p class="text-[10px] text-indigo-200">Teman Mancingmu • Live Update</p>
+                        </div>
+                    </div>
+
+                    <!-- Chat Bubble Style Content -->
+                    <div class="bg-white/5 rounded-2xl p-3 mb-3 border border-white/5 relative z-10 backdrop-blur-sm">
+                        <p class="text-sm font-bold text-white mb-1">"${greeting}"</p>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-2">${wxMsg}</p>
+                        <div class="border-t border-white/10 pt-2 mt-2">
+                            <p class="text-xs text-slate-300 leading-relaxed flex items-start gap-2"><i data-lucide="waves" class="w-3 h-3 mt-0.5 text-blue-400"></i> ${tideMsg}</p>
+                            ${moonMsg ? `<p class="text-xs text-slate-300 leading-relaxed flex items-start gap-2 mt-2"><i data-lucide="moon" class="w-3 h-3 mt-0.5 text-yellow-400"></i> ${moonMsg}</p>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-2 mt-3 mb-3 relative z-10">
+                        ${buttonsHtml}
+                    </div>
+
+                    <!-- Advice Footer -->
+                    <div class="flex items-start gap-2 relative z-10 bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
+                        <div class="text-emerald-400 shrink-0"><i data-lucide="lightbulb" class="w-4 h-4"></i></div>
+                        <p class="text-xs text-emerald-100 italic leading-relaxed">"${advice}"</p>
+                    </div>
+
+                    <!-- Background Decoration -->
+                    <div class="absolute -bottom-6 -right-6 opacity-5 rotate-12"><i data-lucide="fish" class="w-40 h-40 text-white"></i></div>
+                </div>
+            `;
+        }
+
+        // --- NEW: Fishing Tip Widget ---
+        function getFishingTipWidget() {
+            // Kategori Konten Edukasi yang Beragam
+            const contentTypes = [
+                {
+                    type: 'tip',
+                    title: 'Tips Pro',
+                    icon: 'lightbulb',
+                    color: 'text-yellow-400',
+                    bg: 'bg-yellow-500/20',
+                    border: 'border-yellow-500/20',
+                    items: [
+                        "Gunakan umpan hidup saat air keruh agar aroma lebih menyebar dan menarik predator.",
+                        "Saat cuaca panas terik, ikan cenderung turun ke kedalaman. Coba teknik dasaran atau jigging.",
+                        "Waktu terbaik mancing adalah saat pergantian cahaya (Sunrise/Sunset) atau 'Golden Hour'.",
+                        "Cek mata kail Anda secara berkala, ketajaman adalah kunci strike yang sukses.",
+                        "Jika arus deras, gunakan pemberat yang lebih pipih agar tidak mudah hanyut terbawa arus.",
+                        "Ikan karang suka bersembunyi di celah. Hati-hati tersangkut, gunakan leader yang kuat!",
+                        "Bawa air minum yang cukup, dehidrasi di laut itu berbahaya kawan. Safety first!",
+                        "Perhatikan burung laut! Jika mereka menukik ke air, biasanya ada gerombolan ikan kecil yang dikejar predator."
+                    ]
+                },
+                {
+                    type: 'knot',
+                    title: 'Tutorial Simpul',
+                    icon: 'anchor',
+                    color: 'text-blue-400',
+                    bg: 'bg-blue-500/20',
+                    border: 'border-blue-500/20',
+                    items: [
+                        "<b>Simpul Palomar:</b> Sangat kuat & mudah. Lipat senar, masukkan ke lubang kail, buat simpul biasa, lalu masukkan kail ke loop.",
+                        "<b>Simpul FG Knot:</b> Wajib untuk sambungan PE ke Leader. Tipis dan kuat meluncur di ring guide joran.",
+                        "<b>Simpul Clinch:</b> Putar ujung senar 5-7 kali di main line, masukkan ke loop dekat kail, lalu tarik perlahan.",
+                        "<b>Simpul Snell:</b> Mengikat kail langsung di batang (shank) untuk hook up ratio yang lebih baik saat strike."
+                    ]
+                },
+                {
+                    type: 'gear',
+                    title: 'Info Alat',
+                    icon: 'settings',
+                    color: 'text-emerald-400',
+                    bg: 'bg-emerald-500/20',
+                    border: 'border-emerald-500/20',
+                    items: [
+                        "<b>Memilih Joran:</b> Untuk casting, pilih joran carbon yang ringan (180cm). Untuk dasaran, pilih fiber solid yang kuat.",
+                        "<b>Reel Spinning vs Baitcasting:</b> Spinning lebih mudah untuk pemula & serbaguna. Baitcasting lebih akurat tapi butuh latihan.",
+                        "<b>Senar PE vs Nylon:</b> PE (Braided) lebih kuat & sensitif tapi mudah gesek karang. Nylon lebih elastis & tahan gesek.",
+                        "<b>Ukuran Kail:</b> Sesuaikan dengan mulut ikan target, bukan badannya. Kail kecil lebih mudah tertelan (hook up)."
+                    ]
+                }
+            ];
+
+            // Pilih Kategori & Item secara Acak
+            const category = contentTypes[Math.floor(Math.random() * contentTypes.length)];
+            const item = category.items[Math.floor(Math.random() * category.items.length)];
+            
+            // Warna teks konten (sedikit lebih terang dari icon)
+            const textColor = category.color.replace('400', '100');
+            
+            return `
+                <div class="bg-neutral-900 rounded-[1.5rem] p-4 border border-white/5 shadow-lg">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-white/10 p-[2px] bg-gradient-to-tr from-slate-700 to-slate-600"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jack" class="w-full h-full object-cover rounded-full bg-slate-800"></div>
+                        <div>
+                            <p class="text-sm font-bold text-white flex items-center gap-1">Kapten Jack <svg class="w-3.5 h-3.5 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></p>
+                            <p class="text-[10px] text-slate-400">Edukasi & Tips • Nelayan Senior</p>
+                        </div>
+                        <div class="ml-auto text-[10px] px-2 py-1 rounded-full ${category.bg} ${category.color} border border-white/5">${category.title}</div>
+                    </div>
+                    
+                    <div class="${category.bg.replace('/20', '/10')} rounded-2xl p-4 mb-3 border ${category.border} relative overflow-hidden">
+                         <div class="absolute -right-2 -bottom-2 opacity-10"><i data-lucide="${category.icon}" class="w-16 h-16 ${category.color}"></i></div>
+                         <p class="text-sm font-medium ${textColor} italic leading-relaxed">"${item}"</p>
+                    </div>
+                    
+                    <div class="flex items-center gap-4 border-t border-white/5 pt-3">
+                        <button class="flex items-center gap-1 text-slate-400 hover:${category.color} transition-colors"><i data-lucide="thumbs-up" class="w-4 h-4"></i> <span class="text-xs font-bold">Berguna</span></button>
+                        <button class="flex items-center gap-1 text-slate-400 hover:text-white transition-colors ml-auto"><i data-lucide="share-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>`;
+        }
+
+        // --- NEW: Forecast Summary Widget ---
+        function getForecastWidgetContent() {
+            if (typeof currentWeatherData === 'undefined' || !currentWeatherData || !currentWeatherData.daily) {
+                return `<div class="bg-neutral-900 rounded-[1.5rem] p-4 border border-white/5 animate-pulse shadow-lg"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-full bg-slate-700"></div><div class="h-4 w-32 bg-slate-700 rounded"></div></div><div class="h-20 bg-neutral-800/50 rounded-xl"></div></div>`;
+            }
+            
+            const daily = currentWeatherData.daily;
+            let forecastHtml = '';
+            
+            // Show next 3 days (Index 1, 2, 3)
+            for(let i=1; i<=3; i++) {
+                if(i >= daily.time.length) break;
+                const date = new Date(daily.time[i]);
+                const dayName = date.toLocaleDateString('id-ID', {weekday: 'short'});
+                const maxTemp = Math.round(daily.temperature_2m_max[i]);
+                const code = daily.weathercode[i];
+                
+                let icon = 'sun';
+                let color = 'text-yellow-400';
+                if(code > 3) { icon = 'cloud'; color = 'text-slate-300'; }
+                if(code >= 51) { icon = 'cloud-rain'; color = 'text-blue-400'; }
+                if(code >= 95) { icon = 'cloud-lightning'; color = 'text-purple-400'; }
+                
+                forecastHtml += `
+                    <div class="flex flex-col items-center gap-1 p-3 bg-neutral-800/50 rounded-xl border border-white/5 flex-1 hover:bg-neutral-800 transition-colors">
+                        <span class="text-[10px] text-slate-400 uppercase font-bold">${dayName}</span>
+                        <i data-lucide="${icon}" class="w-6 h-6 ${color} my-1"></i>
+                        <span class="text-sm font-bold text-white">${maxTemp}°</span>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="bg-neutral-900 rounded-[1.5rem] p-4 border border-white/5 shadow-lg">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-white/10 p-[2px] bg-gradient-to-tr from-blue-500 to-cyan-500"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Wayan" class="w-full h-full object-cover rounded-full bg-slate-800"></div>
+                        <div>
+                            <p class="text-sm font-bold text-white flex items-center gap-1">Wayan <svg class="w-3.5 h-3.5 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></p>
+                            <p class="text-[10px] text-slate-400">Prakiraan 3 Hari</p>
+                        </div>
+                        <div class="ml-auto text-[10px] px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-white/5">Info</div>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-3">
+                        ${forecastHtml}
+                    </div>
+                    
+                    <button onclick="navigateTo('weather')" class="w-full text-xs font-bold text-blue-400 bg-neutral-800/50 border border-white/10 py-2.5 rounded-xl hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2">
+                        Lihat 10 Hari Kedepan <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                    </button>
+                </div>`;
+        }
+
+        // --- NEW: AI STORIES LOGIC ---
+        let storiesData = [];
+        let currentStoryIndex = 0;
+        let storyInterval = null;
+        let storyProgress = 0;
+        let isStoryPaused = false;
+        let storyTouchStartTime = 0;
+
+        function updateAIStories() {
+            const container = document.getElementById('ai-stories-container');
+            if (!container || !currentWeatherData) return;
+
+            // Tampilkan Skeleton jika data belum siap
+            if (!currentWeatherData.current_weather) {
+                container.innerHTML = Array(5).fill(0).map(() => `
+                    <div class="flex flex-col items-center gap-2 shrink-0 animate-pulse">
+                        <div class="w-[4.5rem] h-[4.5rem] rounded-full bg-neutral-800 border-2 border-neutral-900"></div>
+                        <div class="h-2 w-12 bg-neutral-800 rounded"></div>
+                    </div>`).join('');
+                return;
+            }
+
+            const wx = currentWeatherData.current_weather;
+            const hourly = currentWeatherData.hourly;
+            
+            storiesData = [];
+
+            // 1. Story: Ringkasan (Wayan)
+            storiesData.push({
+                title: 'Saran AI',
+                color: 'from-blue-500 to-purple-500',
+                img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Wayan',
+                render: () => `
+                    <div class="text-center px-6 animate-in zoom-in-90 duration-500">
+                        <div class="w-32 h-32 mx-auto mb-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 p-1 shadow-[0_0_50px_rgba(59,130,246,0.5)]">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Wayan" class="w-full h-full rounded-full bg-slate-900">
+                        </div>
+                        <h2 class="text-4xl font-black text-white mb-4 tracking-tight">Halo, Kapten!</h2>
+                        <p class="text-xl text-slate-200 leading-relaxed font-medium">
+                            Suhu saat ini <b>${Math.round(wx.temperature)}°C</b>.<br>
+                            ${wx.windspeed > 20 ? 'Angin agak kencang, hati-hati ombak.' : 'Angin tenang, mantap buat casting!'}
+                        </p>
+                    </div>`
+            });
+
+            // 2. Story: Aktivitas Ikan (Solunar - Donut Chart)
+            let activity = 50;
+            if (typeof SunCalc !== 'undefined') {
+                const moon = SunCalc.getMoonIllumination(new Date());
+                const phase = moon.phase; // 0.0 - 1.0
+                // Full Moon (0.5) & New Moon (0.0/1.0) = High Activity
+                if (phase < 0.1 || phase > 0.9) activity = 90; 
+                else if (phase > 0.4 && phase < 0.6) activity = 100;
+                else activity = 60;
+            }
+            
+            storiesData.push({
+                title: 'Aktivitas',
+                icon: 'activity',
+                color: 'from-purple-600 to-pink-500',
+                render: () => `
+                    <div class="text-center animate-in zoom-in-90 duration-500">
+                        <div class="relative w-56 h-56 mx-auto mb-8 flex items-center justify-center">
+                            <svg class="w-full h-full transform -rotate-90"><circle cx="112" cy="112" r="100" stroke="currentColor" stroke-width="16" fill="transparent" class="text-slate-800" /><circle cx="112" cy="112" r="100" stroke="currentColor" stroke-width="16" fill="transparent" class="text-purple-500" stroke-dasharray="${2 * Math.PI * 100}" stroke-dashoffset="${2 * Math.PI * 100 * (1 - activity/100)}" style="transition: stroke-dashoffset 1.5s ease-out;" /></svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-6xl font-black text-white">${activity}%</span><span class="text-sm text-purple-300 font-bold uppercase tracking-widest">Potensi</span></div>
+                        </div>
+                        <h2 class="text-3xl font-black text-white mb-2">Aktivitas Ikan</h2>
+                        <p class="text-slate-300 text-lg">Fase bulan mendukung aktivitas <b>${activity > 80 ? 'TINGGI' : 'SEDANG'}</b> hari ini.</p>
+                    </div>`
+            });
+
+            // 2. Story: Grafik Hujan (Bar Chart)
+            const rainData = [];
+            for(let i=0; i<8; i++) {
+                const idx = new Date().getHours() + i;
+                if(idx < hourly.time.length) rainData.push({ t: idx%24, p: hourly.precipitation_probability[idx] });
+            }
+            
+            storiesData.push({
+                title: 'Hujan',
+                icon: 'cloud-rain',
+                color: 'from-blue-600 to-cyan-400',
+                render: () => {
+                    const bars = rainData.map(d => {
+                        const h = Math.max(10, d.p * 2); // Scale height
+                        const color = d.p > 50 ? 'bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]' : 'bg-slate-700';
+                        return `
+                            <div class="flex flex-col items-center gap-2 flex-1">
+                                <div class="w-full rounded-t-lg ${color} transition-all duration-1000" style="height: ${h}px"></div>
+                                <span class="text-xs font-bold text-slate-400">${d.t}:00</span>
+                            </div>`;
+                    }).join('');
+                    
+                    return `
+                        <div class="w-full max-w-sm px-4 animate-in slide-in-from-bottom-10 duration-500">
+                            <h2 class="text-3xl font-black text-white mb-2 text-center">Peluang Hujan</h2>
+                            <p class="text-sm text-slate-400 text-center mb-10">Prediksi 8 jam ke depan</p>
+                            <div class="flex items-end justify-between h-64 gap-2 border-b border-white/20 pb-2">
+                                ${bars}
+                            </div>
+                            <div class="mt-6 p-4 bg-blue-900/30 rounded-xl border border-blue-500/30 text-center">
+                                <p class="text-blue-200 text-sm font-bold">
+                                    ${Math.max(...rainData.map(d=>d.p)) > 50 ? '⚠️ Sedia jas hujan, potensi hujan tinggi!' : '✅ Cuaca cenderung kering.'}
+                                </p>
+                            </div>
+                        </div>`;
+                }
+            });
+
+            // 4. Story: Angin (Compass Visual)
+            storiesData.push({
+                title: 'Angin',
+                icon: 'wind',
+                color: 'from-emerald-500 to-teal-400',
+                render: () => `
+                    <div class="text-center animate-in spin-in-12 duration-700">
+                        <div class="relative w-64 h-64 mx-auto mb-8 flex items-center justify-center">
+                            <!-- Compass Ring -->
+                            <div class="absolute inset-0 rounded-full border-4 border-slate-700 border-dashed"></div>
+                            <div class="absolute top-2 text-slate-500 font-black">U</div>
+                            <div class="absolute bottom-2 text-slate-500 font-black">S</div>
+                            <div class="absolute left-2 text-slate-500 font-black">B</div>
+                            <div class="absolute right-2 text-slate-500 font-black">T</div>
+                            
+                            <!-- Arrow -->
+                            <div class="transition-transform duration-1000" style="transform: rotate(${wx.winddirection}deg)">
+                                <i data-lucide="arrow-up" class="w-32 h-32 text-emerald-400 fill-emerald-400/20 drop-shadow-[0_0_20px_rgba(52,211,153,0.6)]"></i>
+                            </div>
+                            
+                            <!-- Speed Center -->
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <div class="bg-neutral-900/90 backdrop-blur-md w-24 h-24 rounded-full flex flex-col items-center justify-center border border-white/10 shadow-xl">
+                                    <span class="text-3xl font-black text-white">${wx.windspeed}</span>
+                                    <span class="text-[10px] text-slate-400 uppercase">km/h</span>
+                                </div>
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white">Arah Angin</h2>
+                        <p class="text-slate-400 mt-2">Angin berhembus dari arah <b>${wx.winddirection}°</b></p>
+                    </div>`
+            });
+
+            // 5. Story: Ombak (Wave Animation) - Jika ada data laut
+            if (typeof currentMarineData !== 'undefined' && currentMarineData && currentMarineData.hourly) {
+                const waveH = currentMarineData.hourly.sea_level_height_msl ? currentMarineData.hourly.sea_level_height_msl[new Date().getHours()] : 0;
+                // Simulasi tinggi ombak (karena data API kadang null, kita pakai dummy logic visual jika data kosong)
+                const displayWave = waveH || (wx.windspeed / 10).toFixed(1); 
+                
+                storiesData.push({
+                    title: 'Ombak',
+                    icon: 'waves',
+                    color: 'from-cyan-500 to-blue-600',
+                    render: () => `
+                        <div class="text-center animate-in slide-in-from-bottom-10 duration-700 w-full">
+                            <div class="h-48 w-full relative overflow-hidden rounded-3xl bg-gradient-to-b from-sky-300 to-blue-600 mb-8 border-4 border-white/20 shadow-2xl">
+                                <div class="absolute bottom-0 left-0 w-[200%] h-full flex animate-[wave_3s_linear_infinite]" style="transform: translateX(0);">
+                                    <div class="w-1/2 h-full bg-blue-800/30" style="clip-path: polygon(0% 50%, 25% 45%, 50% 50%, 75% 55%, 100% 50%, 100% 100%, 0% 100%);"></div>
+                                    <div class="w-1/2 h-full bg-blue-800/30" style="clip-path: polygon(0% 50%, 25% 45%, 50% 50%, 75% 55%, 100% 50%, 100% 100%, 0% 100%);"></div>
+                                </div>
+                                <div class="absolute inset-0 flex items-center justify-center flex-col">
+                                    <span class="text-5xl font-black text-white drop-shadow-lg">${Math.abs(displayWave)}m</span>
+                                    <span class="text-xs font-bold text-white/80 uppercase">Tinggi Ombak</span>
+                                </div>
+                            </div>
+                            <h2 class="text-3xl font-bold text-white">Kondisi Laut</h2>
+                            <p class="text-slate-300 mt-2">Ombak relatif ${displayWave > 1.5 ? 'TINGGI' : 'TENANG'}, ${displayWave > 1.5 ? 'hati-hati melaut!' : 'aman untuk perahu kecil.'}</p>
+                        </div>
+                        <style>@keyframes wave { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }</style>`
+                });
+            }
+
+            // 6. Story: Suhu (Thermometer)
+            storiesData.push({
+                title: 'Suhu',
+                icon: 'thermometer',
+                color: 'from-orange-500 to-red-500',
+                render: () => `
+                    <div class="text-center animate-in zoom-in-90 duration-500">
+                        <div class="text-[10rem] font-black text-white leading-none tracking-tighter drop-shadow-2xl">${Math.round(wx.temperature)}°</div>
+                        <p class="text-2xl font-bold text-orange-200 mt-4 uppercase tracking-widest">Temperatur</p>
+                        <p class="text-slate-300 mt-2">Terasa seperti <b>${Math.round(wx.temperature + 2)}°C</b> karena kelembaban.</p>
+                    </div>`
+            });
+
+            // Render Circles
+            container.innerHTML = storiesData.map((s, i) => `
+                <div class="flex flex-col items-center gap-1 shrink-0 cursor-pointer group" onclick="openStory(${i})">
+                    <div class="w-[4.5rem] h-[4.5rem] rounded-full p-[3px] bg-gradient-to-tr ${s.color} group-hover:scale-105 transition-transform shadow-lg">
+                        <div class="w-full h-full rounded-full bg-black border-2 border-black flex items-center justify-center overflow-hidden relative">
+                            ${s.img ? `<img src="${s.img}" class="w-full h-full object-cover">` : `<i data-lucide="${s.icon}" class="w-8 h-8 text-white"></i>`}
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-medium text-slate-300 group-hover:text-white transition-colors">${s.title}</span>
+                </div>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        // --- NEW: External Feed Post (Wikipedia & TheMealDB) ---
+        // Cache memori untuk menyimpan data postingan eksternal agar tidak berubah-ubah saat re-render
+        let externalPostDataCache = {};
+
+        async function loadExternalFeedPost(containerId, mode = 'random') {
+            const container = document.getElementById(containerId);
+            if(!container) return;
+
+            // 0. TAMPILKAN SKELETON LOADING (STRUKTUR HALAMAN)
+            if (!externalPostDataCache[mode]) {
+                container.innerHTML = FEED_SKELETON_HTML;
+            }
+
+            // 1. CEK CACHE: Jika data untuk mode ini sudah ada, pakai yang lama (biar tidak kedip/ganti konten)
+            if (externalPostDataCache[mode]) {
+                renderExternalPostUI(container, externalPostDataCache[mode]);
+                return;
+            }
+
+            // Tentukan tipe konten berdasarkan mode
+            let sourceType;
+            if (mode === 'video') {
+                sourceType = 2; // Force Video
+            } else if (mode === 'mix') {
+                sourceType = Math.floor(Math.random() * 2); // 0 (Resep) atau 1 (Wiki)
+            } else {
+                sourceType = Math.floor(Math.random() * 3); // Random semua
+            }
+            
+            let postData = null;
+
+            try {
+                // --- SUMBER 1: TheMealDB (Resep Seafood) ---
+                if (sourceType === 0) {
+                    const res = await fetch('https://www.themealdb.com/api/json/v1/1/filter.php?c=Seafood');
+                    const data = await res.json();
+                    const simpleMeal = data.meals[Math.floor(Math.random() * data.meals.length)];
+                    
+                    // Fetch Full Details untuk dapat Resep
+                    const resDetail = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${simpleMeal.idMeal}`);
+                    const dataDetail = await resDetail.json();
+                    const meal = dataDetail.meals[0];
+
+                    let instructions = meal.strInstructions || "Resep tidak tersedia.";
+                    // Format newline jadi <br>
+                    instructions = instructions.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
+
+                    let captionHtml = `<b>${meal.strMeal}</b><br>${instructions}`;
+                    
+                    if (instructions.length > 120) {
+                        const uniqueId = Math.random().toString(36).substr(2, 9);
+                        const shortText = instructions.substring(0, 120) + "...";
+                        
+                        captionHtml = `<b>${meal.strMeal}</b><br>
+                            <span id="short-${uniqueId}">
+                                ${shortText} 
+                                <span onclick="document.getElementById('short-${uniqueId}').classList.add('hidden'); document.getElementById('full-${uniqueId}').classList.remove('hidden');" class="text-slate-500 cursor-pointer font-bold hover:text-white text-xs">baca resep</span>
+                            </span>
+                            <span id="full-${uniqueId}" class="hidden animate-in fade-in text-xs text-slate-300 leading-relaxed">
+                                <br>${instructions}
+                            </span>`;
+                    }
+                    
+                    postData = {
+                        userName: "Chef Nelayan",
+                        userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Chef",
+                        location: "Dapur Umum",
+                        image: meal.strMealThumb,
+                        caption: captionHtml,
+                        sourceName: "Resep Seafood",
+                        likes: Math.floor(Math.random() * 500) + 100
+                    };
+
+                } else if (sourceType === 1) {
+                    // --- SUMBER 2: Wikipedia (Fakta Ikan) ---
+                    const keywords = ["Ikan_badut", "Ikan_hiu", "Ikan_paus", "Ikan_pari", "Ikan_tuna", "Ikan_kakap", "Ikan_lele", "Ikan_nila", "Ikan_arwana", "Barakuda", "Marlin_biru", "Ikan_mas", "Ikan_tenggiri", "Ikan_tongkol", "Ikan_kerapu", "Ikan_kuwe", "Terumbu_karang", "Penyu", "Cumi-cumi", "Gurita", "Udang", "Kepiting", "Lobster"];
+                    const randomKey = keywords[Math.floor(Math.random() * keywords.length)];
+                    const res = await fetch(`https://id.wikipedia.org/api/rest_v1/page/summary/${randomKey}`);
+                    const data = await res.json();
+
+                    if (data.title && data.extract) {
+                        const img = data.thumbnail ? data.thumbnail.source : 'https://cdn-icons-png.flaticon.com/512/1998/1998610.png';
+                        
+                        // Logic Truncate Text (Baca Selengkapnya) agar feed tidak kepanjangan
+                        let captionHtml = `<b>${data.title}</b><br>${data.extract}`;
+                        if (data.extract.length > 120) {
+                            const uniqueId = Math.random().toString(36).substr(2, 9);
+                            const shortText = data.extract.substring(0, 120) + "...";
+                            
+                            captionHtml = `<b>${data.title}</b><br>
+                                <span id="short-${uniqueId}">
+                                    ${shortText} 
+                                    <span onclick="document.getElementById('short-${uniqueId}').classList.add('hidden'); document.getElementById('full-${uniqueId}').classList.remove('hidden');" class="text-slate-500 cursor-pointer font-bold hover:text-white text-xs">baca selengkapnya</span>
+                                </span>
+                                <span id="full-${uniqueId}" class="hidden animate-in fade-in">
+                                    ${data.extract}
+                                </span>`;
+                        }
+
+                        postData = {
+                            userName: "Ensiklopedia Laut",
+                            userAvatar: "https://upload.wikimedia.org/wikipedia/commons/6/63/Wikipedia-logo.png",
+                            location: "Fakta Unik",
+                            image: img,
+                            caption: captionHtml,
+                            sourceName: "Wikipedia",
+                            likes: Math.floor(Math.random() * 200) + 50
+                        };
+                    }
+                } else if (sourceType === 2) {
+                    // --- SUMBER 3: YouTube Highlights (Video Pilihan) ---
+                    // Koleksi Video Otomatis (Tutorial, Hiburan, Tips)
+                    // Aplikasi akan memilih satu secara acak dari daftar ini
+                    const videos = [
+                        // ID Video YouTube diambil dari URL (v=...)
+                        { id: "pjzUb5QRKuk", title: "Cara Ikat Kail Pancing (FG Knot)", author: "Knot Master" },
+                        { id: "Hu0vJ_lPjwc", title: "Sensasi Strike Ikan Toman", author: "Gondrong Labanan" },
+                        { id: "7wJj5y6z8k0", title: "Mancing Mania Mantap!", author: "Trans7 Official" },
+                        { id: "J_8mdH20qTQ", title: "Teknik Casting Gabus", author: "Dunia Pancing" },
+                        { id: "qQ1tQ5w6e7s", title: "Tips Memilih Joran", author: "Dudit Widodo" }
+                    ];
+                    
+                    // Pilih satu video secara acak
+                    const vid = videos[Math.floor(Math.random() * videos.length)];
+                    
+                    postData = {
+                        userName: vid.author,
+                        userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Youtube",
+                        location: "YouTube Channel",
+                        videoUrl: `https://www.youtube.com/embed/${vid.id}?autoplay=0&controls=1&rel=0&playsinline=1&mute=1`,
+                        caption: `<b>${vid.title}</b><br>Tonton video pilihan hari ini! Jangan lupa like & subscribe channel aslinya ya. 🎥🎣`,
+                        sourceName: "YouTube",
+                        likes: Math.floor(Math.random() * 2000) + 1000
+                    };
+                }
+
+                // 2. SIMPAN KE CACHE & RENDER
+                if (postData) {
+                    // externalPostDataCache[mode] = postData; // Optional: Cache disabled for variety on refresh
+                    renderExternalPostUI(container, postData);
+                }
+            } catch (e) {
+                console.warn("Gagal load external post", e);
+                container.style.display = 'none';
+            }
+        }
+
+        // Helper: Render Tampilan Postingan (Sama persis dengan Feed User)
+        function renderExternalPostUI(container, d) {
+            container.innerHTML = `
+                <!-- Header -->
+                <div class="flex items-center gap-3 px-4 py-3 animate-in fade-in duration-500">
+                    <div class="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-blue-400 to-emerald-400">
+                        <div class="w-full h-full rounded-full border-2 border-slate-900 overflow-hidden bg-white">
+                            <img src="${d.userAvatar}" class="w-full h-full object-contain">
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center">
+                            <p class="text-sm font-bold text-white truncate mr-0.5">${d.userName}</p>
+                            <svg class="w-3.5 h-3.5 ml-1 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg>
+                        </div>
+                        <p class="text-[10px] text-slate-400 font-medium">${d.location}</p>
+                    </div>
+                    <button class="text-slate-500 hover:text-white"><i data-lucide="more-horizontal" class="w-5 h-5"></i></button>
+                </div>
+
+                <!-- Media (Video or Image) -->
+                <div class="w-full aspect-[4/5] bg-slate-800 relative group overflow-hidden">
+                    ${d.videoUrl ? 
+                        `<iframe src="${d.videoUrl}" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>` 
+                        : 
+                        `<img src="${d.image}" class="w-full h-full object-cover transition-transform duration-700" loading="lazy">`
+                    }
+                    <div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1 border border-white/10 shadow-lg"><i data-lucide="globe" class="w-3 h-3 text-blue-400"></i> ${d.sourceName}</div>
+                </div>
+
+                <!-- Actions & Caption -->
+                <div class="px-4 pt-3">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-5">
+                            <button class="text-white hover:text-red-500 transition-colors"><i data-lucide="heart" class="w-6 h-6"></i></button>
+                            <button class="text-white hover:text-blue-400 transition-colors"><i data-lucide="message-circle" class="w-6 h-6"></i></button>
+                            <button class="text-white hover:text-emerald-400 transition-colors"><i data-lucide="send" class="w-6 h-6"></i></button>
+                        </div>
+                        <button class="text-white hover:text-yellow-400 transition-colors"><i data-lucide="bookmark" class="w-6 h-6"></i></button>
+                    </div>
+                    
+                    <p class="text-sm font-bold text-white mb-1">${d.likes} suka</p>
+                    
+                    <div class="text-sm text-slate-300 leading-relaxed mb-1">
+                        <span class="font-bold text-white mr-1">${d.userName}</span> ${d.caption}
+                    </div>
+                    
+                    <p class="text-[10px] text-slate-500 uppercase tracking-wide mt-2">Disponsori • Baru saja</p>
+                </div>
+            `;
+            if(typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function openStory(index) {
+            currentStoryIndex = index;
+            const modal = document.getElementById('storyViewerModal');
+            modal.classList.remove('hidden');
+            
+            // Render Progress Bars Container
+            const barsContainer = document.getElementById('story-bars-container');
+            barsContainer.innerHTML = storiesData.map((_, i) => `
+                <div class="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
+                    <div id="story-bar-${i}" class="h-full bg-white w-0"></div>
+                </div>
+            `).join('');
+            
+            renderStoryContent();
+        }
+
+        function renderStoryContent() {
+            const story = storiesData[currentStoryIndex];
+            const content = document.getElementById('story-content');
+            
+            // Render Content
+            content.innerHTML = story.render();
+            document.getElementById('story-header-title').innerText = story.title;
+            lucide.createIcons();
+
+            // Reset Bars Visual
+            storiesData.forEach((_, i) => {
+                const bar = document.getElementById(`story-bar-${i}`);
+                if(bar) {
+                    if (i < currentStoryIndex) bar.style.width = '100%';
+                    else if (i > currentStoryIndex) bar.style.width = '0%';
+                    else bar.style.width = '0%';
+                }
+            });
+
+            startStoryProgress();
+        }
+
+        function startStoryProgress() {
+            clearInterval(storyInterval);
+            storyProgress = 0;
+            isStoryPaused = false;
+            
+            const bar = document.getElementById(`story-bar-${currentStoryIndex}`);
+            const duration = 5000; // 5 detik per story
+            const step = 20; // Update tiap 20ms
+            const increment = (step / duration) * 100;
+
+            storyInterval = setInterval(() => {
+                if (!isStoryPaused) {
+                    storyProgress += increment;
+                    if (bar) bar.style.width = `${Math.min(storyProgress, 100)}%`;
+                    
+                    if (storyProgress >= 100) {
+                        nextStory();
+                    }
+                }
+            }, step);
+        }
+
+        // Handle Touch/Click Logic (Pause & Navigation)
+        function handleStoryTouch(action, direction) {
+            const wrapper = document.getElementById('story-scale-wrapper');
+            if (action === 'start') {
+                isStoryPaused = true;
+                storyTouchStartTime = Date.now();
+                if(wrapper) wrapper.classList.add('scale-[0.98]'); // Efek tekan pada wrapper (bukan modal utama)
+            } else if (action === 'end') {
+                isStoryPaused = false;
+                if(wrapper) wrapper.classList.remove('scale-[0.98]');
+                
+                const duration = Date.now() - storyTouchStartTime;
+                if (duration < 200) { // Jika tap cepat (<200ms), anggap navigasi
+                    if (direction === 'next') nextStory();
+                    else prevStory();
+                }
+            }
+        }
+
+        function prevStory() {
+            if (currentStoryIndex > 0) {
+                openStory(currentStoryIndex - 1);
+            } else {
+                // Restart current story if first
+                renderStoryContent();
+            }
+        }
+
+        function nextStory() {
+            if (currentStoryIndex < storiesData.length - 1) {
+                openStory(currentStoryIndex + 1);
+            } else {
+                closeStoryViewer();
+            }
+        }
+
+        function closeStoryViewer() {
+            document.getElementById('storyViewerModal').classList.add('hidden');
+            clearInterval(storyInterval);
+        }
+
+        // Polling: Cek otomatis jika data cuaca baru masuk, lalu update widget
+        setInterval(() => {
+            const widget = document.getElementById('home-weather-widget');
+            // Hanya update jika widget ada DAN statusnya masih 'loading' (belum dapat data)
+            if (widget && widget.dataset.status === 'loading' && typeof currentWeatherData !== 'undefined' && currentWeatherData) {
+                widget.innerHTML = getHomeWidgetContent();
+                widget.dataset.status = 'loaded';
+                if(typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            // Update StoryBali Widget
+            const storyWidget = document.getElementById('home-storybali-widget');
+            if (storyWidget && storyWidget.dataset.status === 'loading' && typeof currentWeatherData !== 'undefined' && currentWeatherData) {
+                 storyWidget.innerHTML = getStoryBaliContent();
+                 storyWidget.dataset.status = 'loaded';
+                 if(typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            // Update Forecast Widget
+            const forecastWidget = document.getElementById('home-forecast-widget');
+            if (forecastWidget && forecastWidget.dataset.status === 'loading' && typeof currentWeatherData !== 'undefined' && currentWeatherData) {
+                 forecastWidget.innerHTML = getForecastWidgetContent();
+                 forecastWidget.dataset.status = 'loaded';
+                 if(typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        }, 2000);
+    </script>
 </body>
 </html>
