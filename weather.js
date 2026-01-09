@@ -21,7 +21,6 @@ let currentSkyTop = '#000000'; // NEW: Cache for landscape
 let currentSkyBot = '#000000'; // NEW: Cache for landscape
 let isAudioUnlocked = false; // Status untuk autoplay audio di HP
 let pendingAudio = null; // Sinkronisasi audio & animasi
-let audioFrameCounter = 0; // Counter delay audio agar tidak mendahului visual
 let landscapeTreePath = null; // Cache untuk siluet pohon
 
 
@@ -32,7 +31,7 @@ function initCloudAssets() {
     const assets = document.createElement('div');
     assets.id = 'cloud-assets';
     assets.innerHTML = `
-        <div id="sky-gradient" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:2147483637; pointer-events:none;"></div>
+        <div id="sky-gradient" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:40; pointer-events:none;"></div>
         <svg width="0" height="0" style="position:absolute; z-index:-1;">
             <filter id="filter-base">
                 <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="5" seed="8517" />     
@@ -54,7 +53,7 @@ function initCloudAssets() {
         <style>
             .cloud-wrapper {
                 position: fixed;
-                z-index: 2147483638; /* Behind Rain Canvas (39) */
+                z-index: 41; /* Behind Rain Canvas (42) */
                 pointer-events: none;
             }
             /* Container Awan (Sesuai snippet Anda) */
@@ -64,7 +63,7 @@ function initCloudAssets() {
                 height: 300px;
                 animation: drift 60s linear infinite;
                 left: -700px;
-                z-index: 2147483638; /* FIX: Agar awan muncul di atas peta */
+                z-index: 41; /* FIX: Agar awan muncul di atas peta */
                 pointer-events: none;
                 will-change: transform; /* FIX: Optimasi GPU agar tidak patah-patah di HP */
             }
@@ -254,6 +253,7 @@ function initWeatherSystem() {
     initCloudAssets();
     resizeCanvas();
     initPWA(); // Initialize PWA Logic
+    weatherAudio.init(); // Preload audio files
 }
 
 // --- NEW: Audio Manager ---
@@ -264,37 +264,52 @@ const weatherAudio = {
     isReady: false,
     fadeInterval: null, // To manage fade in/out
 
-    init: function() {
-        if (this.isReady) return;
-        console.log("Initializing audio context...");
+    init: function() { // This will be for PRELOADING
+        if (this.rain) return; // Already initialized
+        console.log("Preloading audio files...");
         try {
             // Menggunakan audio langsung dari URL GitHub (raw)
             this.rain = new Audio('https://raw.githubusercontent.com/wayanku/fishing/main/real-rain-sound-379215%20(2).mp3');
             this.rain.loop = true;
             this.rain.volume = 0; // Mulai dengan volume 0
+            this.rain.preload = 'auto';
 
             // Buat beberapa audio petir agar bisa tumpang tindih
             for (let i = 0; i < 3; i++) {
                 this.thunder.push(new Audio('https://raw.githubusercontent.com/wayanku/fishing/main/loud-thunder-192165.mp3'));
                 this.thunder[i].volume = 0.7;
+                this.thunder[i].preload = 'auto';
             }
-            
-            // Trik untuk "membuka kunci" audio di browser mobile
-            const promise = this.rain.play();
-            if (promise !== undefined) {
-                promise.then(_ => {
-                    this.rain.pause();
-                    console.log("Audio context unlocked by user interaction.");
-                    this.isReady = true;
-                    isAudioUnlocked = true; // Set flag global
-                }).catch(error => {
-                    // Autoplay was prevented. Audio will not play until next interaction.
-                    console.warn("Audio unlock failed on load, will be silent until user interacts.", error);
-                });;
-            }
-
         } catch (e) {
-            console.error("Failed to create audio elements:", e);
+            console.error("Failed to create audio elements for preloading:", e);
+        }
+    },
+    
+    unlock: function() { // This will be for UNLOCKING on user interaction
+        if (this.isReady) return;
+        if (!this.rain) this.init(); // Failsafe if preloading didn't run
+        
+        console.log("Attempting to unlock audio context...");
+        
+        // FIX: Pastikan volume 0 saat unlock agar tidak ada suara bocor/glitch
+        this.rain.volume = 0;
+
+        // Trik untuk "membuka kunci" audio di browser mobile
+        const promise = this.rain.play();
+        if (promise !== undefined) {
+            promise.then(_ => {
+                this.rain.pause();
+                this.rain.currentTime = 0; // Rewind after test play
+                console.log("Audio context unlocked by user interaction.");
+                this.isReady = true;
+                isAudioUnlocked = true; // Set flag global
+            }).catch(error => {
+                console.warn("Audio unlock failed. Will be silent until next interaction.", error);
+            });
+        } else {
+            // For older browsers that don't return a promise
+            this.isReady = true;
+            isAudioUnlocked = true;
         }
     },
 
@@ -690,34 +705,34 @@ function drawSkyBackground() {
         const sunsetHour = sunsetDate.getHours() + sunsetDate.getMinutes() / 60;
 
         // Definisi Keyframe Warna Langit (Jam -> Warna Top, Warna Bot)
-        // Menggunakan Biru Gelap (Deep Blue) untuk malam, dan warna sunset yang lebih lembut
+        // Menggunakan Hitam Pekat (True Dark) untuk malam
         skyKeys = [
-            { h: 0,               top: "#020617", bot: "#0f172a" },   // Midnight: Slate-950 -> Slate-900
-            { h: sunriseHour - 2, top: "#020617", bot: "#1e293b" },   // Pre-Dawn
-            { h: sunriseHour - 1, top: "#0f172a", bot: "#1e3a8a" },   // Dawn
+            { h: 0,               top: "#000000", bot: "#0a0a0a" },   // Midnight: Black -> Neutral-950
+            { h: sunriseHour - 2, top: "#000000", bot: "#171717" },   // Pre-Dawn
+            { h: sunriseHour - 1, top: "#0a0a0a", bot: "#1e3a8a" },   // Dawn
             { h: sunriseHour,     top: "#1e40af", bot: "#f97316" },   // Sunrise Moment
             { h: sunriseHour + 2, top: "#3b82f6", bot: "#bae6fd" },   // Morning
             { h: 12,              top: "#0ea5e9", bot: "#cffafe" },   // Noon
             { h: sunsetHour - 2,  top: "#2563eb", bot: "#fdba74" },   // Late Afternoon
             { h: sunsetHour,      top: "#1e3a8a", bot: "#f59e0b" },   // Sunset Moment: Blue-900 -> Amber-500 (Softer Orange)
-            { h: sunsetHour + 1,  top: "#172554", bot: "#0f172a" },   // Dusk: Deep Dark Blue, NO ORANGE/RED
-            { h: 24,              top: "#020617", bot: "#0f172a" }    // Loop back to Midnight
+            { h: sunsetHour + 1,  top: "#172554", bot: "#0a0a0a" },   // Dusk: Deep Dark Blue -> Neutral-950
+            { h: 24,              top: "#000000", bot: "#0a0a0a" }    // Loop back to Midnight
         ];
 
     } else {
         // Fallback ke jam tetap jika data API belum ada
         skyKeys = [
-            { h: 0, top: "#020617", bot: "#0f172a" },   // Midnight
-            { h: 4, top: "#020617", bot: "#1e293b" },   // Pre-Dawn
-            { h: 5, top: "#0f172a", bot: "#1e3a8a" },   // Dawn
+            { h: 0, top: "#000000", bot: "#0a0a0a" },   // Midnight
+            { h: 4, top: "#000000", bot: "#171717" },   // Pre-Dawn
+            { h: 5, top: "#0a0a0a", bot: "#1e3a8a" },   // Dawn
             { h: 6, top: "#1e40af", bot: "#f97316" },   // Sunrise
             { h: 8, top: "#3b82f6", bot: "#bae6fd" },   // Morning
             { h: 12, top: "#0ea5e9", bot: "#cffafe" },  // Noon
             { h: 16, top: "#2563eb", bot: "#fdba74" },  // Late Afternoon
             { h: 17, top: "#1d4ed8", bot: "#f59e0b" },  // Pre-Sunset (Amber)
             { h: 18, top: "#1e3a8a", bot: "#f59e0b" },  // Sunset (Amber)
-            { h: 19, top: "#172554", bot: "#0f172a" },  // Dusk (Deep Blue)
-            { h: 24, top: "#020617", bot: "#0f172a" }   // Loop back
+            { h: 19, top: "#172554", bot: "#0a0a0a" },  // Dusk
+            { h: 24, top: "#000000", bot: "#0a0a0a" }   // Loop back
         ];
     }
 
@@ -725,18 +740,18 @@ function drawSkyBackground() {
 
     // --- NEW: Override based on active animation type (Immediate Visual Feedback) ---
     if (currentWxType === 'storm') {
-        top = "#0f172a"; bot = "#1e1b4b"; // Deep Storm Blue
+        top = "#0a0a0a"; bot = "#1e1b4b"; // Deep Storm
     } else if (currentWxType === 'rain') {
         // Cek waktu (siang/malam) berdasarkan floatHour
         const isDay = (floatHour > 6 && floatHour < 18);
         if(isDay) { top = "#334155"; bot = "#64748b"; } // Slate-700 -> Slate-500 (Gloomy Day)
-        else { top = "#020617"; bot = "#1e293b"; } // Slate-950 -> Slate-800 (Dark Night)
+        else { top = "#000000"; bot = "#171717"; } // Black -> Neutral-900 (Dark Night)
     } else if (wxCode >= 95) { // Badai (Sangat Gelap)
-        top = "#020617"; bot = "#1e1b4b"; 
+        top = "#000000"; bot = "#1e1b4b"; 
     } else if (wxCode >= 51 || wxCode === 3) { // Hujan / Mendung Tebal
         const isDaytimeCloudy = (skyKeys.length > 4 && skyKeys[3].h && skyKeys[7].h) ? (floatHour > skyKeys[3].h && floatHour < skyKeys[7].h) : (floatHour > 6 && floatHour < 18);
         if(isDaytimeCloudy) { top = "#475569"; bot = "#94a3b8"; } // Siang Kelabu
-        else { top = "#0f172a"; bot = "#334155"; } // Malam Kelabu
+        else { top = "#0a0a0a"; bot = "#334155"; } // Malam Kelabu
     } else {
         // Interpolasi Warna Berdasarkan Waktu
         // Cari segmen waktu saat ini
@@ -770,6 +785,16 @@ function drawSkyBackground() {
         const sky = document.getElementById('sky-gradient');
         if(sky) sky.style.background = newGradient;
         lastSkyGradient = newGradient;
+
+        // --- NEW: Update Status Bar Color (Transparent Effect) ---
+        // Mengubah warna status bar browser agar menyatu dengan langit
+        let metaTheme = document.querySelector('meta[name="theme-color"]');
+        if(!metaTheme) {
+            metaTheme = document.createElement('meta');
+            metaTheme.name = "theme-color";
+            document.head.appendChild(metaTheme);
+        }
+        metaTheme.content = top; // Status bar menyatu dengan langit
     }
 }
 
@@ -880,46 +905,49 @@ function drawCelestialBodies() {
             // --- MODE SIANG (Realistic Glare & Lens Flare) ---
             const glareIntensity = (p - 0.3) / 0.7; // 0.0 -> 1.0
             
+            // RESPONSIVE SIZING: Gunakan ukuran layar untuk menentukan besarnya matahari
+            const minDim = Math.min(canvas.width, canvas.height);
+
             // 1. Main Sun Glare (Blinding Light - Not Round)
-            // iPhone Style: Cahaya sangat luas, putih bersih, dan menyatu dengan langit
-            const outerRadius = 300 + (glareIntensity * 500); // Radius sangat besar (300-800px)
+            // Radius dinamis: HP (kecil) vs Laptop (besar)
+            const outerRadius = (minDim * 0.4) + (glareIntensity * (minDim * 0.5)); 
             
             const grdMain = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, outerRadius);
             grdMain.addColorStop(0, "rgba(255, 255, 255, 1.0)"); // Inti Putih Solid
-            grdMain.addColorStop(0.04, "rgba(255, 255, 255, 0.95)"); // Glow Inti
-            grdMain.addColorStop(0.12, "rgba(255, 250, 230, 0.5)"); // Transisi Hangat
-            grdMain.addColorStop(0.3, "rgba(255, 255, 255, 0.15)"); // Glow Luar Halus
-            grdMain.addColorStop(0.6, "rgba(255, 255, 255, 0.02)"); // Fade Out Sangat Halus
+            grdMain.addColorStop(0.03, "rgba(255, 255, 255, 0.9)"); // Glow Inti Tajam
+            grdMain.addColorStop(0.08, "rgba(255, 250, 220, 0.5)"); // Transisi Hangat (Golden Tint)
+            grdMain.addColorStop(0.2, "rgba(255, 255, 255, 0.15)"); // Haze Putih
+            grdMain.addColorStop(0.5, "rgba(255, 255, 255, 0.01)"); // Fade Out
             grdMain.addColorStop(1, "rgba(255, 255, 255, 0)");
             
             ctx.fillStyle = grdMain;
             ctx.beginPath(); ctx.arc(sunX, sunY, outerRadius, 0, Math.PI * 2); ctx.fill();
 
-            // 2. Sun Rays / Beams (iPhone Style: Sinar Panjang & Lembut)
+            // 2. Sun Rays / Beams (Responsive)
             ctx.save();
             ctx.translate(sunX, sunY);
             ctx.rotate(Date.now() * 0.0001); // Rotasi sangat pelan & elegan
 
-            // FIX: Menggunakan Radial Gradient + Scale agar lembut di iPhone (tanpa filter blur)
             const rayCount = 8; 
             
             for (let i = 0; i < rayCount; i++) {
                 ctx.save();
                 ctx.rotate((Math.PI * 2 * i) / rayCount);
                 
-                // Panjang sinar bervariasi
                 const variation = (i % 2 === 0) ? 1.0 : 0.7;
-                const rayLen = (250 + (glareIntensity * 300)) * variation; 
-                const rayWidth = 35 + (glareIntensity * 15); // Lebih lebar agar gradasinya halus
+                // Panjang sinar responsif terhadap ukuran layar (tidak fix pixel)
+                // Agar proporsional di HP maupun Laptop
+                const rayLen = ((minDim * 0.15) + (glareIntensity * (minDim * 0.2))) * variation; 
+                const rayWidth = (minDim * 0.05) + (glareIntensity * (minDim * 0.02));
 
                 // Teknik: Scale unit circle menjadi oval panjang (Sinar)
                 ctx.scale(rayLen, rayWidth);
 
-                // Gradient Radial dari Pusat ke Luar (Otomatis pudar di semua sisi)
+                // Gradient Radial dari Pusat ke Luar
                 const grdRay = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-                grdRay.addColorStop(0, "rgba(255, 255, 255, 0.4)"); // Inti Putih
-                grdRay.addColorStop(0.4, "rgba(255, 255, 255, 0.1)"); // Tengah Pudar
-                grdRay.addColorStop(1, "rgba(255, 255, 255, 0)"); // Pinggir Transparan
+                grdRay.addColorStop(0, "rgba(255, 255, 255, 0.5)"); // Lebih terang di pusat
+                grdRay.addColorStop(0.3, "rgba(255, 255, 255, 0.15)");
+                grdRay.addColorStop(1, "rgba(255, 255, 255, 0)");
 
                 ctx.fillStyle = grdRay;
                 ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI * 2); 
@@ -1035,6 +1063,14 @@ function drawCelestialBodies() {
     // --- Draw Moon (Bulan) ---
     // Muncul jika altitude > -0.1 & Tidak Hujan Deras
     if (moonAlt > -0.1 && wxCode < 51) { 
+        // LOGIKA BARU: Bulan jadi samar saat matahari terbit
+        let moonOpacity = 1.0;
+        if (sunAlt > -0.1) {
+            // Semakin tinggi matahari, semakin transparan (min 0.3 agar tetap terlihat samar)
+            moonOpacity = Math.max(0.3, 1.0 - (sunAlt * 3.0));
+        }
+        ctx.globalAlpha = moonOpacity; // Terapkan transparansi
+
         const radius = 25;
 
         // 1. Moon Glow (Atmosphere) - Lebih natural
@@ -1098,6 +1134,8 @@ function drawCelestialBodies() {
         ctx.beginPath(); ctx.arc(moonX + 8, moonY + 2, 3, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(moonX - 2, moonY + 10, 5, 0, Math.PI*2); ctx.fill();
         ctx.restore();
+
+        ctx.globalAlpha = 1.0; // Reset transparansi untuk elemen berikutnya
     }
 }
 
@@ -1113,8 +1151,8 @@ function drawLandscape() {
     // untuk menciptakan efek siluet atmosferik yang realistis. Ini membuat
     // warna gunung menyatu dengan transisi warna langit saat sunrise/sunset.
     const baseColor = currentSkyBot; // Ambil warna horizon dari cache
-    const backColor = lerpColor(baseColor, '#020617', 0.4); // Gelapkan 40% untuk gunung belakang
-    const frontColor = lerpColor(baseColor, '#020617', 0.7); // Gelapkan 70% untuk gunung depan
+    const backColor = lerpColor(baseColor, '#000000', 0.4); // Gelapkan 40% untuk gunung belakang
+    const frontColor = lerpColor(baseColor, '#000000', 0.7); // Gelapkan 70% untuk gunung depan
 
     // 1. Gunung Belakang (Layer Jauh - Lebih Pudar)
     ctx.fillStyle = backColor;
@@ -1215,14 +1253,9 @@ function animate() {
             return;
         }
 
-        audioFrameCounter++;
-        // Tunggu sedikit frame agar animasi visual Hujan/Badai sudah stabil terlihat di layar
-        // Di HP frame bisa drop, jadi kurangi dari 30 ke 5 agar suara lebih responsif
-        if (audioFrameCounter > 5) {
-            weatherAudio.playRain(pendingAudio.volume);
-            pendingAudio = null;
-            audioFrameCounter = 0;
-        }
+        // FIX: Langsung mainkan audio tanpa delay frame untuk responsivitas instan
+        weatherAudio.playRain(pendingAudio.volume);
+        pendingAudio = null;
     }
 }
 
@@ -1234,15 +1267,14 @@ function startWeatherEffect(type) {
     currentWxType = type;
     const isMobile = window.innerWidth < 768; // Deteksi HP untuk optimasi performa
 
-    // Pastikan canvas muncul di BELAKANG panel text (2147483640) tapi DI ATAS peta
-    canvas.style.zIndex = "2147483639"; 
+    // Pastikan canvas muncul di BELAKANG panel text (z-index 50) tapi DI ATAS peta
+    canvas.style.zIndex = "42"; 
     canvas.style.pointerEvents = "none";
     
     if (type === 'rain') {
         const count = isMobile ? 150 : 350; // Kurangi jumlah partikel di HP agar loading cepat
         for (let i = 0; i < count; i++) particles.push(new RainDrop());
         pendingAudio = { volume: 0.5 }; // Sinkronisasi: Queue audio
-        audioFrameCounter = 0;
     }
     else if (type === 'snow') {
         const count = isMobile ? 100 : 200;
@@ -1255,7 +1287,6 @@ function startWeatherEffect(type) {
         lightningBolts = []; // Reset bolts
         storm = { flashOpacity: 0 };
         pendingAudio = { volume: 0.7 }; // Sinkronisasi: Queue audio
-        audioFrameCounter = 0;
     }
     
     // Tambahkan Awan jika cuaca mendukung (Berawan/Hujan/Salju)
@@ -1304,7 +1335,6 @@ function startWeatherEffect(type) {
 function stopWeatherEffect() {
     if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     pendingAudio = null; // Reset pending audio
-    audioFrameCounter = 0;
     particles = [];
     lightningBolts = []; // Clear lightning
     // Clean up DOM clouds
@@ -1318,6 +1348,15 @@ function stopWeatherEffect() {
     const sky = document.getElementById('sky-gradient');
     if(sky) sky.style.background = 'transparent';
     lastSkyGradient = ''; // FIX: Reset cache agar saat dibuka kembali background langsung dirender ulang
+
+    // Reset Status Bar ke default (Slate-900) saat keluar dari cuaca
+    let metaTheme = document.querySelector('meta[name="theme-color"]');
+    
+    // FIX: Cek tema aktif (Light/Dark) agar status bar kembali sesuai tema aplikasi
+    const isLight = document.body.classList.contains('light-mode');
+    const defaultColor = isLight ? "#ffffff" : "#000000";
+    
+    if(metaTheme) metaTheme.content = defaultColor;
 
     if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
     if(canvas) canvas.style.zIndex = "-1"; // Reset z-index saat stop
@@ -1421,7 +1460,14 @@ function checkWeatherAnimation(code, windSpeed = 0, isDay = true) {
     let type = 'clear'; // Default to clear (shows sky/sun/moon)
     if([95, 96, 99].includes(code)) type = 'storm';
     else if([71, 73, 75, 77, 85, 86].includes(code)) type = 'snow';
-    else if([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) type = 'rain';
+    else if([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
+        // LOGIKA NYATA: Jika terdeteksi hujan tapi suhu <= 1°C, ubah animasi jadi salju
+        if (currentWeatherData && currentWeatherData.current_weather && currentWeatherData.current_weather.temperature <= 1) {
+            type = 'snow';
+        } else {
+            type = 'rain';
+        }
+    }
     else if([1, 2, 3, 45, 48].includes(code)) type = 'cloudy'; // NEW: Tipe khusus berawan
     else if(windSpeed > 20) type = 'wind';
     
@@ -1456,7 +1502,7 @@ function injectResponsiveStyles() {
             /* Membuat menu navigasi bawah melayang & rapi di tengah layar PC */
             nav, 
             div.fixed.bottom-0.w-full.z-50:not(#location-panel), 
-            div.fixed.bottom-0.w-full.bg-slate-900:not(#location-panel) {
+            div.fixed.bottom-0.w-full.bg-black:not(#location-panel) {
                 max-width: 500px !important;
                 left: 50% !important;
                 transform: translateX(-50%) !important;
@@ -1524,7 +1570,7 @@ async function showLocationPanel(latlng) {
     // --- NEW: Unlock Audio on First Interaction ---
     // Ini adalah kunci agar audio bisa autoplay di HP
     if (!isAudioUnlocked) {
-        weatherAudio.init();
+        weatherAudio.unlock();
     }
     // ---------------------------------------------
 
@@ -1533,7 +1579,7 @@ async function showLocationPanel(latlng) {
     const skeletonText = '<div class="h-3 w-24 bg-slate-600/50 rounded animate-pulse mx-auto mt-1"></div>';
     
     // 1. Header Skeleton (Agar header langsung muncul walau data belum ada)
-    const panelContent = document.querySelector('#location-panel > div');
+    // FIX: Target langsung panel utama, bukan anak div-nya agar header tidak masuk ke dalam flex container
     let header = document.getElementById('new-weather-header');
     
     // FIX: Hapus header duplikat jika ada (Penyebab loading ganda/tidak hilang)
@@ -1546,9 +1592,12 @@ async function showLocationPanel(latlng) {
     const oldAddress = document.getElementById('panel-address');
     const oldCoords = document.getElementById('panel-coords');
     const oldDist = document.getElementById('panel-dist');
+    const oldTitle = panel.querySelector('h2.text-2xl'); // Judul "Kondisi Cuaca" lama
+    
     if (oldAddress) oldAddress.classList.add('hidden');
     if (oldCoords) oldCoords.classList.add('hidden');
     if (oldDist) oldDist.classList.add('hidden');
+    if (oldTitle) oldTitle.classList.add('hidden'); // Sembunyikan judul lama
     
     // FIX: Paksa sembunyikan panel-dist dengan style inline agar tidak muncul loading bar kecil di bawah
     if (oldDist) oldDist.style.display = 'none';
@@ -1559,12 +1608,12 @@ async function showLocationPanel(latlng) {
     if (tempCard) tempCard.classList.add('hidden');
     if (weatherCard) weatherCard.classList.add('hidden');
 
-    if (!header && panelContent) {
+    if (!header) {
         header = document.createElement('div');
         header.id = 'new-weather-header';
         header.className = 'flex flex-col items-center text-white pt-16 pb-10 px-4 text-center';
-        panelContent.prepend(header);
-        
+        // Sisipkan di paling atas panel
+        panel.insertBefore(header, panel.firstChild);
     }
 
     if (header) {
@@ -1665,7 +1714,7 @@ async function showLocationPanel(latlng) {
     // 2. Setup Daily Forecast Skeleton (Forecast List)
     const list = document.getElementById('forecast-list');
     if (list) {
-        list.className = "mx-0 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg";
+        list.className = "mx-0 bg-neutral-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg";
         let dailySkeleton = `
             <div class="px-2 py-2 mb-2 flex items-center gap-2 border-b border-white/5">
                 <i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i> 
@@ -1675,14 +1724,14 @@ async function showLocationPanel(latlng) {
         for(let i=0; i<7; i++) {
             dailySkeleton += `
                 <div class="flex items-center justify-between py-3 px-3 mx-2 mb-0 border-b border-white/5 last:border-0 animate-pulse">
-                    <div class="w-[22%] h-3 bg-slate-700/50 rounded"></div>
+                    <div class="w-[22%] h-3 bg-neutral-700/50 rounded"></div>
                     <div class="w-[18%] flex flex-col items-center justify-center">
-                        <div class="w-6 h-6 bg-slate-700/50 rounded-full"></div>
+                        <div class="w-6 h-6 bg-neutral-700/50 rounded-full"></div>
                     </div>
                     <div class="w-[60%] flex items-center gap-3 pl-1">
-                        <div class="w-6 h-3 bg-slate-700/50 rounded"></div>
-                        <div class="flex-1 h-1.5 bg-slate-700/50 rounded-full"></div>
-                        <div class="w-6 h-3 bg-slate-700/50 rounded"></div>
+                        <div class="w-6 h-3 bg-neutral-700/50 rounded"></div>
+                        <div class="flex-1 h-1.5 bg-neutral-700/50 rounded-full"></div>
+                        <div class="w-6 h-3 bg-neutral-700/50 rounded"></div>
                     </div>
                 </div>`;
         }
@@ -1724,22 +1773,23 @@ async function showLocationPanel(latlng) {
     // Tampilkan Panel
     panel.classList.remove('translate-y-full');
     
-    // FIX: Tampilan Penuh (Full Page) - Paksa Style via JS untuk override CSS class
-    panel.style.setProperty('height', '100vh', 'important');
-    panel.style.setProperty('width', '100vw', 'important');
-    panel.style.setProperty('top', '0', 'important');
-    panel.style.setProperty('left', '0', 'important');
-    panel.style.setProperty('right', '0', 'important');
-    panel.style.setProperty('bottom', '0', 'important');
-    panel.style.setProperty('position', 'fixed', 'important');
-    panel.style.setProperty('z-index', '2147483640', 'important'); // Max Z-Index (Dikurangi agar animasi cuaca bisa di atasnya)
-    panel.style.setProperty('border-radius', '0', 'important');
-    panel.style.setProperty('border', 'none', 'important'); // FIX: Hapus border panel (garis atas/bawah)
-    panel.style.setProperty('box-shadow', 'none', 'important'); // FIX: Hapus shadow panel
-    panel.style.setProperty('max-height', 'none', 'important');
-    panel.style.setProperty('max-width', 'none', 'important'); // Override batasan lebar di laptop
-    panel.style.setProperty('margin', '0', 'important');
-    panel.style.setProperty('overflow-y', 'auto', 'important');
+    // --- FIX: Integrasi dengan Sistem Halaman Baru ---
+    // Pindah ke tab Cuaca secara otomatis (Hanya jika belum aktif untuk mencegah Loop)
+    if (typeof navigateTo === 'function') {
+        const weatherView = document.getElementById('view-weather');
+        if (weatherView && !weatherView.classList.contains('active')) {
+            navigateTo('weather');
+        }
+    }
+
+    // Reset style agar mengikuti layout halaman (bukan popup fixed)
+    panel.style.removeProperty('position');
+    panel.style.removeProperty('top');
+    panel.style.removeProperty('left');
+    panel.style.removeProperty('height');
+    panel.style.removeProperty('width');
+    panel.style.removeProperty('z-index');
+    
     panel.style.setProperty('background', 'transparent', 'important'); // Make transparent so canvas shows
     panel.style.setProperty('backdrop-filter', 'none', 'important'); // Hapus efek blur
     panel.style.setProperty('-webkit-backdrop-filter', 'none', 'important'); // Support Safari
@@ -1747,6 +1797,13 @@ async function showLocationPanel(latlng) {
     
     // FIX: Hapus lengkungan pada elemen anak (konten dalam panel)
     Array.from(panel.children).forEach(child => {
+        // --- FIX: JANGAN HAPUS STYLE KARTU-KARTU PENTING ---
+        // Kartu ini harus tetap memiliki background glass, jangan dibuat transparan
+        const preservedIds = ['hourly-card', 'weather-insight-panel', 'precip-card', 'precip-map-card', 'quake-container', 'aqi-container', 'forecast-list'];
+        if (preservedIds.includes(child.id) || child.classList.contains('weather-card-fixed')) {
+            return;
+        }
+
         child.style.setProperty('border-radius', '0', 'important');
         child.style.setProperty('border', 'none', 'important'); // FIX: Hapus border anak elemen
         child.style.setProperty('max-height', 'none', 'important'); // CRITICAL: Hapus batasan tinggi wrapper
@@ -1776,7 +1833,7 @@ async function showLocationPanel(latlng) {
     detailCards.forEach(card => {
         card.classList.add('weather-card-fixed'); // Tambahkan class layout tetap
         // LIQUID GLASS STYLE: Lebih transparan (0.3), Blur lebih kuat (16px)
-        card.style.setProperty('background-color', 'rgba(15, 23, 42, 0.3)', 'important'); 
+        card.style.setProperty('background-color', 'rgba(10, 10, 10, 0.5)', 'important'); 
         card.style.setProperty('backdrop-filter', 'blur(16px)', 'important');
         card.style.setProperty('-webkit-backdrop-filter', 'blur(16px)', 'important');
         card.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.2)', 'important');
@@ -1791,30 +1848,14 @@ async function showLocationPanel(latlng) {
     // 1. Sembunyikan garis drag handle (biasanya div kecil di tengah atas)
     const handles = panel.querySelectorAll('div.w-12.h-1\\.5, div.w-16.h-1\\.5, .mx-auto.bg-slate-700, .mx-auto.bg-gray-300');
     handles.forEach(h => h.classList.add('hidden'));
-
     // 2. Sembunyikan tombol close bawaan (X)
     const oldCloseBtns = panel.querySelectorAll('button');
     oldCloseBtns.forEach(btn => {
-        if(btn.id === 'panel-close-btn') return; // Skip tombol back kita
-        
         // Cek Icon X atau Posisi Top Right
         if(btn.querySelector('[data-lucide="x"]') || btn.querySelector('[data-lucide="x-circle"]') || (btn.classList.contains('absolute') && btn.classList.contains('right-4'))) {
             btn.classList.add('hidden');
         }
     });
-
-    // Tambahkan tombol Close/Kembali di pojok kiri atas agar user bisa keluar
-    let closeBtn = document.getElementById('panel-close-btn');
-    if (!closeBtn) {
-        closeBtn = document.createElement('button');
-        closeBtn.id = 'panel-close-btn';
-        closeBtn.className = 'fixed top-4 left-4 z-[2147483647] p-2 bg-black/20 hover:bg-black/40 rounded-full text-white backdrop-blur-sm transition-colors';
-        closeBtn.innerHTML = '<i data-lucide="chevron-left" class="w-6 h-6"></i>';
-        closeBtn.onclick = closeLocationPanel;
-        document.body.appendChild(closeBtn);
-        lucide.createIcons();
-    }
-    closeBtn.classList.remove('hidden');
     
     // Pastikan tombol close dari detail view (grafik) tersembunyi agar tidak menumpuk
     const floatClose = document.getElementById('weather-floating-close');
@@ -2119,8 +2160,8 @@ function updateWeatherUI(data) {
                 const probNow = data.hourly.precipitation_probability[hIdx] || 0;
                 const probNext = data.hourly.precipitation_probability[hIdx + 1] || 0;
                 
-                // Ambang batas diturunkan drastis ke 5% agar sangat responsif
-                if (probNow >= 5 || probNext >= 10) hasRain = true;
+                // FIX: Naikkan threshold agar tidak dianggap hujan saat hanya mendung tipis (5% -> 40%)
+                if (probNow >= 40 || probNext >= 50) hasRain = true;
             }
             
             // 3. Cek Hourly Weather Code (Jika jam ini diprediksi hujan kode >= 51)
@@ -2130,7 +2171,12 @@ function updateWeatherUI(data) {
         if (hasRain) {
             // If current code is Clear/Cloudy (less than 51), force it to Drizzle (51)
             if (code < 51) {
-                code = 51; // Force Drizzle/Light Rain
+                // LOGIKA NYATA: Cek suhu. Jika <= 1°C anggap Salju (71), jika lebih anggap Hujan (51)
+                if (data.current_weather.temperature <= 1) {
+                    code = 71; // Force Snow
+                } else {
+                    code = 51; // Force Drizzle/Light Rain
+                }
             }
         }
     }
@@ -2144,8 +2190,8 @@ function updateWeatherUI(data) {
     const localTimeStr = new Date().toLocaleTimeString('en-GB', { timeZone: timeZone, hour: '2-digit', minute: '2-digit' });
 
     // --- NEW: Create and Populate iPhone-style Header ---
-    const panelContent = document.querySelector('#location-panel > div'); // Target the main content div of the panel
-    if (panelContent) {
+    // FIX: Gunakan panel langsung sebagai container
+    if (panel) {
         let header = document.getElementById('new-weather-header');
         if (!header) {
             header = document.createElement('div');
@@ -2165,18 +2211,21 @@ function updateWeatherUI(data) {
                 <p id="header-minmax" class="text-sm font-medium opacity-80" style="text-shadow: 0 1px 3px rgb(0 0 0 / 0.4);"></p>
             `;
             // Insert header at the top of the panel content
-            panelContent.prepend(header);
+            panel.insertBefore(header, panel.firstChild);
 
             // Hide the old elements that are now in the header.
             const oldAddress = document.getElementById('panel-address');
             const oldCoords = document.getElementById('panel-coords');
             const oldDist = document.getElementById('panel-dist');
+            const oldTitle = panel.querySelector('h2.text-2xl');
+            
             if (oldAddress) oldAddress.classList.add('hidden');
             if (oldCoords) oldCoords.classList.add('hidden');
             if (oldDist) oldDist.classList.add('hidden');
+            if (oldTitle) oldTitle.classList.add('hidden');
             
             // Hapus icon map-pin lama (yang warna biru/lainnya) yang mungkin tertinggal
-            const panel = document.getElementById('location-panel');
+            // const panel = document.getElementById('location-panel'); // REMOVED: Redundant declaration
             const strayPins = panel.querySelectorAll('[data-lucide="map-pin"], .lucide-map-pin');
             strayPins.forEach(pin => {
                 if (!pin.closest('#new-weather-header')) pin.classList.add('hidden');
@@ -2203,7 +2252,14 @@ function updateWeatherUI(data) {
         if(hTemp) { hTemp.innerHTML = ""; hTemp.innerText = `${Math.round(data.current_weather.temperature)}°`; }
         
         const hMinMax = document.getElementById('header-minmax');
-        if(hMinMax) { hMinMax.innerHTML = ""; hMinMax.innerText = `Tertinggi: ${Math.round(data.daily.temperature_2m_max[0])}° Terendah: ${Math.round(data.daily.temperature_2m_min[0])}°`; }
+        if(hMinMax) { 
+            hMinMax.innerHTML = ""; 
+            if (data.daily && data.daily.temperature_2m_max && data.daily.temperature_2m_min) {
+                hMinMax.innerText = `Tertinggi: ${Math.round(data.daily.temperature_2m_max[0])}° Terendah: ${Math.round(data.daily.temperature_2m_min[0])}°`; 
+            } else {
+                hMinMax.innerText = "-- / --";
+            }
+        }
         
         document.getElementById('header-time').innerText = localTimeStr;
     }
@@ -2255,7 +2311,7 @@ function updateWeatherUI(data) {
     }
     
     // Data Matahari (Sunrise/Sunset)
-    if(data.daily) {
+    if(data.daily && data.daily.sunrise && data.daily.sunset) {
         const sunrise = data.daily.sunrise[0].split('T')[1];
         const sunset = data.daily.sunset[0].split('T')[1];
         document.getElementById('wx-sun').innerHTML = `<div class="flex items-center justify-center gap-1"><i data-lucide="sunrise" class="w-3 h-3 text-yellow-300"></i> ${sunrise}</div><div class="flex items-center justify-center gap-1"><i data-lucide="sunset" class="w-3 h-3 text-orange-400"></i> ${sunset}</div>`;
@@ -2287,7 +2343,7 @@ function updateWeatherUI(data) {
 
         // --- MODIFIED: Pisahkan Precip Chart, tapi Gabungkan Summary ke Hourly ---
         // LIQUID GLASS STYLE: bg-slate-900/30 (Transparan), backdrop-blur-xl (Blur Kuat)
-        const cardClass = "mx-0 mb-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg overflow-hidden";
+        const cardClass = "mx-0 mb-3 bg-neutral-900/30 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg overflow-hidden p-1";
 
         // 1. Precip Chart Card (Hidden by default) - Separate
         const precipCard = document.createElement('div');
@@ -2407,7 +2463,7 @@ function updateWeatherUI(data) {
                 const maxP = Math.max(...nextSlots.map(s => s.v), 1); // Scaling
                 let barsHtml = nextSlots.map(s => {
                     const heightPct = Math.min((s.v / maxP) * 100, 100);
-                    const barColor = s.v > 0.05 ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-slate-700/30';
+                    const barColor = s.v > 0.05 ? 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'bg-neutral-700/30';
                     return `<div class="flex flex-col items-center justify-end h-20 flex-1 gap-1"><div class="w-1 rounded-full ${barColor} transition-all duration-500" style="height: ${Math.max(heightPct, 5)}%"></div><span class="text-[9px] text-slate-400 font-mono">${s.label}</span></div>`;
                 }).join('');
 
@@ -2483,7 +2539,7 @@ function updateWeatherUI(data) {
                 }
             }
             
-            const maxWind = data.daily.windspeed_10m_max[0];
+            const maxWind = (data.daily.windspeed_10m_max) ? data.daily.windspeed_10m_max[0] : 0;
             let summaryText = `${smartText} Angin hingga <strong>${maxWind} km/j</strong>.`;
             hourlySummaryContainer.innerHTML = `<p>${summaryText}</p>`;
         }
@@ -2512,19 +2568,21 @@ function updateWeatherUI(data) {
         }
 
         // Tambahkan acara matahari terbit/terbenam untuk hari ini dan besok
-        const todaySunrise = new Date(data.daily.sunrise[0]);
-        const todaySunset = new Date(data.daily.sunset[0]);
-        if (data.daily.sunrise[1]) {
-            const tomorrowSunrise = new Date(data.daily.sunrise[1]);
-            if (tomorrowSunrise > now && tomorrowSunrise < endOfForecast) {
-                timelineEvents.push({ type: 'sunrise', date: tomorrowSunrise });
+        if (data.daily.sunrise && data.daily.sunset) {
+            const todaySunrise = new Date(data.daily.sunrise[0]);
+            const todaySunset = new Date(data.daily.sunset[0]);
+            if (data.daily.sunrise[1]) {
+                const tomorrowSunrise = new Date(data.daily.sunrise[1]);
+                if (tomorrowSunrise > now && tomorrowSunrise < endOfForecast) {
+                    timelineEvents.push({ type: 'sunrise', date: tomorrowSunrise });
+                }
             }
-        }
-        if (todaySunrise > now && todaySunrise < endOfForecast) {
-            timelineEvents.push({ type: 'sunrise', date: todaySunrise });
-        }
-        if (todaySunset > now && todaySunset < endOfForecast) {
-            timelineEvents.push({ type: 'sunset', date: todaySunset });
+            if (todaySunrise > now && todaySunrise < endOfForecast) {
+                timelineEvents.push({ type: 'sunrise', date: todaySunrise });
+            }
+            if (todaySunset > now && todaySunset < endOfForecast) {
+                timelineEvents.push({ type: 'sunset', date: todaySunset });
+            }
         }
 
         // 2. Urutkan semua acara berdasarkan waktu
@@ -2593,7 +2651,7 @@ function updateWeatherUI(data) {
         }
 
         const list = document.getElementById('forecast-list');
-        list.className = "mx-0 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg"; // Style Kartu 7 Hari (Liquid Glass)
+        list.className = "mx-0 bg-neutral-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg"; // Style Kartu 7 Hari (Liquid Glass)
         list.innerHTML = ''; // Clear
 
         // --- RESTORED: Judul Header Kartu 7 Hari (Internal) ---
@@ -2625,6 +2683,7 @@ function updateWeatherUI(data) {
             const maxTemp = Math.round(data.daily.temperature_2m_max[i]);
             const minTemp = Math.round(data.daily.temperature_2m_min[i]);
             const code = data.daily.weathercode[i];
+            const isSnowDay = [71, 73, 75, 77, 85, 86].includes(code);
             const rainSum = data.daily.precipitation_sum[i];
             const rainProb = data.daily.precipitation_probability_max ? data.daily.precipitation_probability_max[i] : 0;
 
@@ -2659,7 +2718,7 @@ function updateWeatherUI(data) {
                 <div class="w-[22%] text-sm font-semibold text-slate-200 group-hover:text-white transition-colors truncate">${dayName}</div>
                 <div class="w-[18%] flex flex-col items-center justify-center">
                     ${iconHtml}
-                    ${rainProb >= 20 ? `<span class="text-[9px] font-bold text-blue-300 mt-0.5">${rainProb}%</span>` : ''}
+                    ${rainProb >= 20 ? `<span class="text-[9px] font-bold ${isSnowDay ? 'text-cyan-200' : 'text-blue-300'} mt-0.5">${rainProb}%</span>` : ''}
                 </div>
                 <div class="w-[60%] flex items-center gap-3 pl-1">
                     <span class="text-slate-200 text-xs font-medium w-6 text-right">${minTemp}°</span>
@@ -2737,7 +2796,7 @@ function openRouteModal() {
             <div class="z-10 mt-1 ${iconBg} p-2 rounded-full border shrink-0 shadow-sm transition-all group-hover:scale-110 group-hover:shadow-blue-500/20">
                 <i data-lucide="${icon}" class="w-4 h-4 ${iconColor}"></i>
             </div>
-            <div class="flex-1 bg-slate-800/30 p-3 rounded-xl border border-white/5 hover:bg-slate-800 hover:border-blue-500/30 transition-all">
+            <div class="flex-1 bg-neutral-800/30 p-3 rounded-xl border border-white/5 hover:bg-neutral-800 hover:border-blue-500/30 transition-all">
                 <div class="flex justify-between items-start mb-1">
                     <p class="font-bold text-white text-sm leading-tight">${actionText}</p>
                     <span class="text-[10px] font-mono text-slate-400 bg-black/20 px-1.5 py-0.5 rounded border border-white/5">${dist}</span>
@@ -2762,18 +2821,17 @@ function getWeatherIcon(code) {
     if (code === 3) return 'cloud'; // Berawan
     if (code >= 45 && code <= 48) return 'cloud-fog'; // Kabut
     if (code >= 51 && code <= 67) return 'cloud-drizzle'; // Hujan Ringan
-    if (code >= 71 && code <= 77) return 'cloud-snow'; // Salju
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snowflake'; // Salju
     if (code >= 80 && code <= 82) return 'cloud-rain'; // Hujan Deras
     if (code >= 95) return 'cloud-lightning'; // Badai
     return 'sun'; // Default
 }
 
 function closeLocationPanel() {
-    document.getElementById('location-panel').classList.add('translate-y-full');
-    const closeBtn = document.getElementById('panel-close-btn');
-    if(closeBtn) closeBtn.classList.add('hidden');
-    
-    stopWeatherEffect(); // Matikan total animasi saat panel ditutup
+    // Kembali ke Peta alih-alih menutup panel (karena sekarang ini halaman)
+    if (typeof navigateTo === 'function') {
+        navigateTo('map');
+    }
 }
 
 // --- FITUR DETAIL CUACA (Chart & Hourly) ---
@@ -2784,10 +2842,6 @@ const solunarTranslations = { id: "Aktivitas Ikan", en: "Fish Activity", jp: "�
 function openDetailModal(dayIndex) {
     // closeLocationPanel(); // JANGAN tutup panel utama agar bisa kembali
     
-    // Sembunyikan tombol back panel utama sementara agar tidak tumpang tindih
-    const mainBackBtn = document.getElementById('panel-close-btn');
-    if(mainBackBtn) mainBackBtn.classList.add('hidden');
-
     if(!currentWeatherData || !currentWeatherData.hourly) return;
     
     currentDayIndex = dayIndex;
@@ -2828,27 +2882,27 @@ function openDetailModal(dayIndex) {
 
     const extraDetailsHtml = `
         <div class="grid grid-cols-3 gap-2 mb-4 mt-2">
-            <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+            <div class="bg-neutral-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Terasa Spt</p>
                 <p class="text-sm font-bold text-white">${feelsLike}°</p>
             </div>
-            <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+            <div class="bg-neutral-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Awan</p>
                 <p class="text-sm font-bold text-white">${cloudCover}<span class="text-[9px]">%</span></p>
             </div>
-            <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+            <div class="bg-neutral-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Gust Angin</p>
                 <p class="text-sm font-bold text-white">${windGust} <span class="text-[9px]">km/h</span></p>
             </div>
-            <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+            <div class="bg-neutral-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Titik Embun</p>
                 <p class="text-sm font-bold text-white">${dewPoint}°</p>
             </div>
-            <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+            <div class="bg-neutral-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Visibilitas</p>
                 <p class="text-sm font-bold text-white">${visibility} <span class="text-[9px]">km</span></p>
             </div>
-            <div class="bg-slate-800/50 p-2 rounded-xl border border-white/5 text-center">
+            <div class="bg-neutral-800/50 p-2 rounded-xl border border-white/5 text-center">
                 <p class="text-[9px] text-slate-400 uppercase font-bold">Tren Barometer</p>
                 <p class="text-sm font-bold ${pTrend === 'Turun' ? 'text-red-400' : 'text-emerald-400'}">${pTrend}</p>
             </div>
@@ -2858,18 +2912,24 @@ function openDetailModal(dayIndex) {
     // Render Summary Text
     const dailyCode = currentWeatherData.daily.weathercode[dayIndex];
     const isSnow = [71, 73, 75, 77, 85, 86].includes(dailyCode);
-    const rainSum = currentWeatherData.daily.precipitation_sum[dayIndex];
+    const rainSum = currentWeatherData.daily.precipitation_sum ? currentWeatherData.daily.precipitation_sum[dayIndex] : 0;
     
     let summary = extraDetailsHtml + `<div class="flex items-center gap-2"><i data-lucide="info" class="text-blue-400 w-4 h-4"></i> <p>Total presipitasi: ${rainSum}mm. `;
-    if(rainSum > 5) summary += "Siapkan jas hujan.";
-    else summary += "Cuaca relatif kering.";
+    if (isSnow) {
+        summary += "Turun salju, siapkan pakaian hangat.";
+    } else {
+        if(rainSum > 5) summary += "Siapkan jas hujan.";
+        else summary += "Cuaca relatif kering.";
+    }
     summary += "</p></div>";
     
     // --- NEW: Astro Visualization (Sun Position) ---
     const nowTime = new Date().getTime();
-    const riseTime = new Date(currentWeatherData.daily.sunrise[dayIndex]).getTime();
-    const setTime = new Date(currentWeatherData.daily.sunset[dayIndex]).getTime();
     let sunPct = -1; // Default hidden
+    
+    if (currentWeatherData.daily.sunrise && currentWeatherData.daily.sunset) {
+        const riseTime = new Date(currentWeatherData.daily.sunrise[dayIndex]).getTime();
+        const setTime = new Date(currentWeatherData.daily.sunset[dayIndex]).getTime();
     
     // Only show for Today
     if (new Date().toDateString() === dateObj.toDateString()) {
@@ -2884,7 +2944,7 @@ function openDetailModal(dayIndex) {
         const sunRotate = (sunPct * (maxRot * 2)) - maxRot;
 
         summary += `
-            <div class="relative h-28 w-full overflow-hidden mt-4 mb-2 bg-slate-800/30 rounded-xl border border-white/5 pt-4">
+            <div class="relative h-28 w-full overflow-hidden mt-4 mb-2 bg-neutral-800/30 rounded-xl border border-white/5 pt-4">
                 <p class="absolute top-2 left-0 w-full text-center text-[10px] text-slate-400 uppercase font-bold tracking-widest">Posisi Matahari</p>
                 <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-56 h-28 border-t-2 border-dashed border-yellow-500/20 rounded-t-full"></div>
                 <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-56 h-28">
@@ -2895,11 +2955,12 @@ function openDetailModal(dayIndex) {
                     </div>
                 </div>
                 <div class="absolute bottom-2 w-full flex justify-between px-4 text-[10px] font-bold text-slate-400">
-                    <span class="bg-slate-900/50 px-2 py-0.5 rounded text-yellow-500/80">${currentWeatherData.daily.sunrise[dayIndex].split('T')[1]}</span>
-                    <span class="bg-slate-900/50 px-2 py-0.5 rounded text-orange-500/80">${currentWeatherData.daily.sunset[dayIndex].split('T')[1]}</span>
+                    <span class="bg-black/50 px-2 py-0.5 rounded text-yellow-500/80">${currentWeatherData.daily.sunrise[dayIndex].split('T')[1]}</span>
+                    <span class="bg-black/50 px-2 py-0.5 rounded text-orange-500/80">${currentWeatherData.daily.sunset[dayIndex].split('T')[1]}</span>
                 </div>
             </div>
         `;
+    }
     }
 
     document.getElementById('rain-summary').innerHTML = summary;
@@ -2949,8 +3010,8 @@ function openDetailModal(dayIndex) {
         
         // 1. Analisa Bahaya (Warnings)
         const dCode = currentWeatherData.daily.weathercode[dayIndex];
-        const dWind = currentWeatherData.daily.windspeed_10m_max[dayIndex];
-        const dRain = currentWeatherData.daily.precipitation_sum[dayIndex];
+        const dWind = currentWeatherData.daily.windspeed_10m_max ? currentWeatherData.daily.windspeed_10m_max[dayIndex] : 0;
+        const dRain = currentWeatherData.daily.precipitation_sum ? currentWeatherData.daily.precipitation_sum[dayIndex] : 0;
         const dWave = currentWeatherData.hourly.wave_height ? Math.max(...currentWeatherData.hourly.wave_height.slice(dayIndex*24, (dayIndex+1)*24)) : 0;
 
         if([95, 96, 99].includes(dCode)) aiWarnings.push({ icon: 'cloud-lightning', text: "<b>BAHAYA PETIR:</b> Sebaiknya jangan melaut di area terbuka." });
@@ -3016,7 +3077,7 @@ function openDetailModal(dayIndex) {
             `;
         } else {
             recommendationsHtml += `
-                <div class="flex items-start gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 text-slate-400 text-xs">
+                <div class="flex items-start gap-3 bg-neutral-800 p-3 rounded-lg border border-neutral-700 text-slate-400 text-xs">
                     <i data-lucide="moon-star" class="w-5 h-5 text-slate-500 shrink-0 mt-0.5"></i>
                     <p class="leading-relaxed"><b>Waktu Premium Tidak Ditemukan:</b> Cuaca kurang mendukung pada jam-jam aktif ikan. Cari spot terlindung.</p>
                 </div>
@@ -3025,7 +3086,7 @@ function openDetailModal(dayIndex) {
         
         // NEW: Detailed Solunar Explanation
         recommendationsHtml += `
-            <div class="flex items-start gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700 text-slate-400 text-xs">
+            <div class="flex items-start gap-3 bg-neutral-800 p-3 rounded-lg border border-neutral-700 text-slate-400 text-xs">
                 <i data-lucide="moon" class="w-5 h-5 text-purple-400 shrink-0 mt-0.5"></i>
                 <div>
                     <p class="font-bold text-purple-300 mb-1">Info Solunar & Pasang Surut</p>
@@ -3062,7 +3123,7 @@ function openDetailModal(dayIndex) {
     modal.style.setProperty('max-height', 'none', 'important');
     modal.style.setProperty('max-width', 'none', 'important');
     modal.style.setProperty('margin', '0', 'important');
-    modal.style.setProperty('background-color', '#0f172a', 'important');
+    modal.style.setProperty('background-color', '#000000', 'important');
     modal.style.setProperty('overflow-y', 'auto', 'important'); // Pastikan bisa di-scroll
     modal.style.setProperty('padding-bottom', '80px', 'important');
     
@@ -3113,12 +3174,12 @@ function switchChart(type) {
     // Update Tabs UI
     document.querySelectorAll('.chart-tab').forEach(btn => {
         btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-600');
-        btn.classList.add('bg-slate-800/50', 'text-slate-400', 'border-white/10');
+        btn.classList.add('bg-neutral-800/50', 'text-slate-400', 'border-white/10');
     });
     const activeBtn = document.getElementById(`tab-${type}`);
     if(activeBtn) {
         activeBtn.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-600');
-        activeBtn.classList.remove('bg-slate-800/50', 'text-slate-400', 'border-white/10');
+        activeBtn.classList.remove('bg-neutral-800/50', 'text-slate-400', 'border-white/10');
     }
     renderChart();
 }
@@ -3300,10 +3361,6 @@ function closeDetailModal() {
     document.getElementById('weatherDetailModal').classList.add('translate-y-full');
     const closeBtn = document.getElementById('weather-floating-close');
     if(closeBtn) closeBtn.classList.add('hidden');
-    
-    // Munculkan kembali tombol back panel utama
-    const mainBackBtn = document.getElementById('panel-close-btn');
-    if(mainBackBtn) mainBackBtn.classList.remove('hidden');
 }
 
 // --- AI INSIGHT FUNCTION (New) ---
@@ -3322,7 +3379,7 @@ function showMetricInsight(type) {
 
     // --- NEW: Reposition the insight panel (Standalone Card) ---
     // Apply card styles
-    panel.className = "mx-0 mb-3 bg-slate-900/40 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg overflow-hidden p-4 hidden";
+    panel.className = "mx-0 mb-3 bg-neutral-900/30 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg overflow-hidden p-4 hidden";
     
     // Insert BEFORE the precip card (or hourly card if precip missing)
     const precipCard = document.getElementById('precip-card');
@@ -3496,7 +3553,7 @@ async function fetchEarthquakeInfo() {
         quakeContainer = document.createElement('div');
         quakeContainer.id = 'quake-container';
         // Style mirip dengan kartu prakiraan cuaca (Liquid Glass)
-        quakeContainer.className = "mx-0 mt-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg";
+        quakeContainer.className = "mx-0 mt-3 bg-neutral-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg";
         
         // MODIFIED: Cek apakah ada AQI container. Jika ada, taruh Gempa DI BAWAH AQI.
         const aqiContainer = document.getElementById('aqi-container');
@@ -3549,7 +3606,7 @@ async function fetchEarthquakeInfo() {
                 else if(mag >= 5.0) { magColor = 'text-orange-400'; borderColor = 'border-orange-500/40'; }
 
                 const item = document.createElement('div');
-                item.className = `flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border ${borderColor} hover:bg-slate-800 transition-colors`;
+                item.className = `flex items-center justify-between p-3 rounded-lg bg-neutral-800/50 border ${borderColor} hover:bg-neutral-800 transition-colors`;
                 
                 item.innerHTML = `
                     <div class="flex items-center gap-3 overflow-hidden">
@@ -3605,7 +3662,7 @@ function updateAqiUI(aqi) {
         aqiContainer = document.createElement('div');
         aqiContainer.id = 'aqi-container';
         // Style mirip kartu gempa (Liquid Glass)
-        aqiContainer.className = "mx-0 mt-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-3 shadow-lg";
+        aqiContainer.className = "mx-0 mt-3 bg-neutral-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-3 shadow-lg";
     }
 
     // Tentukan warna & status
