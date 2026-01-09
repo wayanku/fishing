@@ -1,4 +1,5 @@
 
+
         // --- SAFETY CHECK: OFFLINE MODE FALLBACK ---
         // Mencegah aplikasi crash jika library tidak termuat karena offline
         if (typeof lucide === 'undefined') {
@@ -112,7 +113,7 @@
                 if(isSat) setBaseMap('street');
             } else {
                 body.classList.remove('light-mode');
-                if(btn) { btn.innerHTML = '<i data-lucide="moon" class="w-3 h-3 inline mr-1"></i> Dark'; btn.className = "bg-slate-900 text-white text-xs px-3 py-2 rounded-lg border border-white/10 font-bold"; }
+                if(btn) { btn.innerHTML = '<i data-lucide="moon" class="w-3 h-3 inline mr-1"></i> Dark'; btn.className = "bg-black text-white text-xs px-3 py-2 rounded-lg border border-white/10 font-bold"; }
                 
                 // Auto-switch to Satellite for Dark Mode
                 if(!isSat) setBaseMap('satellite');
@@ -336,7 +337,14 @@
         const initLng = lastLng ? parseFloat(lastLng) : 106.8166;
         
         // Inisialisasi peta dengan menonaktifkan attribution default
-        var map = L.map('map', { zoomControl: false, attributionControl: false, layers: [satLayer] }).setView([initLat, initLng], lastLat ? 15 : 13);
+        var map = L.map('map', { 
+            zoomControl: false, 
+            attributionControl: false, 
+            layers: [satLayer],
+            minZoom: 3, // Diubah ke 3 agar jangkauan lebih luas tapi tetap aman
+            maxBounds: [[-85, -180], [85, 180]], // Batasi area panning (dunia)
+            maxBoundsViscosity: 1.0 // Efek pantul saat mentok batas
+        }).setView([initLat, initLng], lastLat ? 15 : 13);
 
         // BUAT PANE KHUSUS: Agar layer NASA (SST, Klorofil) selalu di atas peta dasar
         map.createPane('gibsPane');
@@ -497,7 +505,7 @@
                         searchMarker = L.marker([lat, lon], {icon: redPin}).addTo(map)
                             .bindPopup(`<b class="text-slate-900 text-sm">${data[0].display_name.split(',')[0]}</b>`).openPopup();
 
-                        map.flyTo([lat, lon], 13);
+                        map.flyTo([lat, lon], 12); // FIX: Zoom out sedikit agar tidak terlalu dekat
                     } else {
                         alert("Lokasi tidak ditemukan");
                     }
@@ -538,7 +546,7 @@
                 container = document.createElement('div');
                 container.id = 'search-suggestions';
                 // Style Solid & Clean (Latar Gelap Pekat agar Mudah Dibaca)
-                container.className = "absolute top-full left-0 w-full bg-[#0f172a] border border-slate-700 rounded-xl mt-2 shadow-2xl z-[5000] overflow-hidden flex flex-col";
+                container.className = "absolute top-full left-0 w-full bg-black border border-neutral-700 rounded-xl mt-2 shadow-2xl z-[5000] overflow-hidden flex flex-col";
                 
                 if(input.parentNode) {
                     const parentStyle = window.getComputedStyle(input.parentNode);
@@ -589,7 +597,7 @@
 
             data.forEach(item => {
                 const div = document.createElement('div');
-                div.className = "p-3 hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-0 flex items-center gap-3 transition-colors group";
+                div.className = "p-3 hover:bg-neutral-800 cursor-pointer border-b border-neutral-800 last:border-0 flex items-center gap-3 transition-colors group";
                 
                 // Nama lokasi yang lebih bersih
                 const mainName = item.display_name.split(',')[0];
@@ -603,7 +611,7 @@
                 else if (item.class === 'tourism') { iconName = 'image'; }
 
                 div.innerHTML = `
-                    <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:border-blue-500 transition-all">
+                    <div class="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:border-blue-500 transition-all">
                         <i data-lucide="${iconName}" class="w-4 h-4 text-slate-400 group-hover:text-white transition-colors"></i>
                     </div>
                     <div class="min-w-0 flex-1">
@@ -660,7 +668,7 @@
             searchMarker = L.marker([lat, lon], {icon: redPin}).addTo(map)
                 .bindPopup(`<b class="text-slate-900 text-sm">${item.display_name.split(',')[0]}</b>`).openPopup();
 
-            map.flyTo([lat, lon], 13);
+            map.flyTo([lat, lon], 12); // FIX: Zoom out sedikit agar tidak terlalu dekat
         }
 
         // Fungsi Street View: Membuka koordinat di Google Street View
@@ -678,13 +686,17 @@
         }
 
         // 3. Auth Logic
-        // (MODIFIKASI: Login Dinonaktifkan - Aplikasi Tanpa Profil)
-        function handleAuth(type) {
-            console.log("Auth system disabled.");
-        }
+        // --- FIREBASE CONFIGURATION ---
+        // Login dinonaktifkan, Firebase tidak diinisialisasi.
 
-        // Langsung inisialisasi aplikasi (Bypass Login)
-        setTimeout(() => initApp(), 100);
+        // Inisialisasi Firebase
+        let auth, db;
+        // const firebaseConfig = { ... };
+        // if (typeof firebase !== 'undefined') { ... }
+
+        function handleAuth(type) {
+            // Login dinonaktifkan.
+        }
 
         // --- AUTO RECONNECT HANDLER (Fitur Baru) ---
         // Mendeteksi saat internet nyala kembali
@@ -738,20 +750,19 @@
         });
 
         function initApp() {
-            // Set user default (Guest) agar fungsi penyimpanan tetap berjalan
-            currentUser = { email: 'Guest', uid: 'guest_user' };
+            // LOGIN DINONAKTIFKAN: Langsung masuk sebagai Guest
+            console.warn("LOGIN DINONAKTIFKAN: Menjalankan aplikasi dalam Mode Tamu.");
+            currentUser = { email: 'Guest', uid: 'guest_user', displayName: 'Guest', photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=guest_user` };
             
-            // Sembunyikan overlay login & tampilkan konten utama
-            const authOverlay = document.getElementById('auth-overlay');
-            if(authOverlay) authOverlay.classList.add('hidden');
+            // Update Profile Image di Home
+            const profileImg = document.getElementById('home-profile-img');
+            if(profileImg) profileImg.src = currentUser.photoURL;
+
+            // Tampilkan konten, sembunyikan login overlay
+            document.getElementById('auth-overlay').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
             
-            const appContent = document.getElementById('app-content');
-            if(appContent) appContent.classList.remove('hidden');
-            
-            const emailEl = document.getElementById('user-display-email');
-            if(emailEl) emailEl.innerText = "Guest Mode";
-            
-            // PERBAIKAN: Refresh ukuran peta agar tidak error/abu-abu saat muncul
+            // Refresh peta agar tidak abu-abu
             setTimeout(() => { if(typeof map !== 'undefined') map.invalidateSize(); }, 100);
             
             // Buat modal untuk peta presipitasi
@@ -771,15 +782,26 @@
             if(typeof getUserWeather === 'function') getUserWeather(); // Ambil cuaca lokasi user saat ini
             loadSpots();
             setTimeout(initScrollDots, 500); // Init dots setelah layout render
-            setTimeout(initTour, 1500); // Mulai tour otomatis untuk user baru
             setTimeout(initCompass, 1000); // Inisialisasi Kompas Digital
             setTimeout(loadLayerPreferences, 2000); // Mengembalikan layer peta yang tersimpan
         }
 
         function logout() {
-            // Tidak ada logout di mode tanpa login
-            console.log("Logout disabled");
+            // Login dinonaktifkan.
         }
+
+        // --- PROFILE & LOGIN MENU ---
+        function openProfile() {
+            // Login dinonaktifkan, fungsi ini tidak melakukan apa-apa.
+        }
+
+        function closeAuthOverlay() {
+            document.getElementById('auth-overlay').classList.add('hidden');
+        }
+        
+        // Pastikan fungsi bisa diakses dari HTML (Global Scope)
+        window.openProfile = openProfile;
+        window.closeAuthOverlay = closeAuthOverlay;
 
         // 4. Spot Management
         
@@ -801,10 +823,14 @@
             });
             selectionMarker = L.marker(e.latlng, {icon: pinIcon}).addTo(map);
             
-            if(typeof showLocationPanel === 'function') showLocationPanel(e.latlng);
+            // FIX: Langsung navigasi ke tab cuaca agar flow konsisten
+            if(typeof navigateTo === 'function') navigateTo('weather');
         });
 
-        let userLatlng = null;
+        // FIX: Pastikan userLatlng global (window) agar bisa diakses weather.js
+        window.userLatlng = null;
+        // let userLatlng = null; // Hapus deklarasi lokal yang membingungkan
+        
         let userLocationMarker = null; // Marker lokasi user custom
         // --- FAVORITE SYSTEM ---
         function toggleFavorite() {
@@ -894,7 +920,7 @@
 
                 favs.forEach(spot => {
                     const item = document.createElement('div');
-                    item.className = "bg-slate-800/50 p-3 rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer hover:bg-slate-700 transition-colors group";
+                    item.className = "bg-neutral-800/50 p-3 rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer hover:bg-neutral-700 transition-colors group";
                     item.onclick = () => {
                         closeFavorites();
                         const key = spot.lat + ',' + spot.lng;
@@ -910,7 +936,7 @@
                     const img = spot.photo || 'https://via.placeholder.com/100?text=Fish';
                     
                     item.innerHTML = `
-                        <img src="${img}" class="w-14 h-14 rounded-lg object-cover bg-slate-900 border border-white/10 group-hover:scale-105 transition-transform">
+                        <img src="${img}" class="w-14 h-14 rounded-lg object-cover bg-neutral-900 border border-white/10 group-hover:scale-105 transition-transform">
                         <div>
                             <h4 class="font-bold text-sm text-white line-clamp-1">${spot.name}</h4>
                             <p class="text-[10px] text-slate-400 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${parseFloat(spot.lat).toFixed(4)}, ${parseFloat(spot.lng).toFixed(4)}</p>
@@ -1217,6 +1243,11 @@
                 return;
             }
 
+            // FIX: Jika mode kontribusi (ulasan), gunakan lokasi spot yang sedang dibuka jika tempLatlng kosong
+            if(!tempLatlng && isContributionMode && currentDetailSpot) {
+                tempLatlng = { lat: Number(currentDetailSpot.lat), lng: Number(currentDetailSpot.lng) };
+            }
+
             if(!tempLatlng) {
                 showCustomAlert("Lokasi Belum Dipilih", "Silakan pilih lokasi di peta atau unggah foto dengan data GPS.", "map-pin", "yellow");
                 return;
@@ -1229,21 +1260,6 @@
             }
             const btn = document.getElementById('btnSaveSpot');
             const oldText = btn.innerText;
-            
-            // 0. Validasi Lokasi (Anti-Gunung/Darat)
-            btn.innerHTML = '<i data-lucide="map-pin" class="w-3 h-3 inline mr-1 animate-bounce"></i> Cek Lokasi...';
-            lucide.createIcons();
-            btn.disabled = true;
-            
-            const locCheck = await checkLocationValidity(tempLatlng.lat, tempLatlng.lng);
-            if(!locCheck.valid) {
-                const proceed = confirm(`⚠️ Peringatan Lokasi\n\n${locCheck.reason}\nSistem mendeteksi ini bukan perairan.\n\nApakah Anda yakin lokasi ini benar (misal: Danau di Gunung)?`);
-                if(!proceed) {
-                    btn.innerText = oldText;
-                    btn.disabled = false;
-                    return;
-                }
-            }
             
             // 0.5. Kompresi Gambar (PENTING: Mencegah Crash Memori iPhone)
             if (originalFile) {
@@ -1498,7 +1514,7 @@
             const addrId = 'addr-' + Math.random().toString(36).substr(2, 9);
 
             const popupHtml = `
-                <div class="w-64 bg-slate-900/90 backdrop-blur-xl rounded-[1.5rem] border border-white/10 shadow-2xl overflow-hidden pb-1">
+                <div class="w-64 bg-neutral-900/90 backdrop-blur-xl rounded-[1.5rem] border border-white/10 shadow-2xl overflow-hidden pb-1">
                     ${coverPhoto ? `<div class="h-36 w-full relative group cursor-pointer" onclick="openSpotDetailByKey('${key}')">
                         <img src="${coverPhoto}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
@@ -1616,8 +1632,8 @@
             if(textOnly.length > 0) {
                 const accId = 'acc-' + Math.random().toString(36).substr(2,5);
                 list.innerHTML += `
-                    <div class="mb-6 bg-slate-900/50 rounded-2xl border border-white/5 overflow-hidden">
-                        <button onclick="document.getElementById('${accId}').classList.toggle('hidden')" class="w-full p-4 flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 transition-colors">
+                    <div class="mb-6 bg-neutral-900/50 rounded-2xl border border-white/5 overflow-hidden">
+                        <button onclick="document.getElementById('${accId}').classList.toggle('hidden')" class="w-full p-4 flex items-center justify-between bg-neutral-800/50 hover:bg-neutral-800 transition-colors">
                             <span class="text-xs font-bold text-slate-300 flex items-center gap-2">
                                 <i data-lucide="message-square" class="w-4 h-4 text-blue-400"></i> 
                                 Komentar Tanpa Foto (${textOnly.length})
@@ -1648,10 +1664,10 @@
                     const weight = g.weight && g.weight > 0 ? `<div class="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-emerald-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-emerald-500/30 flex items-center gap-1"><i data-lucide="fish" class="w-3 h-3"></i> ${g.weight}kg</div>` : '';
                     
                     grid += `
-                        <div class="bg-slate-900 rounded-xl border border-white/5 overflow-hidden flex flex-col shadow-lg">
-                            <div class="relative aspect-[4/5] bg-slate-800 group cursor-pointer" onclick="openImageLightbox('${g.photo}')">
+                        <div class="bg-neutral-900 rounded-xl border border-white/5 overflow-hidden flex flex-col shadow-lg">
+                            <div class="relative aspect-[4/5] bg-neutral-800 group cursor-pointer" onclick="openImageLightbox('${g.photo}')">
                                 <img src="${g.photo}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60"></div>
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
                                 ${weight}
                                 <div class="absolute bottom-2 left-2">
                                     <p class="text-[9px] font-bold text-white shadow-black drop-shadow-md">${g.uid.split('@')[0]}</p>
@@ -1684,7 +1700,7 @@
                     closeBtn.style.top = '20px';
                     closeBtn.style.right = '20px';
                     closeBtn.style.zIndex = '10000';
-                    closeBtn.className = "bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-full p-2 hover:bg-red-500/20 transition-all text-white";
+                    closeBtn.className = "bg-black/80 backdrop-blur-md border border-white/20 shadow-2xl rounded-full p-2 hover:bg-red-500/20 transition-all text-white";
                 }
             }
             if (closeBtn) {
@@ -1702,7 +1718,6 @@
 
         function addContribution() {
             if(currentDetailSpot) {
-                tempLatlng = { lat: Number(currentDetailSpot.lat), lng: Number(currentDetailSpot.lng) };
                 document.getElementById('spotName').value = currentDetailSpot.name;
                 document.getElementById('spotWeight').value = ''; // Reset berat untuk kontribusi baru
                 
@@ -1712,6 +1727,9 @@
                 
                 closeSpotDetail();
                 openAddModal(true); // Pass true menandakan ini mode kontribusi
+                
+                // FIX: Set tempLatlng kembali setelah openAddModal karena fungsi tersebut memanggil closeLocationPanel -> navigateTo('map') yang mereset tempLatlng jadi null
+                tempLatlng = { lat: Number(currentDetailSpot.lat), lng: Number(currentDetailSpot.lng) };
             }
         }
 
@@ -2186,7 +2204,7 @@
                 }).addTo(map);
                 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Layer Angin Ditampilkan`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2218,13 +2236,13 @@
                         onEachFeature: (feature, layer) => {
                             const p = feature.properties;
                             const d = new Date(p.time).toLocaleString();
-                            layer.bindPopup(`<div class="bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-white/10 min-w-[180px] shadow-xl"><h4 class="font-bold text-sm text-white flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-red-500"></i> Gempa M ${p.mag.toFixed(1)}</h4><p class="text-xs text-slate-300 mt-1 leading-relaxed">${p.place}</p><p class="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${d}</p></div>`);
+                            layer.bindPopup(`<div class="bg-neutral-900/90 backdrop-blur-md p-3 rounded-xl border border-white/10 min-w-[180px] shadow-xl"><h4 class="font-bold text-sm text-white flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-red-500"></i> Gempa M ${p.mag.toFixed(1)}</h4><p class="text-xs text-slate-300 mt-1 leading-relaxed">${p.place}</p><p class="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${d}</p></div>`);
                             layer.on('popupopen', () => lucide.createIcons());
                         }
                     }).addTo(map);
 
                     const toast = document.createElement('div');
-                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                     toast.innerHTML = `<i data-lucide="activity" class="w-4 h-4 text-red-500"></i> Data Gempa Ditampilkan`;
                     document.body.appendChild(toast);
                     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2242,7 +2260,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="anchor" class="w-4 h-4 text-orange-400"></i> Peta Navigasi Laut`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2260,7 +2278,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="gauge" class="w-4 h-4 text-purple-400"></i> Peta Tekanan Udara`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2298,7 +2316,7 @@
                 activeLayers[type] = L.heatLayer(heatPoints, { radius: 25, blur: 15, maxZoom: 17, gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'} }).addTo(map);
                 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="scan-line" class="w-4 h-4 text-pink-400"></i> Heatmap Ikan Aktif`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2320,8 +2338,8 @@
                     attribution: 'NASA GIBS'
                 }).addTo(map);
                 
-                showLegend('sst'); // Tampilkan Indikator Warna
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                showLegend('sst');
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="thermometer-sun" class="w-4 h-4 text-indigo-400"></i> Peta Suhu Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // CHLOROPHYLL LAYER - NASA GIBS (Free)
@@ -2338,8 +2356,8 @@
                     attribution: 'NASA GIBS'
                 }).addTo(map);
                 
-                showLegend('chlorophyll'); // Tampilkan Indikator Warna
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                showLegend('chlorophyll');
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i> Peta Klorofil Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // BATHYMETRY LAYER (GEBCO)
@@ -2354,7 +2372,7 @@
                 }).addTo(map);
 
                 const toast = document.createElement('div');
-                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                 toast.innerHTML = `<i data-lucide="waves" class="w-4 h-4 text-cyan-400"></i> Peta Kedalaman Aktif`;
                 document.body.appendChild(toast);
                 setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2405,8 +2423,8 @@
 
                 activeLayers[type] = L.layerGroup(layers).addTo(map);
                 
-                showLegend('sonar');
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="radar" class="w-4 h-4 text-emerald-400"></i> Peta Laut (Chart) Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
+                showLegend('sonar'); 
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; toast.innerHTML = `<i data-lucide="radar" class="w-4 h-4 text-emerald-400"></i> Peta Laut (Chart) Aktif`; document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons(); return;
             }
 
             // LIVE SHIP RADAR (AIS)
@@ -2425,7 +2443,7 @@
 
                 activeLayers[type] = shipLayer;
 
-                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; 
+                const toast = document.createElement('div'); toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2"; 
                 toast.innerHTML = `<i data-lucide="ship" class="w-4 h-4 text-red-400"></i> Radar Kapal Aktif`; 
                 document.body.appendChild(toast); setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000); lucide.createIcons();
                 return;
@@ -2472,7 +2490,7 @@
 
                     // Feedback Visual (Toast)
                     const toast = document.createElement('div');
-                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
+                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 shadow-xl z-[2000] flex items-center gap-2";
                     toast.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Layer ${type === 'rain' ? 'Hujan' : 'Awan'} Ditampilkan`;
                     document.body.appendChild(toast);
                     setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 3000);
@@ -2521,17 +2539,17 @@
             modal.id = 'precipModal';
             // FIX: Full Screen murni (tanpa padding), Z-Index tertinggi
             modal.style.zIndex = "2147483650"; 
-            modal.className = "fixed inset-0 bg-slate-950 translate-y-full transition-transform duration-300";
+            modal.className = "fixed inset-0 bg-black translate-y-full transition-transform duration-300";
             modal.innerHTML = `
                 <div class="relative w-full h-full">
-                    <div id="precip-map-large" class="w-full h-full bg-slate-950"></div>
+                    <div id="precip-map-large" class="w-full h-full bg-black"></div>
                     
                     <!-- Header Floating -->
                     <div class="absolute top-0 left-0 w-full p-4 pt-12 flex items-center justify-between z-[1000] bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-                        <button onclick="closePrecipMap()" class="pointer-events-auto bg-slate-800/50 backdrop-blur-md text-white rounded-full p-3 shadow-lg border border-white/10 hover:bg-slate-700 transition-all">
+                        <button onclick="closePrecipMap()" class="pointer-events-auto bg-neutral-800/50 backdrop-blur-md text-white rounded-full p-3 shadow-lg border border-white/10 hover:bg-neutral-700 transition-all">
                             <i data-lucide="chevron-left" class="w-6 h-6"></i>
                         </button>
-                        <div class="pointer-events-auto bg-slate-800/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
+                        <div class="pointer-events-auto bg-neutral-800/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
                             <span class="text-xs font-bold text-white flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-[#3b82f6]"></span> Hujan
                                 <span class="w-2 h-2 rounded-full bg-[#8b5cf6] ml-1"></span> Lebat
@@ -2541,18 +2559,18 @@
                     </div>
 
                     <!-- Tombol Lokasi Saya -->
-                    <button onclick="centerPrecipMap()" class="absolute bottom-8 right-4 z-[1000] bg-slate-800/80 backdrop-blur-md text-blue-400 rounded-full p-3 shadow-lg border border-white/10 hover:bg-slate-700 transition-all">
+                    <button onclick="centerPrecipMap()" class="absolute bottom-8 right-4 z-[1000] bg-neutral-800/80 backdrop-blur-md text-blue-400 rounded-full p-3 shadow-lg border border-white/10 hover:bg-neutral-700 transition-all">
                         <i data-lucide="navigation" class="w-6 h-6"></i>
                     </button>
 
                     <!-- NEW: Animation Controls -->
                     <div class="absolute bottom-0 left-0 w-full p-4 z-[1000] pointer-events-none">
-                        <div class="bg-slate-900/70 backdrop-blur-md rounded-xl p-3 flex items-center gap-4 pointer-events-auto border border-white/10 shadow-2xl max-w-2xl mx-auto">
-                            <button id="precip-play-pause-btn" onclick="togglePrecipAnimation()" class="text-white hover:bg-slate-700 p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <div class="bg-neutral-900/70 backdrop-blur-md rounded-xl p-3 flex items-center gap-4 pointer-events-auto border border-white/10 shadow-2xl max-w-2xl mx-auto">
+                            <button id="precip-play-pause-btn" onclick="togglePrecipAnimation()" class="text-white hover:bg-neutral-700 p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                                 <i data-lucide="play" class="w-6 h-6"></i>
                             </button>
                             <div class="flex-1 flex flex-col gap-2">
-                                <input type="range" id="precip-timeline-slider" min="0" max="10" value="0" class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer range-sm" oninput="handleSliderInput(this.value)" disabled>
+                                <input type="range" id="precip-timeline-slider" min="0" max="10" value="0" class="w-full h-1 bg-neutral-700 rounded-lg appearance-none cursor-pointer range-sm" oninput="handleSliderInput(this.value)" disabled>
                                 <div id="precip-timeline-labels" class="flex justify-between text-[9px] text-slate-400 font-mono">
                                     <span>--:--</span>
                                     <span>Kini</span>
@@ -2776,12 +2794,12 @@
             if(oldCard) oldCard.remove();
 
             const cardHtml = `
-                <div id="precip-map-card" onclick="openPrecipMap(${lat}, ${lng})" class="mx-0 mt-3 bg-slate-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg cursor-pointer group overflow-hidden relative">
+                <div id="precip-map-card" onclick="openPrecipMap(${lat}, ${lng})" class="mx-0 mt-3 bg-neutral-900/30 backdrop-blur-xl rounded-xl border border-white/20 p-2 shadow-lg cursor-pointer group overflow-hidden relative">
                     <div class="px-2 py-2 mb-2 flex items-center gap-2 border-b border-white/5 relative z-10">
                         <i data-lucide="map" class="w-4 h-4 text-slate-400"></i> 
                         <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Peta Hujan</span>
                     </div>
-                    <div id="precip-map-preview" class="w-full h-48 rounded-lg bg-slate-900 relative overflow-hidden border border-white/5 pointer-events-none">
+                    <div id="precip-map-preview" class="w-full h-48 rounded-lg bg-neutral-900 relative overflow-hidden border border-white/5 pointer-events-none">
                         <div class="absolute inset-0 flex items-center justify-center z-0">
                             <i data-lucide="loader" class="w-6 h-6 text-slate-500 animate-spin"></i>
                         </div>
@@ -2836,7 +2854,7 @@
                 } else { throw new Error("No radar data available"); }
             } catch (e) {
                 const previewMapContainer = document.getElementById('precip-map-preview');
-                if(previewMapContainer) previewMapContainer.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-slate-800"><i data-lucide="${navigator.onLine ? 'cloud-off' : 'wifi-off'}" class="w-6 h-6 text-slate-600"></i></div>`;
+                if(previewMapContainer) previewMapContainer.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-neutral-800"><i data-lucide="${navigator.onLine ? 'cloud-off' : 'wifi-off'}" class="w-6 h-6 text-slate-600"></i></div>`;
                 lucide.createIcons();
             }
         }
@@ -2846,8 +2864,29 @@
             window.addEventListener('load', () => {
                 // Gunakan './sw.js' agar kompatibel dengan Vercel (Root) maupun GitHub Pages (Subfolder)
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered!', reg.scope))
+                    .then(reg => {
+                        console.log('Service Worker registered!', reg.scope);
+                        // FIX: Paksa cek update ke server setiap kali aplikasi dibuka
+                        // Ini mengatasi masalah PWA yang "lama update"
+                        reg.update();
+                    })
                     .catch(err => console.log('Service Worker registration failed:', err));
+
+                // FIX: Auto-reload halaman jika Service Worker baru selesai diinstall
+                // User akan melihat loading sebentar lalu aplikasi ter-refresh ke versi baru
+                let refreshing;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (refreshing) return;
+                    refreshing = true;
+                    
+                    // Tampilkan notifikasi kecil sebelum reload
+                    const toast = document.createElement('div');
+                    toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] flex items-center gap-2 animate-bounce";
+                    toast.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg> Mengupdate Aplikasi...`;
+                    document.body.appendChild(toast);
+                    
+                    setTimeout(() => window.location.reload(), 1500);
+                });
             });
         }
 
@@ -2974,7 +3013,7 @@
             maps.forEach(map => {
                 const size = map.size || ((map.count * 25) / 1024).toFixed(1);
                 const item = document.createElement('div');
-                item.className = "bg-slate-900/50 p-3 rounded-lg border border-white/5 flex items-center justify-between group hover:bg-slate-800 transition-colors";
+                item.className = "bg-neutral-900/50 p-3 rounded-lg border border-white/5 flex items-center justify-between group hover:bg-neutral-800 transition-colors";
                 item.innerHTML = `
                     <div>
                         <p class="text-xs font-bold text-white">${map.name}</p>
@@ -3182,3 +3221,91 @@
             closeLegend(); // Tutup menu pengaturan
             initTour(); // Mulai tour dari awal
         }
+
+        // --- NAVIGATION SYSTEM (Moved from index.html) ---
+        function navigateTo(pageId) {
+            // 1. Cek status tab cuaca SEBELUM reset class (untuk logika "klik lagi")
+            const weatherView = document.getElementById('view-weather');
+            const isWeatherActive = weatherView && weatherView.classList.contains('active');
+
+            // Sembunyikan semua halaman
+            document.querySelectorAll('.view-section').forEach(el => { //
+                el.classList.remove('active');
+            });
+            
+            // Matikan efek cuaca jika keluar dari halaman cuaca
+            if (pageId !== 'weather' && typeof stopWeatherEffect === 'function') { //
+                stopWeatherEffect();
+            }
+
+            // Reset warna tombol nav
+            document.querySelectorAll('.nav-btn').forEach(btn => { //
+                btn.classList.remove('text-blue-400');
+                btn.classList.add('text-slate-400');
+            });
+            
+            // Tampilkan halaman target
+            const target = document.getElementById('view-' + pageId);
+            if(target) {
+                target.classList.add('active');
+
+                // --- FIX: Refresh Data Home saat Navigasi ---
+                if(pageId === 'home') {
+                    if(typeof loadHomeFeed === 'function') loadHomeFeed();
+                    if(typeof loadHomeWidgetData === 'function') loadHomeWidgetData();
+                }
+                
+                // Highlight tombol nav
+                const navBtn = document.getElementById('nav-' + pageId);
+                if(navBtn) {
+                    navBtn.classList.remove('text-slate-400');
+                    navBtn.classList.add('text-blue-400');
+                }
+                
+                // Khusus Peta: Refresh ukuran agar tidak error render
+                if(pageId === 'map' && typeof map !== 'undefined') {
+                    setTimeout(() => { map.invalidateSize(); }, 100);
+                    
+                    // FIX: Sembunyikan panel cuaca saat kembali ke peta (sesuai request)
+                    const panel = document.getElementById('location-panel');
+                    if(panel) panel.classList.add('translate-y-full');
+
+                    // FIX: Reset lokasi pin agar saat kembali ke tab cuaca (lewat navbar), yang muncul adalah GPS
+                    tempLatlng = null;
+                }
+                
+                // Khusus Cuaca: Tampilkan panel cuaca untuk lokasi terakhir yang dipilih atau lokasi user
+                if(pageId === 'weather') {
+                    // Logika Toggle: Pin <-> GPS
+                    if (isWeatherActive && tempLatlng) {
+                        // Jika sudah di tab cuaca (lihat pin) dan klik lagi -> Reset ke GPS
+                        tempLatlng = null;
+                        if (typeof showUserWeatherPanel === 'function') showUserWeatherPanel();
+                    } else {
+                        // Navigasi biasa: Prioritas Pin -> GPS
+                        if (tempLatlng && typeof showLocationPanel === 'function') {
+                            showLocationPanel(tempLatlng);
+                        } else if (typeof showUserWeatherPanel === 'function') {
+                            showUserWeatherPanel();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pindahkan konten pengaturan ke halaman settings saat load
+        document.addEventListener('DOMContentLoaded', function() {
+            const settingsContent = document.querySelector('#legendModal .space-y-4');
+            if(settingsContent) {
+                const placeholder = document.getElementById('settings-content-placeholder');
+                if(placeholder) placeholder.appendChild(settingsContent);
+            }
+            
+            // Inisialisasi icon lucide untuk elemen baru
+            if(typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+            
+            // FIX: Jalankan aplikasi utama saat load agar Auth Listener aktif
+            initApp();
+        });
