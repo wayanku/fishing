@@ -223,7 +223,7 @@
         setTimeout(() => changeLanguage(localStorage.getItem('appLang') || 'id'), 100);
 
         // --- CONFIGURATION ---
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyuRtzzICS1qoBxWKdOJpHeqWCUN6Wt04xAIi_sYQHd0wSxjc89eumDWAYYcKPrT8jV/exec"; 
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbybJe6cBuciSnj4j4hmm3nN4C860Sen9RVht6b1O5cZoRpkwvBoDLw6jTkYa4tmUas1/exec"; 
         const IMGBB_API_KEY = "7e6f3ce63649d305ccaceea00c28266d"; // Daftar gratis di api.imgbb.com
 
         // --- AI SETUP (Web Worker & Lazy Loading) ---
@@ -792,7 +792,7 @@
 
         // --- PROFILE & LOGIN MENU ---
         function openProfile() {
-            // Login dinonaktifkan, fungsi ini tidak melakukan apa-apa.
+            navigateTo('settings'); // Buka menu pengaturan saat foto profil diklik
         }
 
         function closeAuthOverlay() {
@@ -1752,10 +1752,15 @@
             // 2. Ambil Data Google Sheets (Async) & Merge
             if(GOOGLE_SCRIPT_URL.startsWith("http")) {
                 try {
-                    const res = await fetch(GOOGLE_SCRIPT_URL);
+                    // FIX: Tambahkan timestamp (?t=...) agar data peta selalu update (Like/Komen baru muncul)
+                    const res = await fetch(`${GOOGLE_SCRIPT_URL}?t=${Date.now()}`);
                     const data = await res.json();
                     
                     data.forEach(item => {
+                        // FIX: Handle Comma in Coordinates (Data Lama)
+                        if(typeof item.lat === 'string') item.lat = parseFloat(item.lat.replace(',', '.'));
+                        if(typeof item.lng === 'string') item.lng = parseFloat(item.lng.replace(',', '.'));
+
                         const key = item.spotId || (item.lat + ',' + item.lng);
                         if(!groupedSpots[key]) groupedSpots[key] = [];
                         groupedSpots[key].push(item);
@@ -3290,6 +3295,11 @@
                         }
                     }
                 }
+
+                // Khusus Reels: Init jika belum
+                if(pageId === 'reels') {
+                    if(typeof initReels === 'function') initReels();
+                }
             }
         }
 
@@ -3309,3 +3319,260 @@
             // FIX: Jalankan aplikasi utama saat load agar Auth Listener aktif
             initApp();
         });
+
+        // --- REELS FEATURE LOGIC ---
+        let reelsInitialized = false;
+        let reelsObserver = null;
+        let shownReelIds = new Set(); // Melacak video yang sudah ditampilkan agar tidak duplikat
+        let isLoadingReels = false; // Lock untuk mencegah loading ganda (L)
+
+        function initReels() {
+            if (reelsInitialized) return;
+            reelsInitialized = true;
+
+            const container = document.getElementById('reels-container');
+            if (!container) return;
+
+            // Setup Observer untuk Autoplay saat scroll
+            reelsObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target.querySelector('video');
+                    if (!video) return;
+
+                    if (entry.isIntersecting) {
+                        // Play saat masuk layar
+                        // FIX: User request "ga usah mute otomatis"
+                        video.muted = false; 
+                        video.play().catch(() => {});
+                    } else {
+                        // Pause & Reset saat keluar layar
+                        video.pause();
+                        video.currentTime = 0;
+                    }
+                });
+            }, { threshold: 0.6 }); // 60% video terlihat baru play
+
+            // Load batch pertama
+            loadReelsBatch();
+            
+            // Infinite Scroll sederhana
+            container.addEventListener('scroll', () => {
+                if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
+                    loadReelsBatch();
+                }
+            });
+        }
+
+        async function loadReelsBatch() {
+            if (isLoadingReels) return;
+            isLoadingReels = true;
+
+            const container = document.getElementById('reels-container');
+            // Tambah 3 placeholder loading
+            for (let i = 0; i < 3; i++) {
+                const el = document.createElement('div');
+                el.className = "w-full h-full snap-start relative bg-black flex items-center justify-center border-b border-white/10 shrink-0";
+                el.innerHTML = '<div class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>';
+                container.appendChild(el);
+                fetchReelContent(el);
+            }
+            
+            // Reset lock setelah delay (Loading logic)
+            setTimeout(() => { isLoadingReels = false; }, 1500);
+        }
+
+        async function fetchReelContent(container) {
+            // --- MODIFIED: Randomized Provider Fetch (Pixabay / Pexels / NASA) ---
+            // Update: Menambahkan variasi alat pancing & ikan sesuai request
+            const queries = [
+                "fishing reel", "fishing rod", "fishing lure", "fishing bait", "fishing gear", 
+                "fish underwater", "big fish", "fishing boat", "fisherman", "fishing", 
+                "ocean fishing", "tackle box", "coral reef fish", "deep sea fishing"
+            ];
+            const query = queries[Math.floor(Math.random() * queries.length)];
+            
+            // Helper: HTML Tombol Samping (Agar tidak duplikat kode)
+            const getSideActions = (likes, comments) => `
+                <div class="absolute right-2 bottom-8 flex flex-col gap-3 items-center z-20 pb-4">
+                    <button class="flex flex-col items-center gap-1 group" onclick="const i=this.querySelector('i'); i.classList.toggle('fill-red-500'); i.classList.toggle('text-red-500'); i.classList.toggle('fill-white/10');">
+                        <div class="p-2.5 bg-black/40 backdrop-blur-md rounded-full group-active:scale-90 transition-all border border-white/10 hover:bg-black/60">
+                            <i data-lucide="heart" class="w-6 h-6 text-white fill-white/10 transition-colors"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-white drop-shadow-md">${likes}</span>
+                    </button>
+                    <button class="flex flex-col items-center gap-1 group">
+                        <div class="p-2.5 bg-black/40 backdrop-blur-md rounded-full group-active:scale-90 transition-all border border-white/10 hover:bg-black/60">
+                            <i data-lucide="message-circle" class="w-6 h-6 text-white fill-white/10"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-white drop-shadow-md">${comments}</span>
+                    </button>
+                    <button class="flex flex-col items-center gap-1 group">
+                        <div class="p-2.5 bg-black/40 backdrop-blur-md rounded-full group-active:scale-90 transition-all border border-white/10 hover:bg-black/60">
+                            <i data-lucide="share-2" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <span class="text-[10px] font-bold text-white drop-shadow-md">Share</span>
+                    </button>
+                    <button class="flex flex-col items-center gap-1 group mt-2" onclick="const v=this.closest('.relative').querySelector('video'); v.muted=!v.muted; this.querySelector('i').setAttribute('data-lucide', v.muted?'volume-x':'volume-2'); lucide.createIcons();">
+                        <div class="p-2.5 bg-black/40 backdrop-blur-md rounded-full group-active:scale-90 transition-all border border-white/10 hover:bg-black/60">
+                            <i data-lucide="volume-2" class="w-5 h-5 text-white"></i>
+                        </div>
+                    </button>
+                </div>`;
+
+            // Helper: Render Video ke Container
+            const renderVideo = (url, title, user, likes, comments, sourceLabel = 'NASA Archive', thumbnail = '') => {
+                const isCreator = sourceLabel !== 'NASA Archive';
+                container.innerHTML = `
+                    <div class="absolute inset-0 flex items-center justify-center bg-black z-0">
+                        <div class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    </div>
+                    <video src="${url}" poster="${thumbnail}" class="w-full h-full object-cover relative z-10" loop playsinline preload="metadata" onloadeddata="this.previousElementSibling.classList.add('hidden')"></video>
+                    <div class="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90 pointer-events-none"></div>
+                    <div class="absolute bottom-0 left-0 w-full p-4 pb-6 z-10 pointer-events-none bg-gradient-to-t from-black/80 to-transparent">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-400 p-[1.5px]">
+                                <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
+                                    ${isCreator ? `<img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${user}" class="w-full h-full object-cover">` : `<i data-lucide="globe" class="w-5 h-5 text-white"></i>`}
+                                </div>
+                            </div>
+                            <div class="flex flex-col">
+                                <p class="text-white font-bold text-sm drop-shadow-md leading-none">@${user.replace(/\s+/g, '')}</p>
+                                <p class="text-[10px] text-slate-300 leading-none mt-0.5">${sourceLabel}</p>
+                            </div>
+                            <button class="ml-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white border border-white/10 pointer-events-auto hover:bg-white/30 transition-colors">Follow</button>
+                        </div>
+                        <p class="text-white text-sm leading-snug drop-shadow-md font-medium line-clamp-3 pr-16 opacity-90">${title}</p>
+                        <div class="flex items-center gap-2 mt-3 text-xs text-white/70">
+                            <span class="flex items-center gap-1"><i data-lucide="music" class="w-3 h-3"></i> Original Sound - Fishing Spot</span>
+                        </div>
+                    </div>
+                    ${getSideActions(likes, comments)}`;
+                
+                reelsObserver.observe(container);
+                if(typeof lucide !== 'undefined') lucide.createIcons();
+                const v = container.querySelector('video');
+                container.onclick = (e) => { if(!e.target.closest('button')) v.paused ? v.play() : v.pause(); };
+            };
+
+            // --- PROVIDER FUNCTIONS ---
+            const fetchPixabay = async () => {
+                const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=pixabay&q=${query}&t=${Date.now()}`, { redirect: 'follow' });
+                const data = await res.json();
+                if (data.error) throw new Error("GAS Pixabay Error: " + data.error);
+                
+                if (data && data.hits && data.hits.length > 0) {
+                    // Filter video yang sudah tampil
+                    let available = data.hits.filter(h => !shownReelIds.has(h.id));
+                    if (available.length === 0) available = data.hits; // Fallback jika habis
+
+                    const video = available[Math.floor(Math.random() * available.length)];
+                    shownReelIds.add(video.id);
+
+                    // Prioritaskan video kecil/sedang agar loading cepat
+                    let videoUrl = video.videos.small.url || video.videos.medium.url || video.videos.large.url;
+                    let thumb = video.picture_id ? `https://i.vimeocdn.com/video/${video.picture_id}_640x360.jpg` : '';
+                    if (videoUrl) {
+                        return {
+                            url: videoUrl,
+                            title: `Video by ${video.user} on Pixabay. ${video.tags}`,
+                            user: video.user,
+                            likes: video.likes || Math.floor(Math.random() * 500),
+                            comments: video.comments || Math.floor(Math.random() * 50),
+                            sourceLabel: 'Pixabay Creator',
+                            thumbnail: thumb
+                        };
+                    }
+                }
+                throw new Error("Pixabay data empty");
+            };
+
+            const fetchPexels = async () => {
+                const res = await fetch(`${GOOGLE_SCRIPT_URL}?type=pexels&q=${query}&t=${Date.now()}`, { redirect: 'follow' });
+                const data = await res.json();
+                if (data.error) throw new Error("GAS Pexels Error: " + data.error);
+
+                if (data && data.videos && data.videos.length > 0) {
+                    const video = data.videos[Math.floor(Math.random() * data.videos.length)];
+                    let videoFile = video.video_files.find(f => f.quality === 'hd' && f.width < f.height);
+                    if (!videoFile) videoFile = video.video_files.find(f => f.quality === 'hd');
+                    if (!videoFile) videoFile = video.video_files[0];
+                    
+                    if (videoFile) {
+                        return {
+                            url: videoFile.link,
+                            title: `Video by ${video.user.name} on Pexels. #fishing #nature`,
+                            user: video.user.name,
+                            likes: Math.floor(Math.random() * 5000) + 500,
+                            comments: Math.floor(Math.random() * 200) + 20,
+                            sourceLabel: 'Pexels Creator'
+                        };
+                    }
+                }
+                throw new Error("Pexels data empty");
+            };
+
+            const fetchNasa = async () => {
+                const nasaKeywords = ["ocean life", "coral reef", "sea underwater", "marine biology", "fish"];
+                const nasaQuery = nasaKeywords[Math.floor(Math.random() * nasaKeywords.length)];
+                const nasaRes = await fetch(`https://images-api.nasa.gov/search?q=${nasaQuery}&media_type=video`);
+                const nasaData = await nasaRes.json();
+                
+                if (nasaData.collection && nasaData.collection.items && nasaData.collection.items.length > 0) {
+                    let items = nasaData.collection.items;
+                    let available = items.filter(i => i.data && i.data[0] && !shownReelIds.has(i.data[0].nasa_id));
+                    if (available.length === 0) available = items;
+
+                    const item = available[Math.floor(Math.random() * available.length)];
+                    shownReelIds.add(item.data[0].nasa_id);
+
+                    const meta = item.data[0];
+                    const collectionUrl = item.href.replace("http:", "https:");
+                    
+                    const videoRes = await fetch(collectionUrl);
+                    const videoFiles = await videoRes.json();
+                    const mp4 = videoFiles.find(f => f.endsWith('~medium.mp4')) || videoFiles.find(f => f.endsWith('.mp4'));
+                    
+                    const thumb = item.links ? item.links.find(l => l.rel === 'preview')?.href : '';
+                    
+                    if (mp4) {
+                        return {
+                            url: mp4.replace("http:", "https:"),
+                            title: meta.title,
+                            user: "nasa_official",
+                            likes: Math.floor(Math.random() * 900) + 100,
+                            comments: Math.floor(Math.random() * 100) + 10,
+                            sourceLabel: 'NASA Archive',
+                            thumbnail: thumb
+                        };
+                    }
+                }
+                throw new Error("NASA data empty");
+            };
+
+            // --- EXECUTION LOGIC (RANDOMIZED) ---
+            const providers = [fetchPixabay, fetchPexels, fetchNasa];
+            
+            // Fisher-Yates Shuffle untuk mengacak urutan provider
+            for (let i = providers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [providers[i], providers[j]] = [providers[j], providers[i]];
+            }
+
+            // Coba satu per satu sesuai urutan acak
+            for (const provider of providers) {
+                try {
+                    const result = await provider();
+                    if (result) {
+                        renderVideo(result.url, result.title, result.user, result.likes, result.comments, result.sourceLabel, result.thumbnail);
+                        return; // Sukses, keluar dari fungsi
+                    }
+                } catch (e) {
+                    console.warn("Provider failed, trying next...", e);
+                    // Lanjut ke provider berikutnya di loop
+                }
+            }
+
+            // --- FINAL FALLBACK (Jika semua gagal) ---
+            const staticVid = "https://images-assets.nasa.gov/video/ARC_20191025_A_E_SeaIce/ARC_20191025_A_E_SeaIce~medium.mp4";
+            renderVideo(staticVid, "Konten Cadangan (Offline Mode)", "System", 0, 0, 'System');
+        }
