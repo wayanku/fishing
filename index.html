@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -52,6 +53,8 @@
             top: 0;
             left: 0;
             z-index: 50;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
         }
         .view-section.active {
             display: block;
@@ -69,6 +72,12 @@
         #view-weather {
             background: transparent; /* Transparent to show canvas */
         }
+        #view-reels {
+            background: #000000;
+        }
+        
+        /* Hide Scrollbar for Chrome/Safari/Webkit */
+        .view-section::-webkit-scrollbar { display: none; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -128,6 +137,18 @@
                 <!-- Stories / Highlights -->
                 <div id="ai-stories-container" class="flex gap-4 overflow-x-auto no-scrollbar mb-8 pb-2 px-4 md:px-6">
                     <!-- Skeleton Loading Story -->
+                    <div class="flex flex-col items-center gap-1 shrink-0 animate-pulse">
+                        <div class="w-[4.5rem] h-[4.5rem] rounded-full bg-slate-800 border-2 border-slate-900"></div>
+                        <div class="h-2 w-12 bg-slate-800 rounded"></div>
+                    </div>
+                    <div class="flex flex-col items-center gap-1 shrink-0 animate-pulse">
+                        <div class="w-[4.5rem] h-[4.5rem] rounded-full bg-slate-800 border-2 border-slate-900"></div>
+                        <div class="h-2 w-12 bg-slate-800 rounded"></div>
+                    </div>
+                    <div class="flex flex-col items-center gap-1 shrink-0 animate-pulse">
+                        <div class="w-[4.5rem] h-[4.5rem] rounded-full bg-slate-800 border-2 border-slate-900"></div>
+                        <div class="h-2 w-12 bg-slate-800 rounded"></div>
+                    </div>
                     <div class="flex flex-col items-center gap-1 shrink-0 animate-pulse">
                         <div class="w-[4.5rem] h-[4.5rem] rounded-full bg-slate-800 border-2 border-slate-900"></div>
                         <div class="h-2 w-12 bg-slate-800 rounded"></div>
@@ -298,6 +319,13 @@
             </div>
         </div>
         
+        <!-- === HALAMAN 5: REELS (New Feature) === -->
+        <div id="view-reels" class="view-section">
+            <div id="reels-container" class="h-full w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar scroll-smooth">
+                <!-- Video Reels akan dimuat di sini oleh script.js -->
+            </div>
+        </div>
+
         <!-- === HALAMAN 4: MENU / SETTINGS === -->
         <div id="view-settings" class="view-section">
             <div class="p-6 pt-10 max-w-2xl mx-auto">
@@ -330,9 +358,9 @@
                 <i data-lucide="cloud-sun" class="w-6 h-6"></i>
                 <span class="text-[10px] font-medium">Cuaca</span>
             </button>
-            <button onclick="navigateTo('settings')" class="nav-btn p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors" id="nav-settings">
-                <i data-lucide="menu" class="w-6 h-6"></i>
-                <span class="text-[10px] font-medium">Menu</span>
+            <button onclick="navigateTo('reels')" class="nav-btn p-2 text-slate-400 hover:text-white flex flex-col items-center gap-1 transition-colors" id="nav-reels">
+                <i data-lucide="film" class="w-6 h-6"></i>
+                <span class="text-[10px] font-medium">Reels</span>
             </button>
         </div>
     </div>
@@ -929,8 +957,8 @@
 
         <!-- Navigation Overlay (Invisible) -->
         <div class="absolute inset-0 z-10 flex">
-            <div class="w-1/3 h-full" onmousedown="handleStoryTouch('start')" onmouseup="handleStoryTouch('end', 'prev')" ontouchstart="handleStoryTouch('start')" ontouchend="handleStoryTouch('end', 'prev')"></div>
-            <div class="w-2/3 h-full" onmousedown="handleStoryTouch('start')" onmouseup="handleStoryTouch('end', 'next')" ontouchstart="handleStoryTouch('start')" ontouchend="handleStoryTouch('end', 'next')"></div>
+            <div class="w-1/3 h-full" onmousedown="handleStoryTouch('start', null, event)" onmouseup="handleStoryTouch('end', 'prev', event)" ontouchstart="handleStoryTouch('start', null, event)" ontouchend="handleStoryTouch('end', 'prev', event)"></div>
+            <div class="w-2/3 h-full" onmousedown="handleStoryTouch('start', null, event)" onmouseup="handleStoryTouch('end', 'next', event)" ontouchstart="handleStoryTouch('start', null, event)" ontouchend="handleStoryTouch('end', 'next', event)"></div>
         </div>
     </div>
 
@@ -968,6 +996,123 @@
                 </div>
             </div>`;
 
+        // --- NEW: Translation Feature ---
+        window.translateCaption = async function(btn, elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            // Toggle back to original
+            if (btn.dataset.translated === "true") {
+                el.innerHTML = btn.dataset.original;
+                btn.innerText = "Terjemahkan";
+                btn.dataset.translated = "false";
+                return;
+            }
+
+            // Save original HTML
+            if (!btn.dataset.original) {
+                btn.dataset.original = el.innerHTML;
+            }
+
+            const originalText = el.innerText; // Get plain text
+            const originalBtnText = btn.innerText;
+            
+            btn.innerText = "Menterjemahkan...";
+            btn.disabled = true;
+            btn.classList.add("animate-pulse");
+
+            try {
+                // Use Google Translate via CORS Proxy
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=id&dt=t&q=${encodeURIComponent(originalText)}`;
+                const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+                const data = await res.json();
+
+                if (data && data[0]) {
+                    let translated = "";
+                    data[0].forEach(item => { if (item[0]) translated += item[0]; });
+                    
+                    // Replace newlines with <br>
+                    el.innerHTML = translated.replace(/\n/g, '<br>');
+                    btn.innerText = "Lihat Asli";
+                    btn.dataset.translated = "true";
+                } else {
+                    throw new Error("Translation failed");
+                }
+            } catch (e) {
+                console.error(e);
+                btn.innerText = "Gagal";
+                setTimeout(() => { btn.innerText = originalBtnText; }, 2000);
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove("animate-pulse");
+            }
+        };
+
+        // Helper: Toggle Mute (New Feature)
+        window.toggleMute = function(btn) {
+            const container = btn.closest('.relative');
+            const video = container.querySelector('video');
+            if(video) {
+                video.muted = !video.muted;
+                btn.innerHTML = video.muted ? '<i data-lucide="volume-x" class="w-5 h-5"></i>' : '<i data-lucide="volume-2" class="w-5 h-5"></i>';
+                if(typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        };
+
+        // --- NEW: Video Subtitle Feature ---
+        window.toggleVideoSubtitles = async function(btn, captionId) {
+            const container = btn.closest('.relative');
+            const overlay = container.querySelector('.subtitle-overlay');
+            const captionEl = document.getElementById(captionId);
+            
+            if (!overlay || !captionEl) return;
+
+            // Toggle Off
+            if (!overlay.classList.contains('hidden')) {
+                overlay.classList.add('hidden');
+                btn.classList.remove('bg-blue-600', 'border-blue-500');
+                btn.classList.add('bg-black/40', 'border-white/10');
+                return;
+            }
+
+            // Toggle On
+            overlay.classList.remove('hidden');
+            btn.classList.remove('bg-black/40', 'border-white/10');
+            btn.classList.add('bg-blue-600', 'border-blue-500');
+            
+            // Check if already translated
+            if (overlay.dataset.translated === "true") return;
+
+            const originalBtnHtml = btn.innerHTML;
+            overlay.innerHTML = '<div class="flex items-center justify-center gap-2"><i data-lucide="loader" class="w-3 h-3 animate-spin"></i> <span class="opacity-80">Menerjemahkan suara...</span></div>';
+            btn.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i> Loading...';
+            if(typeof lucide !== 'undefined') lucide.createIcons();
+
+            const originalText = captionEl.innerText.trim();
+            
+            try {
+                // Use Google Translate via CORS Proxy
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=id&dt=t&q=${encodeURIComponent(originalText)}`;
+                const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+                const data = await res.json();
+
+                if (data && data[0]) {
+                    let translated = "";
+                    data[0].forEach(item => { if (item[0]) translated += item[0]; });
+                    overlay.innerText = translated;
+                    overlay.dataset.translated = "true";
+                } else {
+                    overlay.innerText = "Gagal menerjemahkan.";
+                }
+            } catch (e) {
+                console.error(e);
+                overlay.innerText = "Gagal memuat subtitle.";
+            } finally {
+                btn.innerHTML = originalBtnHtml;
+                if(typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        };
+
         async function loadHomeFeed() {
             const container = document.getElementById('home-feed-container');
             if(!container) return;
@@ -977,7 +1122,7 @@
             
             // Gunakan URL Google Sheet yang sudah ada di script.js
             // Fallback URL jika variabel tidak ditemukan
-            const SHEET_URL = (typeof GOOGLE_SCRIPT_URL !== 'undefined') ? GOOGLE_SCRIPT_URL : "https://script.google.com/macros/s/AKfycbyuRtzzICS1qoBxWKdOJpHeqWCUN6Wt04xAIi_sYQHd0wSxjc89eumDWAYYcKPrT8jV/exec";
+            const SHEET_URL = (typeof GOOGLE_SCRIPT_URL !== 'undefined') ? GOOGLE_SCRIPT_URL : "https://script.google.com/macros/s/AKfycbybJe6cBuciSnj4j4hmm3nN4C860Sen9RVht6b1O5cZoRpkwvBoDLw6jTkYa4tmUas1/exec";
 
             // Helper: Ubah Link YouTube jadi Embed
             const getEmbedUrl = (url) => {
@@ -993,7 +1138,7 @@
             };
 
             // Helper Render (Agar bisa dipanggil 2x: Cache & Network)
-            const render = (rawData) => {
+            const render = (rawData, allComments = []) => {
                 if (!Array.isArray(rawData)) return;
 
                 // Filter: Tampilkan jika ada Foto ATAU Video
@@ -1005,11 +1150,12 @@
                         userName: item.uid ? item.uid.split('@')[0] : 'Pengguna',
                         userPhoto: `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.uid || 'User'}`,
                         locationName: item.name || 'Lokasi Spot',
-                        likes: item.rating ? parseInt(item.rating) * 12 : 0,
+                        likes: item.likes || 0,
                         description: item.comment,
                         weight: item.weight,
-                        lat: item.lat,
-                        lng: item.lng
+                        lat: (typeof item.lat === 'string') ? parseFloat(item.lat.replace(',', '.')) : item.lat,
+                        lng: (typeof item.lng === 'string') ? parseFloat(item.lng.replace(',', '.')) : item.lng,
+                        comments: allComments.filter(c => c.postId === item.id)
                     },
                     time: item.createdAt ? new Date(item.createdAt) : new Date()
                 }));
@@ -1019,7 +1165,23 @@
 
                 container.innerHTML = '';
                 if (displayItems.length === 0) {
-                    container.innerHTML = '<div class="text-center text-slate-500 py-10 text-sm">Belum ada postingan terbaru.</div>';
+                    // Tampilan jika kosong: Tampilkan pesan + Tombol + Konten Eksternal
+                    container.innerHTML = `
+                        <div class="text-center text-slate-500 py-8 text-sm flex flex-col items-center gap-3">
+                            <div class="bg-neutral-800 p-3 rounded-full"><i data-lucide="image" class="w-6 h-6 opacity-50"></i></div>
+                            <p>Belum ada postingan pengguna.<br>Jadilah yang pertama memposting!</p>
+                            <button onclick="openAddModal()" class="text-blue-400 font-bold text-xs hover:text-white transition-colors border border-blue-500/30 px-4 py-2 rounded-full">Tambah Spot Baru</button>
+                        </div>
+                    `;
+                    
+                    // Tetap tampilkan konten eksternal (Wikipedia/Resep) agar tidak kosong melompong
+                    const extEl = document.createElement('div');
+                    extEl.id = 'external-feed-post-empty';
+                    extEl.className = "mb-4 border-b border-white/5 pb-4";
+                    container.appendChild(extEl);
+                    loadExternalFeedPost('external-feed-post-empty', 'mix');
+                    
+                    if(typeof lucide !== 'undefined') lucide.createIcons();
                     return;
                 }
 
@@ -1033,7 +1195,7 @@
                 }
 
                 // Tentukan posisi video secara acak (antara index 2, 3, atau 4)
-                const videoPostIndex = Math.floor(Math.random() * 3) + 2;
+                // const videoPostIndex = 2; // Dipindahkan ke logika loop di bawah
 
                 displayItems.forEach((item, index) => {
                     const d = item.data;
@@ -1041,60 +1203,98 @@
                     const weight = d.weight ? `${d.weight} KG` : null;
                     const comment = d.description || d.comment || 'Spot baru ditambahkan!';
                     const embedUrl = getEmbedUrl(d.video);
+                    // Gunakan ID unik baris (d.id) untuk like, bukan spotId (karena spotId bisa duplikat utk grouping)
+                    const postId = d.id; 
 
                     // Verified Badge SVG (Instagram Style)
                     const verifiedBadge = `<svg class="w-3.5 h-3.5 ml-1 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg>`;
 
                     const el = document.createElement('div');
+                    
+                    // Generate Daftar Komentar (Hidden by default)
+                    let commentsListHtml = '';
+                    if (d.comments && d.comments.length > 0) {
+                        commentsListHtml = `<div id="comments-list-${postId}" class="hidden mt-2 space-y-1 animate-in fade-in slide-in-from-top-1">` + 
+                            d.comments.map(c => `<p class="text-xs text-slate-300"><span class="font-bold text-white mr-1">${c.userName}</span>${c.text}</p>`).join('') +
+                        `</div>`;
+                    }
+
                     // Instagram Style: Full width, no card wrapper
-                    el.className = "mb-4 border-b border-white/5 pb-4 animate-in fade-in slide-in-from-bottom-8 duration-700";
+                    el.className = "bg-black mb-1 pb-2 border-b border-neutral-800 animate-in fade-in slide-in-from-bottom-8 duration-700";
                     el.innerHTML = `
                         <!-- Header -->
-                        <div class="flex items-center gap-3 px-4 py-3">
-                            <div class="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
-                                <div class="w-full h-full rounded-full border-2 border-slate-900 overflow-hidden bg-slate-800">
+                        <div class="flex items-center justify-between px-3 py-2.5">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
+                                    <div class="w-full h-full rounded-full border border-black overflow-hidden bg-neutral-800">
                                     <img src="${d.userPhoto}" class="w-full h-full object-cover">
                                 </div>
                             </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center">
-                                    <p class="text-sm font-bold text-white truncate mr-0.5">${d.userName}</p>
+                            <div>
+                                <div class="flex items-center gap-1">
+                                    <p class="text-sm font-semibold text-white truncate">${d.userName}</p>
                                     ${verifiedBadge}
                                 </div>
-                                <button onclick="if(typeof navigateTo === 'function') { navigateTo('map'); if(typeof map !== 'undefined') map.flyTo([${d.lat || 0}, ${d.lng || 0}], 15); }" class="text-[10px] text-blue-400 font-bold truncate hover:text-blue-300 transition-colors flex items-center gap-1 text-left max-w-full">
-                                    <i data-lucide="map-pin" class="w-3 h-3 shrink-0"></i> Lihat Spot
+                                <button onclick="if(typeof navigateTo === 'function') { navigateTo('map'); if(typeof map !== 'undefined') map.flyTo([${d.lat || 0}, ${d.lng || 0}], 15); }" class="text-xs text-blue-400 font-bold truncate hover:text-blue-300 transition-colors block text-left max-w-[200px]">
+                                    Lihat Lokasi Spot
                                 </button>
                             </div>
-                            <button class="text-slate-500 hover:text-white"><i data-lucide="more-horizontal" class="w-5 h-5"></i></button>
                         </div>
+                        <button class="text-white"><i data-lucide="more-horizontal" class="w-5 h-5"></i></button>
+                    </div>
 
-                        <!-- Media (Video Prioritas, kalau tidak ada baru Gambar) -->
-                        <div class="w-full aspect-[4/5] bg-slate-800 relative group overflow-hidden">
+                        <!-- Media -->
+                        <div class="w-full bg-neutral-900 relative group overflow-hidden" ondblclick="handleDoubleTapLike('${postId}', this)">
                             ${embedUrl ? 
-                                `<iframe src="${embedUrl}" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>` 
+                                `<div class="aspect-[4/5] w-full"><iframe src="${embedUrl}" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>` 
                                 : 
-                                `<img src="${d.image}" class="w-full h-full object-cover transition-transform duration-700" loading="lazy">`
+                                `<img src="${d.image}" class="w-full h-auto max-h-[600px] object-cover min-h-[300px]" loading="lazy">`
                             }
-                            ${!embedUrl && weight ? `<div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1 border border-white/10 shadow-lg"><i data-lucide="fish" class="w-3 h-3 text-emerald-400"></i> ${weight}</div>` : ''}
+                            ${!embedUrl && weight ? `<div class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2 py-1 rounded-md text-xs font-bold text-white flex items-center gap-1"><i data-lucide="fish" class="w-3 h-3 text-emerald-400"></i> ${weight}</div>` : ''}
+                            
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                                <i data-lucide="heart" class="w-24 h-24 text-white fill-white opacity-0 transform scale-0 transition-all duration-300 double-tap-heart drop-shadow-2xl"></i>
+                            </div>
                         </div>
 
                         <!-- Actions & Caption -->
-                        <div class="px-4 pt-3">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center gap-5">
-                                    <button class="text-white hover:text-red-500 transition-colors"><i data-lucide="heart" class="w-6 h-6"></i></button>
-                                    <button class="text-white hover:text-blue-400 transition-colors"><i data-lucide="message-circle" class="w-6 h-6"></i></button>
-                                    <button class="text-white hover:text-emerald-400 transition-colors"><i data-lucide="send" class="w-6 h-6"></i></button>
+                        <div class="px-3 pt-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-4">
+                                    <button onclick="handleLike('${postId}', this)" class="text-white hover:text-white/70 transition-colors group">
+                                        <i data-lucide="heart" class="w-6 h-6 group-active:scale-75 transition-transform ${isPostLiked(postId) ? 'fill-red-500 text-red-500' : ''}"></i>
+                                    </button>
+                                    <button onclick="toggleCommentSection('${postId}')" class="text-white hover:text-white/70 transition-colors"><i data-lucide="message-circle" class="w-6 h-6 -rotate-90"></i></button>
+                                    <button onclick="handleShare('${d.locationName}', '${comment}', '${d.image}')" class="text-white hover:text-white/70 transition-colors"><i data-lucide="send" class="w-6 h-6"></i></button>
                                 </div>
+                                <button onclick="handleSavePost('${postId}', this)" class="text-white hover:text-white/70 transition-colors group">
+                                    <i data-lucide="bookmark" class="w-6 h-6 group-active:scale-75 transition-transform ${isPostSaved(d.lat, d.lng) ? 'fill-white text-white' : ''}"></i>
+                                </button>
                             </div>
                             
-                            <p class="text-sm font-bold text-white mb-1">${d.likes || 0} suka</p>
+                            <p class="text-sm font-semibold text-white mb-1"><span id="likes-count-${postId}">${d.likes || 0}</span> suka</p>
                             
-                            <div class="text-sm text-slate-300 leading-relaxed mb-1">
-                                <span class="font-bold text-white mr-1">${d.userName}</span> ${comment}
+                            <div class="text-sm text-white leading-snug mb-1">
+                                <span class="font-semibold mr-1">${d.userName}</span>
+                                <span id="caption-${postId}">${comment}</span>
                             </div>
+                            <button onclick="translateCaption(this, 'caption-${postId}')" class="text-[10px] font-bold text-slate-500 hover:text-white mb-2 cursor-pointer">Terjemahkan</button>
                             
-                            <p class="text-[10px] text-slate-500 uppercase tracking-wide mt-2">${timeAgo}</p>
+                            ${d.comments && d.comments.length > 0 ? `<button onclick="toggleCommentsList('${postId}')" class="text-sm text-neutral-400 mb-1">Lihat semua ${d.comments.length} komentar</button>` : ''}
+                            
+                            <!-- Comments List Container -->
+                            ${commentsListHtml}
+
+                            <p class="text-[10px] text-neutral-500 uppercase tracking-wide mb-3">${timeAgo}</p>
+
+                            <!-- Comment Input Section (Hidden by default) -->
+                            <div id="comment-section-${postId}" class="hidden mt-2 flex items-center gap-3 border-t border-white/10 pt-3">
+                                <div class="w-7 h-7 rounded-full bg-slate-800 overflow-hidden shrink-0 border border-white/10">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${localStorage.getItem('guest_name') || 'Guest'}" class="w-full h-full object-cover">
+                                </div>
+                                <input type="text" id="comment-input-${postId}" class="bg-transparent border-none text-sm text-white flex-1 focus:outline-none placeholder-neutral-500" placeholder="Tambahkan komentar..." onkeypress="if(event.key === 'Enter') submitComment('${postId}')">
+                                <button onclick="submitComment('${postId}')" class="text-blue-400 text-xs font-semibold hover:text-white transition-colors">Kirim</button>
+                            </div>
                         </div>
                     `;
                     container.appendChild(el);
@@ -1108,8 +1308,8 @@
                         loadExternalFeedPost('external-feed-post-mix', 'mix'); // Mode Mix (Resep/Wiki)
                     }
 
-                    // --- POSISI 2: Video (Posisi Acak) ---
-                    if (index === videoPostIndex) {
+                    // --- POSISI 2: Video (Di bawah postingan ke-3) ---
+                    if (index === 2) {
                         const vidEl = document.createElement('div');
                         vidEl.id = 'external-feed-post-video';
                         vidEl.className = "mb-4 border-b border-white/5 pb-4";
@@ -1133,18 +1333,30 @@
             // 1. CACHE FIRST: Tampilkan data tersimpan (Instan)
             const cached = localStorage.getItem('feed_cache');
             if (cached) {
-                try { render(JSON.parse(cached)); } catch (e) { console.warn("Cache invalid"); }
+                try { 
+                    const parsed = JSON.parse(cached);
+                    // Support format lama (array) dan baru (object)
+                    const spots = Array.isArray(parsed) ? parsed : (parsed.spots || []);
+                    const comments = Array.isArray(parsed) ? [] : (parsed.comments || []);
+                    render(spots, comments); 
+                } catch (e) { console.warn("Cache invalid"); }
             }
 
             // 2. NETWORK SECOND: Ambil data baru di background
             try {
-                const res = await fetch(SHEET_URL);
+                // FIX: Tambahkan timestamp (?t=...) agar browser tidak menggunakan cache lama
+                // Gunakan type=all untuk mengambil spot DAN komentar sekaligus
+                const res = await fetch(`${SHEET_URL}?type=all&t=${Date.now()}`);
                 const data = await res.json();
 
-                if (Array.isArray(data)) {
+                // Cek format data (Object dengan spots & comments atau Array lama)
+                if (data && (Array.isArray(data) || data.spots)) {
+                    const spots = Array.isArray(data) ? data : (data.spots || []);
+                    const comments = data.comments || [];
+                    
                     // Update Cache & UI
-                    localStorage.setItem('feed_cache', JSON.stringify(data));
-                    render(data);
+                    localStorage.setItem('feed_cache', JSON.stringify({ spots, comments }));
+                    render(spots, comments);
                 }
             } catch (e) {
                 console.warn("Gagal fetch Google Sheet, bertahan dengan cache:", e);
@@ -1879,6 +2091,8 @@
         // --- NEW: External Feed Post (Wikipedia & TheMealDB) ---
         // Cache memori untuk menyimpan data postingan eksternal agar tidak berubah-ubah saat re-render
         let externalPostDataCache = {};
+        let fishWatchDataCache = null; // Cache untuk data FishWatch (agar tidak fetch ulang terus)
+        let usedWikiKeywords = []; // Menyimpan kata kunci Wikipedia yang sudah ditampilkan agar tidak duplikat
 
         async function loadExternalFeedPost(containerId, mode = 'random') {
             const container = document.getElementById(containerId);
@@ -1891,18 +2105,27 @@
 
             // 1. CEK CACHE: Jika data untuk mode ini sudah ada, pakai yang lama (biar tidak kedip/ganti konten)
             if (externalPostDataCache[mode]) {
+                if (externalPostDataCache[mode] === 'loading') return; // Sedang loading, skip agar tidak double fetch
                 renderExternalPostUI(container, externalPostDataCache[mode]);
                 return;
             }
 
+            externalPostDataCache[mode] = 'loading'; // Tandai sedang loading
             // Tentukan tipe konten berdasarkan mode
             let sourceType;
             if (mode === 'video') {
-                sourceType = 2; // Force Video
+                // Random antara Kategori NASA (4-7)
+                const videoTypes = [4, 5, 6, 7];
+                sourceType = videoTypes[Math.floor(Math.random() * videoTypes.length)];
+            } else if (mode === 'wiki') {
+                sourceType = 1; // Force Wiki (Fallback)
             } else if (mode === 'mix') {
-                sourceType = Math.floor(Math.random() * 2); // 0 (Resep) atau 1 (Wiki)
+                // Random antara 0 (Resep), 1 (Wiki), atau 3 (Ensiklopedia)
+                const types = [0, 1, 3];
+                sourceType = types[Math.floor(Math.random() * types.length)];
             } else {
-                sourceType = Math.floor(Math.random() * 3); // Random semua
+                const types = [0, 1, 3, 4, 5, 6, 7]; // Random semua (Tanpa Video Wikipedia & Arsip)
+                sourceType = types[Math.floor(Math.random() * types.length)];
             }
             
             let postData = null;
@@ -1910,7 +2133,17 @@
             try {
                 // --- SUMBER 1: TheMealDB (Resep Seafood) ---
                 if (sourceType === 0) {
-                    const res = await fetch('https://www.themealdb.com/api/json/v1/1/filter.php?c=Seafood');
+                    // Random: 70% Seafood Global, 30% Masakan Indonesia
+                    const useIndo = Math.random() < 0.3;
+                    let url = 'https://www.themealdb.com/api/json/v1/1/filter.php?c=Seafood';
+                    let sourceLabel = "Resep Seafood";
+                    
+                    if (useIndo) {
+                        url = 'https://www.themealdb.com/api/json/v1/1/filter.php?a=Indonesian';
+                        sourceLabel = "Kuliner Nusantara";
+                    }
+
+                    const res = await fetch(url);
                     const data = await res.json();
                     const simpleMeal = data.meals[Math.floor(Math.random() * data.meals.length)];
                     
@@ -1945,14 +2178,49 @@
                         location: "Dapur Umum",
                         image: meal.strMealThumb,
                         caption: captionHtml,
-                        sourceName: "Resep Seafood",
+                        sourceName: sourceLabel,
                         likes: Math.floor(Math.random() * 500) + 100
                     };
 
                 } else if (sourceType === 1) {
                     // --- SUMBER 2: Wikipedia (Fakta Ikan) ---
-                    const keywords = ["Ikan_badut", "Ikan_hiu", "Ikan_paus", "Ikan_pari", "Ikan_tuna", "Ikan_kakap", "Ikan_lele", "Ikan_nila", "Ikan_arwana", "Barakuda", "Marlin_biru", "Ikan_mas", "Ikan_tenggiri", "Ikan_tongkol", "Ikan_kerapu", "Ikan_kuwe", "Terumbu_karang", "Penyu", "Cumi-cumi", "Gurita", "Udang", "Kepiting", "Lobster"];
-                    const randomKey = keywords[Math.floor(Math.random() * keywords.length)];
+                    const keywords = [
+                        // Ikan Laut & Tawar
+                        "Ikan_badut", "Ikan_hiu", "Ikan_paus", "Ikan_pari", "Ikan_tuna", "Ikan_kakap", "Ikan_lele", "Ikan_nila", 
+                        "Ikan_arwana", "Barakuda", "Marlin_biru", "Ikan_mas", "Ikan_tenggiri", "Ikan_tongkol", "Ikan_kerapu", 
+                        "Ikan_kuwe", "Ikan_bawal", "Ikan_patin", "Ikan_gabus", "Ikan_belanak", "Ikan_mujair", "Ikan_gurami", 
+                        "Ikan_layur", "Ikan_cakalang", "Ikan_teri", "Ikan_kembung", "Ikan_baronang", "Ikan_kakap_putih", 
+                        "Ikan_kakap_merah", "Ikan_napoleon", "Ikan_buntal", "Ikan_sepat", "Ikan_betok", "Ikan_sidat", "Ikan_belida",
+                        "Ikan_lemadang", "Ikan_layang", "Ikan_selar", "Ikan_ekor_kuning", "Ikan_manyung", "Ikan_sembilang",
+                        // Biota Laut Lainnya
+                        "Terumbu_karang", "Penyu", "Cumi-cumi", "Gurita", "Udang", "Kepiting", "Lobster", "Kuda_laut", 
+                        "Ubur-ubur", "Bintang_laut", "Lumba-lumba", "Dugong", "Anjing_laut", "Singa_laut", "Walrus", 
+                        "Paus_pembunuh", "Paus_biru", "Kerang", "Tiram", "Siput_laut", "Bulu_babi", "Teripang",
+                        // Alat & Teknik Mancing
+                        "Memancing", "Joran", "Kail", "Umpan_pancing", "Senar_pancing", "Reel_pancing", "Pelampung_(memancing)",
+                        "Teknik_memancing", "Jigging", "Casting_(memancing)", "Trolling_(memancing)", "Fly_fishing", 
+                        "Mancing_dasaran", "Popping_(memancing)", "Rawai", "Jala", "Bubu", "Rumpon",
+                        // Lokasi & Ekosistem
+                        "Laut", "Sungai", "Danau", "Rawa", "Waduk", "Muara", "Pantai", "Hutan_bakau", "Padang_lamun", 
+                        "Palung_laut", "Samudra", "Teluk", "Selat", "Tanjung", "Delta_sungai",
+                        // Destinasi Indonesia
+                        "Danau_Toba", "Taman_Nasional_Bunaken", "Kepulauan_Raja_Ampat", "Taman_Nasional_Komodo", 
+                        "Taman_Nasional_Wakatobi", "Kepulauan_Derawan", "Karimunjawa", "Nusa_Penida", "Gili_Trawangan",
+                        "Laut_Banda", "Selat_Bali", "Teluk_Cenderawasih", "Pulau_Weh", "Taman_Nasional_Ujung_Kulon"
+                    ];
+                    
+                    // Filter kata kunci yang belum dipakai
+                    let availableKeywords = keywords.filter(k => !usedWikiKeywords.includes(k));
+                    
+                    // Jika semua sudah dipakai, reset list agar mulai dari awal lagi
+                    if (availableKeywords.length === 0) {
+                        usedWikiKeywords = [];
+                        availableKeywords = keywords;
+                    }
+                    
+                    const randomKey = availableKeywords[Math.floor(Math.random() * availableKeywords.length)];
+                    usedWikiKeywords.push(randomKey); // Tandai sebagai sudah dipakai
+                    
                     const res = await fetch(`https://id.wikipedia.org/api/rest_v1/page/summary/${randomKey}`);
                     const data = await res.json();
 
@@ -1985,92 +2253,411 @@
                             likes: Math.floor(Math.random() * 200) + 50
                         };
                     }
-                } else if (sourceType === 2) {
-                    // --- SUMBER 3: YouTube Highlights (Video Pilihan) ---
-                    // Koleksi Video Otomatis (Tutorial, Hiburan, Tips)
-                    // Aplikasi akan memilih satu secara acak dari daftar ini
-                    const videos = [
-                        // ID Video YouTube diambil dari URL (v=...)
-                        { id: "pjzUb5QRKuk", title: "Cara Ikat Kail Pancing (FG Knot)", author: "Knot Master" },
-                        { id: "Hu0vJ_lPjwc", title: "Sensasi Strike Ikan Toman", author: "Gondrong Labanan" },
-                        { id: "7wJj5y6z8k0", title: "Mancing Mania Mantap!", author: "Trans7 Official" },
-                        { id: "J_8mdH20qTQ", title: "Teknik Casting Gabus", author: "Dunia Pancing" },
-                        { id: "qQ1tQ5w6e7s", title: "Tips Memilih Joran", author: "Dudit Widodo" }
+                } else if (sourceType === 3) {
+                    // --- SUMBER 4: FishWatch API (Ensiklopedia Ikan - No 1) ---
+                    // Menggunakan CORS Proxy karena API ini kadang memblokir akses langsung dari browser
+                    if (!fishWatchDataCache) {
+                        try {
+                            // Gunakan allorigins (JSON Wrapper) agar lebih stabil dan tidak error SyntaxError jika API down/HTML
+                            const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://www.fishwatch.gov/api/species')}`);
+                            if (!res.ok) throw new Error("Network response was not ok");
+                            const wrapper = await res.json();
+                            
+                            if (wrapper && wrapper.contents) {
+                                fishWatchDataCache = JSON.parse(wrapper.contents);
+                            } else {
+                                throw new Error("Invalid wrapper response");
+                            }
+                        } catch (e) {
+                            console.warn("FishWatch API failed, fallback to Wiki", e);
+                            delete externalPostDataCache[mode]; // Reset status loading agar tidak stuck
+                            return loadExternalFeedPost(containerId, 'wiki'); // Fallback ke Wiki
+                        }
+                    }
+
+                    if (fishWatchDataCache && Array.isArray(fishWatchDataCache) && fishWatchDataCache.length > 0) {
+                        // Pilih ikan secara acak
+                        const fish = fishWatchDataCache[Math.floor(Math.random() * fishWatchDataCache.length)];
+                        
+                        // Ekstrak Data (Bersihkan tag HTML yang mungkin terbawa)
+                        const name = fish['Species Name'];
+                        const sciName = fish['Scientific Name'];
+                        const habitat = fish['Habitat'] ? fish['Habitat'].replace(/<[^>]*>?/gm, '').substring(0, 120) + '...' : 'Habitat laut.';
+                        const desc = fish['Physical Description'] ? fish['Physical Description'].replace(/<[^>]*>?/gm, '').substring(0, 150) + '...' : 'Deskripsi tidak tersedia.';
+                        
+                        let imgUrl = 'https://cdn-icons-png.flaticon.com/512/1998/1998610.png';
+                        if (fish['Image Gallery'] && fish['Image Gallery'][0] && fish['Image Gallery'][0].src) {
+                            imgUrl = fish['Image Gallery'][0].src;
+                        }
+
+                        postData = {
+                            userName: "Ahli Biologi Laut",
+                            userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Professor",
+                            location: "Ensiklopedia Ikan",
+                            image: imgUrl,
+                            caption: `<b>${name}</b> <i>(${sciName})</i><br><br>🧬 <b>Fakta Biologis:</b><br>${desc}<br><br>🌊 <b>Habitat:</b> ${habitat}`,
+                            sourceName: "FishWatch NOAA",
+                            likes: Math.floor(Math.random() * 300) + 100
+                        };
+                    }
+                } else if (sourceType === 4) {
+                    // --- SUMBER 5: NASA OCEAN (Laut & Air) ---
+                    // Menggantikan Wikimedia yang kurang bagus
+                    const keywords = [
+                        "ocean", "coral reef", "sea life", "underwater", "jellyfish", "shark", "whale", "dolphin", "sea turtle", 
+                        "pacific ocean", "atlantic ocean", "waves", "deep sea", "marine biology", "scuba", "reef", "tropical fish", 
+                        "manta ray", "octopus", "seahorse", "kelp forest", "plankton", "shipwreck", "arctic ocean", "indian ocean", 
+                        "southern ocean", "barrier reef", "mariana trench", "sea ice", "ice shelf", "ocean currents", "tides", 
+                        "hydrothermal vent", "abyss", "coast", "shoreline", "estuary", "mangrove", "lagoon", "fjord", "atoll", "archipelago",
+                        "marine life", "aquatic", "sea floor", "benthic", "pelagic", "coastal", "marine ecosystem", "oceanography", 
+                        "sea exploration", "submersible", "rov", "marine sanctuary", "great blue hole", "sargasso sea", "bermuda triangle", 
+                        "gulf stream", "tsunami", "tidal wave", "sea storm", "ocean sunset", "ocean sunrise", "bioluminescence", "red tide", 
+                        "algae bloom", "coral bleaching", "marine pollution", "plastic ocean", "oil spill ocean", "sea birds", "penguin", 
+                        "seal", "walrus", "polar bear swim", "otter", "manatee", "dugong", "orca", "sperm whale", "humpback whale", 
+                        "blue whale", "narwhal", "beluga", "sea lion", "crustacean", "mollusk", "echinoderm", "sponge", "anemone"
                     ];
+                    const keyword = keywords[Math.floor(Math.random() * keywords.length)];
                     
-                    // Pilih satu video secara acak
-                    const vid = videos[Math.floor(Math.random() * videos.length)];
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const res = await fetch(`https://images-api.nasa.gov/search?q=${keyword}&media_type=video`, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+                        const data = await res.json();
+                        
+                        if (data.collection && data.collection.items && data.collection.items.length > 0) {
+                            const items = data.collection.items;
+                            const item = items[Math.floor(Math.random() * items.length)];
+                            const meta = item.data[0];
+                            const collectionUrl = item.href.replace("http:", "https:");
+                            
+                            const videoRes = await fetch(collectionUrl);
+                            const videoFiles = await videoRes.json();
+                            const mp4 = videoFiles.find(f => f.endsWith('~medium.mp4')) || videoFiles.find(f => f.endsWith('.mp4'));
+                            const thumb = item.links ? item.links.find(l => l.rel === 'preview')?.href : '';
+
+                            if (mp4) {
+                                postData = {
+                                    userName: "NatGeo Ocean",
+                                    userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ocean",
+                                    location: "Samudra",
+                                    videoFile: mp4.replace("http:", "https:"),
+                                    thumbnail: thumb,
+                                    caption: `<b>${meta.title}</b><br>${meta.description ? meta.description.substring(0, 120) + '...' : 'Keindahan laut dari arsip NASA.'}`,
+                                    sourceName: "National Geographic",
+                                    likes: Math.floor(Math.random() * 500) + 200
+                                };
+                            }
+                        }
+                    } catch(e) { console.warn("NASA Ocean failed", e); }
+                } else if (sourceType === 5) {
+                    // --- SUMBER 6: NASA SPACE (Luar Angkasa) ---
+                    const keywords = [
+                        "galaxy", "nebula", "planet", "sun", "moon", "mars", "jupiter", "saturn", "astronaut", "iss", "spacewalk", 
+                        "solar flare", "black hole", "supernova", "milky way", "asteroid", "comet", "constellation", "hubble telescope", 
+                        "james webb telescope", "space station", "launch", "rocket", "eclipse", "pluto", "venus", "mercury", "uranus", 
+                        "neptune", "star cluster", "pulsar", "quasar", "earth orbit", "satellite view", "deep space", "exoplanet", 
+                        "cosmic dust", "dark matter", "gravity", "spacex", "artemis", "orion", "voyager", "cassini", "juno", 
+                        "perseverance", "curiosity rover", "international space station", "zero gravity", "cosmos", "universe", 
+                        "astronomy", "astrophysics", "stargazing", "telescope view", "observatory", "radio telescope", "spitzer", 
+                        "chandra", "kepler", "tess", "gaia", "rosetta", "new horizons", "dawn spacecraft", "osiris-rex", "hayabusa", 
+                        "parker solar probe", "solar orbiter", "stereo spacecraft", "sdo", "soho", "goes satellite", "landsat", 
+                        "sentinel satellite", "copernicus satellite", "galileo satellite", "gps satellite", "communication satellite", 
+                        "space debris", "space junk", "reentry", "splashdown", "docking", "undocking", "soyuz", "progress spacecraft", 
+                        "dragon capsule", "starliner", "dream chaser", "blue origin", "virgin galactic", "space tourism", "moon landing", 
+                        "apollo", "gemini", "mercury program", "skylab", "mir space station", "salyut", "tiangong", "shenzhou", 
+                        "gaganyaan", "chandrayaan", "mangalyaan", "hope mars mission", "emirates mars mission", "tianwen", 
+                        "change moon mission", "luna moon mission", "viking mars", "mariner", "pioneer", "surveyor", "ranger", 
+                        "magellan", "galileo jupiter", "ulysses", "near shoemaker", "deep impact", "stardust", "genesis", "messenger", 
+                        "lro", "lcross", "grail", "ladee", "maven", "insight", "psyche", "lucy", "dart", "juice mission", 
+                        "europa clipper", "dragonfly titan", "roman space telescope", "euclid", "plato", "ariel", "athena", "lisa", "gwst"
+                    ];
+                    const keyword = keywords[Math.floor(Math.random() * keywords.length)];
                     
-                    postData = {
-                        userName: vid.author,
-                        userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Youtube",
-                        location: "YouTube Channel",
-                        videoUrl: `https://www.youtube.com/embed/${vid.id}?autoplay=0&controls=1&rel=0&playsinline=1&mute=1`,
-                        caption: `<b>${vid.title}</b><br>Tonton video pilihan hari ini! Jangan lupa like & subscribe channel aslinya ya. 🎥🎣`,
-                        sourceName: "YouTube",
-                        likes: Math.floor(Math.random() * 2000) + 1000
-                    };
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const res = await fetch(`https://images-api.nasa.gov/search?q=${keyword}&media_type=video`, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+                        const data = await res.json();
+                        
+                        if (data.collection && data.collection.items && data.collection.items.length > 0) {
+                            const items = data.collection.items;
+                            const item = items[Math.floor(Math.random() * items.length)];
+                            const meta = item.data[0];
+                            const collectionUrl = item.href.replace("http:", "https:");
+                            
+                            // Fetch actual video files
+                            const videoRes = await fetch(collectionUrl);
+                            const videoFiles = await videoRes.json();
+                            const mp4 = videoFiles.find(f => f.endsWith('~medium.mp4')) || videoFiles.find(f => f.endsWith('.mp4'));
+                                        
+                            const thumb = item.links ? item.links.find(l => l.rel === 'preview')?.href : '';
+
+                            if (mp4) {
+                                postData = {
+                                    userName: "NASA Space",
+                                    userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Space",
+                                    location: "Luar Angkasa",
+                                    videoFile: mp4.replace("http:", "https:"),
+                                    thumbnail: thumb,
+                                    caption: `<b>${meta.title}</b><br>${meta.description ? meta.description.substring(0, 120) + '...' : 'Video luar angkasa NASA.'}`,
+                                    sourceName: "NASA TV",
+                                    likes: Math.floor(Math.random() * 500) + 200
+                                };
+                            }
+                        }
+                    } catch(e) { console.warn("NASA API failed", e); }
+                } else if (sourceType === 6) {
+                    // --- SUMBER 7: NASA EARTH (Pemandangan Bumi) ---
+                    // Menggantikan Internet Archive yang "ngaco"
+                    const keywords = [
+                        "earth from space", "earth view", "blue marble", "atmosphere", "clouds from space", "island from space", 
+                        "coastline space", "river delta space", "desert from space", "forest from space", "city lights space", 
+                        "glacier melt", "deforestation", "amazon rainforest", "sahara desert", "himalayas", "grand canyon", 
+                        "great barrier reef", "nile river", "andes mountains", "earth timelapse", "night lights", "weather satellite", 
+                        "hurricane from space", "typhoon from space", "volcano from space", "earth horizon", "sunrise from space", 
+                        "sunset from space", "aurora from space", "lightning from space", "earth curvature", "earth observation", 
+                        "remote sensing", "satellite imagery", "aerial photography", "geography", "geology", "topography", "cartography", 
+                        "biosphere", "hydrosphere", "lithosphere", "cryosphere", "climate change", "global warming", "greenhouse effect", 
+                        "carbon cycle", "water cycle", "nitrogen cycle", "ozone layer", "stratosphere", "mesosphere", "thermosphere", 
+                        "exosphere", "ionosphere", "magnetosphere", "van allen belts", "geomagnetic storm", "space weather", "solar wind", 
+                        "coronal mass ejection", "aurora australis", "southern lights", "airglow", "noctilucent clouds", 
+                        "polar mesospheric clouds", "nacreous clouds", "contrails", "ship tracks", "dust storm", "haze", "smoke", 
+                        "volcanic ash", "pyrocumulonimbus", "urban heat island", "light pollution", "agriculture from space", 
+                        "irrigation from space", "mining from space", "urban sprawl", "infrastructure from space", "roads from space", 
+                        "bridges from space", "dams from space", "canals from space", "ports from space", "airports from space"
+                    ];
+                    const keyword = keywords[Math.floor(Math.random() * keywords.length)];
+                    
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const res = await fetch(`https://images-api.nasa.gov/search?q=${keyword}&media_type=video`, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+                        const data = await res.json();
+                        
+                        if (data.collection && data.collection.items && data.collection.items.length > 0) {
+                            const items = data.collection.items;
+                            const item = items[Math.floor(Math.random() * items.length)];
+                            const meta = item.data[0];
+                            const collectionUrl = item.href.replace("http:", "https:");
+                            
+                            const videoRes = await fetch(collectionUrl);
+                            const videoFiles = await videoRes.json();
+                            const mp4 = videoFiles.find(f => f.endsWith('~medium.mp4')) || videoFiles.find(f => f.endsWith('.mp4'));
+                            const thumb = item.links ? item.links.find(l => l.rel === 'preview')?.href : '';
+
+                            if (mp4) {
+                                postData = {
+                                    userName: "NASA Earth",
+                                    userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Earth",
+                                    location: "Orbit Bumi",
+                                    videoFile: mp4.replace("http:", "https:"),
+                                    thumbnail: thumb,
+                                    caption: `<b>${meta.title}</b><br>${meta.description ? meta.description.substring(0, 120) + '...' : 'Pemandangan Bumi dari angkasa.'}`,
+                                    sourceName: "NASA",
+                                    likes: Math.floor(Math.random() * 600) + 300
+                                };
+                            }
+                        }
+                    } catch(e) { console.warn("NASA Earth failed", e); }
+                } else if (sourceType === 7) {
+                    // --- SUMBER 8: NASA NATURE (Fenomena Alam) ---
+                    // Menggantikan Pure Nature (Wikimedia)
+                    const keywords = [
+                        "aurora borealis", "northern lights", "hurricane", "storm", "volcano", "glacier", "iceberg", "lightning", 
+                        "tornado", "river", "mountain", "thunderstorm", "blizzard", "sandstorm", "monsoon", "typhoon", "cyclone", 
+                        "rainforest", "waterfall", "canyon", "cave", "cliff", "valley", "savanna", "tundra", "wildfire", "flood", 
+                        "drought", "eruption", "lava", "geyser", "national park", "wilderness", "landscape", "scenery", "sunset", 
+                        "sunrise", "cloud formation", "fog", "mist", "rainbow", "seascape", "desert landscape", "mountain range", 
+                        "forest aerial", "jungle aerial", "river aerial", "ecology", "biodiversity", "conservation", "habitat", 
+                        "ecosystem", "biome", "flora", "fauna", "vegetation", "wildlife", "animal behavior", "migration", "predation", 
+                        "symbiosis", "parasitism", "mutualism", "commensalism", "evolution", "adaptation", "natural selection", 
+                        "extinction", "endangered species", "invasive species", "pollution", "climate", "weather", "meteorology", 
+                        "seasons", "spring", "summer", "autumn", "winter", "solstice", "equinox", "day", "night", "twilight", "dawn", 
+                        "dusk", "cloud types", "cumulus", "stratus", "cirrus", "nimbus", "fog types", "radiation fog", "advection fog", 
+                        "upslope fog", "evaporation fog", "precipitation", "rain", "snow", "hail", "sleet", "graupel", "dew", "frost", 
+                        "ice", "glaciation", "erosion", "weathering", "sedimentation", "deposition", "tectonics", "plate tectonics", 
+                        "earthquake", "seismology", "volcanology", "mineralogy", "petrology", "paleontology", "fossil", "dinosaur", 
+                        "prehistoric life"
+                    ];
+                    const keyword = keywords[Math.floor(Math.random() * keywords.length)];
+                    
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const res = await fetch(`https://images-api.nasa.gov/search?q=${keyword}&media_type=video`, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+                        const data = await res.json();
+                        
+                        if (data.collection && data.collection.items && data.collection.items.length > 0) {
+                            const items = data.collection.items;
+                            const item = items[Math.floor(Math.random() * items.length)];
+                            const meta = item.data[0];
+                            const collectionUrl = item.href.replace("http:", "https:");
+                            
+                            const videoRes = await fetch(collectionUrl);
+                            const videoFiles = await videoRes.json();
+                            const mp4 = videoFiles.find(f => f.endsWith('~medium.mp4')) || videoFiles.find(f => f.endsWith('.mp4'));
+                            const thumb = item.links ? item.links.find(l => l.rel === 'preview')?.href : '';
+
+                            if (mp4) {
+                                postData = {
+                                    userName: "NatGeo Wild",
+                                    userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Nature",
+                                    location: "Fenomena Alam",
+                                    videoFile: mp4.replace("http:", "https:"),
+                                    thumbnail: thumb,
+                                    caption: `<b>${meta.title}</b><br>${meta.description ? meta.description.substring(0, 120) + '...' : 'Fenomena alam dari arsip NASA.'}`,
+                                    sourceName: "National Geographic",
+                                    likes: Math.floor(Math.random() * 400) + 150
+                                };
+                            }
+                        }
+                    } catch(e) { console.warn("NASA Nature failed", e); }
                 }
 
                 // 2. SIMPAN KE CACHE & RENDER
                 if (postData) {
-                    // externalPostDataCache[mode] = postData; // Optional: Cache disabled for variety on refresh
-                    renderExternalPostUI(container, postData);
+                    externalPostDataCache[mode] = postData; // Simpan ke cache agar render berikutnya (Network) pakai data yang sama
+                    // Re-query container karena elemen DOM mungkin sudah diganti oleh render ulang
+                    const currentContainer = document.getElementById(containerId);
+                    if(currentContainer) renderExternalPostUI(currentContainer, postData);
+                } else {
+                    delete externalPostDataCache[mode]; // Hapus status loading jika gagal
+                    
+                    // --- AUTO RETRY LOGIC ---
+                    // Jika gagal load (timeout/kosong), coba lagi otomatis setelah 500ms
+                    console.log("Konten eksternal gagal/timeout, mencoba sumber lain...");
+                    setTimeout(() => loadExternalFeedPost(containerId, mode), 500);
                 }
             } catch (e) {
                 console.warn("Gagal load external post", e);
                 container.style.display = 'none';
+                
+                // Retry juga saat error catch (misal network error)
+                delete externalPostDataCache[mode];
+                setTimeout(() => loadExternalFeedPost(containerId, mode), 1000);
+            }
+        }
+
+        // Helper: Toggle Video Play/Pause (TikTok Style)
+        window.toggleVideo = function(container) {
+            const video = container.querySelector('video');
+            const icon = container.querySelector('.play-icon');
+            const spinner = container.querySelector('.loading-spinner');
+            
+            if (!video) return;
+
+            if (video.paused) {
+                if(spinner) spinner.classList.remove('hidden'); // Show spinner while loading
+                video.muted = false; // Pastikan suara menyala saat play
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => { icon.classList.add('opacity-0', 'scale-150'); if(spinner) spinner.classList.add('hidden'); })
+                        .catch(e => { 
+                            console.error("Play error", e); 
+                            if(spinner) spinner.classList.add('hidden');
+                            // FIX: Auto refresh dimatikan agar user bisa memilih sendiri
+                            // Biarkan user menekan tombol refresh manual jika video error
+                        });
+                }
+            } else {
+                video.pause();
+                icon.classList.remove('opacity-0', 'scale-150'); // Muncul kembali
+            }
+        }
+
+        // Helper: Refresh Video (Ganti Video Baru)
+        window.refreshVideo = function(containerId) {
+            const container = document.getElementById(containerId);
+            if(container) {
+                const btn = container.querySelector('.refresh-btn i');
+                if(btn) btn.classList.add('animate-spin'); // Visual feedback
+                delete externalPostDataCache['video']; 
+                delete externalPostDataCache['mix']; // Clear mix too just in case
+                loadExternalFeedPost(containerId, 'video'); // Load baru
             }
         }
 
         // Helper: Render Tampilan Postingan (Sama persis dengan Feed User)
         function renderExternalPostUI(container, d) {
+            container.className = "bg-black mb-1 pb-2 border-b border-neutral-800";
             container.innerHTML = `
                 <!-- Header -->
-                <div class="flex items-center gap-3 px-4 py-3 animate-in fade-in duration-500">
-                    <div class="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-blue-400 to-emerald-400">
-                        <div class="w-full h-full rounded-full border-2 border-slate-900 overflow-hidden bg-white">
+                <div class="flex items-center justify-between px-3 py-2.5 animate-in fade-in duration-500">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-tr from-blue-400 to-emerald-400">
+                            <div class="w-full h-full rounded-full border border-black overflow-hidden bg-white">
                             <img src="${d.userAvatar}" class="w-full h-full object-contain">
                         </div>
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center">
-                            <p class="text-sm font-bold text-white truncate mr-0.5">${d.userName}</p>
-                            <svg class="w-3.5 h-3.5 ml-1 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg>
+                    <div>
+                        <div class="flex items-center gap-1">
+                            <p class="text-sm font-semibold text-white truncate">${d.userName}</p>
+                            <svg class="w-3 h-3 text-blue-500 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg>
                         </div>
-                        <p class="text-[10px] text-slate-400 font-medium">${d.location}</p>
+                        <p class="text-xs text-white/80 font-medium">${d.location}</p>
                     </div>
-                    <button class="text-slate-500 hover:text-white"><i data-lucide="more-horizontal" class="w-5 h-5"></i></button>
                 </div>
+                <button class="text-white"><i data-lucide="more-horizontal" class="w-5 h-5"></i></button>
+            </div>
 
                 <!-- Media (Video or Image) -->
-                <div class="w-full aspect-[4/5] bg-slate-800 relative group overflow-hidden">
+                <div class="w-full bg-neutral-900 relative group overflow-hidden" ondblclick="handleDoubleTapLike('${container.id}', this)">
                     ${d.videoUrl ? 
-                        `<iframe src="${d.videoUrl}" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>` 
-                        : 
-                        `<img src="${d.image}" class="w-full h-full object-cover transition-transform duration-700" loading="lazy">`
+                        `<div class="aspect-[4/5] w-full"><iframe src="${d.videoUrl}" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>` 
+                        : (d.videoFile ? 
+                            `<div class="aspect-[4/5] w-full flex items-center justify-center bg-black relative cursor-pointer overflow-hidden" onclick="toggleVideo(this)">
+                                <video src="${d.videoFile}" poster="${d.thumbnail || ''}" class="w-full h-full object-contain" playsinline loop crossorigin="anonymous" preload="metadata" onwaiting="this.parentElement.querySelector('.loading-spinner')?.classList.remove('hidden')" onplaying="this.parentElement.querySelector('.loading-spinner')?.classList.add('hidden')" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full text-slate-500 text-xs\\'>Video tidak tersedia</div>'"></video>
+                                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div class="play-icon bg-black/40 rounded-full p-4 backdrop-blur-sm transition-all duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                                    <div class="loading-spinner hidden absolute"><i data-lucide="loader" class="w-10 h-10 text-white animate-spin"></i></div>
+                                </div>
+                                <button onclick="event.stopPropagation(); refreshVideo('${container.id}')" class="refresh-btn absolute top-3 right-3 z-20 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md transition-all border border-white/10">
+                                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                                </button>
+                                <!-- NEW: Subtitle Button -->
+                                <button onclick="event.stopPropagation(); toggleVideoSubtitles(this, 'caption-${container.id}')" class="absolute bottom-3 left-3 z-20 bg-black/40 hover:bg-black/60 text-white px-3 py-1.5 rounded-full backdrop-blur-md transition-all border border-white/10 text-[10px] font-bold flex items-center gap-1.5 group">
+                                    <i data-lucide="captions" class="w-3.5 h-3.5 group-hover:scale-110 transition-transform"></i> Indo Sub
+                                </button>
+                                <!-- NEW: Subtitle Overlay -->
+                                <div class="subtitle-overlay hidden absolute bottom-14 left-4 right-4 bg-black/70 text-white text-center text-xs p-3 rounded-xl backdrop-blur-md transition-all duration-300 pointer-events-none border border-white/10 shadow-lg leading-relaxed z-10"></div>
+                             </div>`
+                            : `<img src="${d.image}" class="w-full h-auto max-h-[600px] object-cover min-h-[300px]" loading="lazy">`
+                        )
                     }
-                    <div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-bold text-white flex items-center gap-1 border border-white/10 shadow-lg"><i data-lucide="globe" class="w-3 h-3 text-blue-400"></i> ${d.sourceName}</div>
+                    <div class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2 py-1 rounded-md text-xs font-bold text-white flex items-center gap-1"><i data-lucide="globe" class="w-3 h-3 text-blue-400"></i> ${d.sourceName}</div>
+                    
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                        <i data-lucide="heart" class="w-24 h-24 text-white fill-white opacity-0 transform scale-0 transition-all duration-300 double-tap-heart drop-shadow-2xl"></i>
+                    </div>
                 </div>
 
                 <!-- Actions & Caption -->
-                <div class="px-4 pt-3">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-5">
-                            <button class="text-white hover:text-red-500 transition-colors"><i data-lucide="heart" class="w-6 h-6"></i></button>
-                            <button class="text-white hover:text-blue-400 transition-colors"><i data-lucide="message-circle" class="w-6 h-6"></i></button>
-                            <button class="text-white hover:text-emerald-400 transition-colors"><i data-lucide="send" class="w-6 h-6"></i></button>
+                <div class="px-3 pt-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-4">
+                            <button onclick="handleLike('${container.id}', this)" class="text-white hover:text-white/70 transition-colors"><i data-lucide="heart" class="w-6 h-6 ${isPostLiked(container.id) ? 'fill-red-500 text-red-500' : ''}"></i></button>
+                            <button class="text-white hover:text-white/70 transition-colors"><i data-lucide="message-circle" class="w-6 h-6 -rotate-90"></i></button>
+                            <button class="text-white hover:text-white/70 transition-colors"><i data-lucide="send" class="w-6 h-6 -rotate-45 -mt-1"></i></button>
                         </div>
-                        <button class="text-white hover:text-yellow-400 transition-colors"><i data-lucide="bookmark" class="w-6 h-6"></i></button>
+                        <button onclick="alert('Fitur simpan untuk postingan eksternal akan segera hadir!')" class="text-white hover:text-white/70 transition-colors">
+                            <i data-lucide="bookmark" class="w-6 h-6"></i>
+                        </button>
                     </div>
                     
-                    <p class="text-sm font-bold text-white mb-1">${d.likes} suka</p>
+                    <p class="text-sm font-semibold text-white mb-1">${d.likes} suka</p>
                     
-                    <div class="text-sm text-slate-300 leading-relaxed mb-1">
-                        <span class="font-bold text-white mr-1">${d.userName}</span> ${d.caption}
+                    <div class="text-sm text-white leading-snug mb-1">
+                        <span class="font-semibold mr-1">${d.userName}</span>
+                        <span id="caption-${container.id}">${d.caption}</span>
                     </div>
+                    <button onclick="translateCaption(this, 'caption-${container.id}')" class="text-[10px] font-bold text-slate-500 hover:text-white mb-2 cursor-pointer">Terjemahkan</button>
                     
-                    <p class="text-[10px] text-slate-500 uppercase tracking-wide mt-2">Disponsori • Baru saja</p>
+                    <p class="text-[10px] text-neutral-500 uppercase tracking-wide mt-2">Disponsori • Baru saja</p>
                 </div>
             `;
             if(typeof lucide !== 'undefined') lucide.createIcons();
@@ -2136,16 +2723,25 @@
             }, step);
         }
 
+        let lastStoryInteraction = 0;
+
         // Handle Touch/Click Logic (Pause & Navigation)
-        function handleStoryTouch(action, direction) {
-            const wrapper = document.getElementById('story-scale-wrapper');
+        function handleStoryTouch(action, direction, event) {
+            // Prevent ghost clicks from touch events (Double firing fix)
+            if (event) {
+                if (event.type.startsWith('touch')) {
+                    lastStoryInteraction = Date.now();
+                } else if (event.type.startsWith('mouse') && (Date.now() - lastStoryInteraction < 500)) {
+                    // Ignore mouse event if touch happened recently
+                    return;
+                }
+            }
+
             if (action === 'start') {
                 isStoryPaused = true;
                 storyTouchStartTime = Date.now();
-                if(wrapper) wrapper.classList.add('scale-[0.98]'); // Efek tekan pada wrapper (bukan modal utama)
             } else if (action === 'end') {
                 isStoryPaused = false;
-                if(wrapper) wrapper.classList.remove('scale-[0.98]');
                 
                 const duration = Date.now() - storyTouchStartTime;
                 if (duration < 200) { // Jika tap cepat (<200ms), anggap navigasi
@@ -2175,6 +2771,292 @@
         function closeStoryViewer() {
             document.getElementById('storyViewerModal').classList.add('hidden');
             clearInterval(storyInterval);
+        }
+
+        // --- NEW: SOCIAL FEATURES (Like, Comment, Share) ---
+        
+        // 1. Cek apakah user sudah like post ini (Local Storage)
+        function isPostLiked(postId) {
+            return localStorage.getItem('liked_' + postId) === 'true';
+        }
+
+        // 1.5 Cek apakah user sudah save post ini (Berdasarkan Lokasi)
+        function isPostSaved(lat, lng) {
+            const favs = JSON.parse(localStorage.getItem('favorites') || '[]');
+            return favs.some(f => parseFloat(f.lat).toFixed(5) === parseFloat(lat).toFixed(5) && parseFloat(f.lng).toFixed(5) === parseFloat(lng).toFixed(5));
+        }
+
+        // 2. Handle Like
+        function handleLike(postId, btnElement) {
+            if (isPostLiked(postId)) {
+                // Opsional: Bisa tambah logika Unlike disini, tapi untuk sekarang kita batasi 1 like
+                const icon = btnElement.querySelector('svg');
+                icon.classList.add('animate-shake'); // Efek getar kalau sudah like
+                setTimeout(() => icon.classList.remove('animate-shake'), 500);
+                return; 
+            }
+
+            // Optimistic UI Update (Langsung merah & nambah angka sebelum request selesai)
+            const icon = btnElement.querySelector('svg'); // Lucide render svg inside button
+            if(icon) {
+                icon.classList.add('fill-red-500', 'text-red-500', 'scale-125');
+                setTimeout(() => icon.classList.remove('scale-125'), 200);
+            }
+            
+            const countEl = document.getElementById('likes-count-' + postId);
+            if(countEl) countEl.innerText = parseInt(countEl.innerText) + 1;
+
+            // Simpan status di LocalStorage
+            localStorage.setItem('liked_' + postId, 'true');
+
+            // Kirim ke Google Sheet
+            const SHEET_URL = (typeof GOOGLE_SCRIPT_URL !== 'undefined') ? GOOGLE_SCRIPT_URL : "https://script.google.com/macros/s/AKfycbybJe6cBuciSnj4j4hmm3nN4C860Sen9RVht6b1O5cZoRpkwvBoDLw6jTkYa4tmUas1/exec";
+            
+            fetch(SHEET_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Penting untuk GAS
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'like', id: postId })
+            }).catch(err => console.error("Gagal kirim like", err));
+        }
+
+        // 2.5 Handle Double Tap Like (Instagram Style)
+        window.handleDoubleTapLike = function(postId, container) {
+            // 1. Trigger Animation (Big Heart Center)
+            const heartIcon = container.querySelector('.double-tap-heart');
+            if (heartIcon) {
+                if (heartIcon.dataset.timeoutId) clearTimeout(parseInt(heartIcon.dataset.timeoutId));
+                
+                // Reset animation state
+                heartIcon.classList.remove('transition-all', 'duration-300');
+                heartIcon.classList.add('opacity-0', 'scale-0');
+                heartIcon.classList.remove('opacity-100', 'scale-110');
+                void heartIcon.offsetWidth; // Force reflow
+                
+                // Animate In
+                heartIcon.classList.add('transition-all', 'duration-300');
+                heartIcon.classList.remove('opacity-0', 'scale-0');
+                heartIcon.classList.add('opacity-100', 'scale-110');
+                
+                const id = setTimeout(() => {
+                    heartIcon.classList.remove('opacity-100', 'scale-110');
+                    heartIcon.classList.add('opacity-0', 'scale-0');
+                }, 800);
+                heartIcon.dataset.timeoutId = id;
+            }
+
+            // 2. Flying Heart Animation (New Feature)
+            const postDiv = container.parentElement;
+            let likeBtn = postDiv ? postDiv.querySelector(`button[onclick*="handleLike('${postId}'"]`) : null;
+            
+            // Fallback: Try finding any button with a heart icon if specific one not found
+            if (!likeBtn && postDiv) {
+                const heartIcon = postDiv.querySelector('button i[data-lucide="heart"]');
+                if (heartIcon) likeBtn = heartIcon.closest('button');
+            }
+            
+            if (likeBtn) {
+                const rectContainer = container.getBoundingClientRect();
+                const rectTarget = likeBtn.getBoundingClientRect();
+                
+                // Create flying element
+                const flyer = document.createElement('div');
+                flyer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="#ef4444" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+                flyer.className = 'fixed z-[9999] pointer-events-none transition-all duration-700 ease-in-out';
+                
+                const size = 80; 
+                flyer.style.width = `${size}px`;
+                flyer.style.height = `${size}px`;
+                
+                const startLeft = rectContainer.left + (rectContainer.width / 2) - (size / 2);
+                const startTop = rectContainer.top + (rectContainer.height / 2) - (size / 2);
+                
+                flyer.style.left = `${startLeft}px`;
+                flyer.style.top = `${startTop}px`;
+                flyer.style.transform = 'scale(0)';
+                flyer.style.opacity = '0';
+                
+                document.body.appendChild(flyer);
+
+                requestAnimationFrame(() => {
+                    flyer.style.transform = 'scale(1)';
+                    flyer.style.opacity = '1';
+                    
+                    setTimeout(() => {
+                        const targetLeft = rectTarget.left + (rectTarget.width / 2) - (size / 2);
+                        const targetTop = rectTarget.top + (rectTarget.height / 2) - (size / 2);
+                        
+                        flyer.style.left = `${targetLeft}px`;
+                        flyer.style.top = `${targetTop}px`;
+                        flyer.style.transform = 'scale(0.2)';
+                        flyer.style.opacity = '0.5';
+                        
+                        setTimeout(() => {
+                            flyer.remove();
+                            const btnIcon = likeBtn.querySelector('svg');
+                            if(btnIcon) {
+                                btnIcon.classList.add('animate-shake');
+                                setTimeout(() => btnIcon.classList.remove('animate-shake'), 500);
+                            }
+                        }, 700);
+                    }, 100);
+                });
+            }
+
+            // 3. Logic Like (Only if not liked yet)
+            if (!isPostLiked(postId)) {
+                if (likeBtn) {
+                    const onclickAttr = likeBtn.getAttribute('onclick');
+                    if (onclickAttr && onclickAttr.includes('handleLike')) {
+                        handleLike(postId, likeBtn);
+                    } else likeBtn.click();
+                }
+            }
+        };
+
+        // 3. Handle Share
+        function handleShare(title, text, url) {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Fishing Spot: ' + title,
+                    text: text || 'Cek spot mancing keren ini!',
+                    url: window.location.href // Share link web app
+                }).catch(console.error);
+            } else {
+                // Fallback: Copy Link
+                navigator.clipboard.writeText(window.location.href);
+                alert("Link disalin ke clipboard!");
+            }
+        }
+
+        // 4.1 Toggle Comments List (Show/Hide existing comments)
+        function toggleCommentsList(postId) {
+            const list = document.getElementById(`comments-list-${postId}`);
+            if(list) list.classList.toggle('hidden');
+        }
+
+        // 4. Toggle Comment Section
+        function toggleCommentSection(postId) {
+            const section = document.getElementById(`comment-section-${postId}`);
+            const input = document.getElementById(`comment-input-${postId}`);
+            if (section) {
+                section.classList.toggle('hidden');
+                if (!section.classList.contains('hidden') && input) setTimeout(() => input.focus(), 100);
+            }
+        }
+
+        // 5. Submit Comment (Inline)
+        function submitComment(postId) {
+            let userName = localStorage.getItem('guest_name');
+            if (!userName) {
+                userName = prompt("Masukkan nama panggilan Anda untuk berkomentar:");
+                if (userName) localStorage.setItem('guest_name', userName);
+                else return;
+            }
+            
+            const input = document.getElementById(`comment-input-${postId}`);
+            const text = input.value.trim();
+            if (!text) return;
+            
+            input.value = ''; // Clear input immediately
+
+            // Kirim ke Google Sheet
+            const SHEET_URL = (typeof GOOGLE_SCRIPT_URL !== 'undefined') ? GOOGLE_SCRIPT_URL : "https://script.google.com/macros/s/AKfycbybJe6cBuciSnj4j4hmm3nN4C860Sen9RVht6b1O5cZoRpkwvBoDLw6jTkYa4tmUas1/exec";
+            
+            // Tampilkan feedback visual
+            const toast = document.createElement('div');
+            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] animate-bounce";
+            toast.innerText = "Mengirim komentar...";
+            document.body.appendChild(toast);
+
+            fetch(SHEET_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'comment',
+                    postId: postId,
+                    userName: userName,
+                    userAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`,
+                    text: text
+                })
+            }).then(() => {
+                toast.innerText = "Komentar terkirim!";
+                setTimeout(() => toast.remove(), 2000);
+                // Refresh Feed agar komentar muncul
+                loadHomeFeed();
+            }).catch(() => {
+                toast.innerText = "Gagal mengirim.";
+                setTimeout(() => toast.remove(), 2000);
+            });
+        }
+
+        // 6. Handle Save Post (Bookmark)
+        function handleSavePost(postId, btnElement) {
+            // Cari data post dari Cache
+            let postData = null;
+            try {
+                const cached = JSON.parse(localStorage.getItem('feed_cache') || '{}');
+                const spots = Array.isArray(cached) ? cached : (cached.spots || []);
+                const foundItem = spots.find(item => item.id === postId);
+                if (foundItem) postData = foundItem;
+            } catch(e) {}
+
+            // Fallback: Cek di Global Grouped Spots
+            if (!postData && typeof groupedSpots !== 'undefined') {
+                for (const key in groupedSpots) {
+                    const found = groupedSpots[key].find(s => s.id === postId);
+                    if (found) { postData = found; break; }
+                }
+            }
+
+            if (!postData) {
+                alert("Gagal menyimpan: Data tidak ditemukan.");
+                return;
+            }
+
+            // Format data untuk favorites (Pastikan koordinat berupa angka)
+            const latVal = (typeof postData.lat === 'string') ? parseFloat(postData.lat.replace(',', '.')) : postData.lat;
+            const lngVal = (typeof postData.lng === 'string') ? parseFloat(postData.lng.replace(',', '.')) : postData.lng;
+
+            const favItem = {
+                name: postData.name || 'Spot Mancing',
+                lat: latVal,
+                lng: lngVal,
+                photo: postData.photo || '',
+                comment: postData.comment || ''
+            };
+
+            // Simpan ke LocalStorage 'favorites'
+            let favs = JSON.parse(localStorage.getItem('favorites') || '[]');
+            const existingIndex = favs.findIndex(f => parseFloat(f.lat).toFixed(5) === parseFloat(favItem.lat).toFixed(5) && parseFloat(f.lng).toFixed(5) === parseFloat(favItem.lng).toFixed(5));
+            
+            let isSaved = false;
+            if (existingIndex >= 0) {
+                favs.splice(existingIndex, 1); // Hapus jika sudah ada
+            } else {
+                favs.push(favItem); // Tambah jika belum ada
+                isSaved = true;
+            }
+            localStorage.setItem('favorites', JSON.stringify(favs));
+
+            // Update UI Icon & Toast
+            const icon = btnElement.querySelector('svg');
+            if(icon) {
+                if (isSaved) {
+                    icon.classList.add('fill-yellow-400', 'text-yellow-400', 'animate-shake');
+                    setTimeout(() => icon.classList.remove('animate-shake'), 500);
+                } else {
+                    icon.classList.remove('fill-yellow-400', 'text-yellow-400');
+                }
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-neutral-900 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl z-[3000] flex items-center gap-2 border border-white/10";
+            toast.innerHTML = isSaved ? `<i data-lucide="bookmark" class="w-4 h-4 text-yellow-400 fill-yellow-400"></i> Disimpan ke Favorit` : `<i data-lucide="bookmark-minus" class="w-4 h-4"></i> Dihapus dari Favorit`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+            if(typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         // Polling: Cek otomatis jika data cuaca baru masuk, lalu update widget
