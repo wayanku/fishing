@@ -1,11 +1,12 @@
 
 {
   "name": "Fishing Spot App",
-  "short_name": "spot fishing",
+  "short_name": "FishingSpot",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2970/2970068.png",
