@@ -2834,6 +2834,9 @@ function updateWeatherUI(data) {
         if(typeof injectPrecipitationCard === 'function') {
             injectPrecipitationCard(data.latitude, data.longitude);
         }
+
+        // --- NEW: iPhone Style Details Grid (UV, Sunset, Wind, etc) ---
+        renderWeatherDetailsGrid(data);
     }
 }
 
@@ -3631,6 +3634,135 @@ function showMetricInsight(type) {
     textEl.innerHTML = text;
     iconEl.setAttribute('data-lucide', icon);
     lucide.createIcons();
+}
+
+// --- NEW: iPhone Style Weather Details Grid ---
+function renderWeatherDetailsGrid(data) {
+	let container = document.getElementById('weather-details-grid');
+
+	// Create container if not exists (Dynamic injection)
+	if (!container) {
+		const forecastList = document.getElementById('forecast-list');
+		const quake = document.getElementById('quake-container');
+		const aqi = document.getElementById('aqi-container');
+		const precipMap = document.getElementById('precip-map-card');
+		let ref = precipMap || quake || aqi || forecastList;
+
+		if (ref && ref.parentNode) {
+			container = document.createElement('div');
+			container.id = 'weather-details-grid';
+			container.className = "grid grid-cols-2 gap-3 mb-6 mt-3 mx-0";
+			ref.parentNode.insertBefore(container, ref.nextSibling);
+		} else {
+			return;
+		}
+	}
+
+	const hIdx = wxLocalHour;
+	const daily = data.daily;
+	const hourly = data.hourly;
+	const current = data.current_weather;
+
+	// 1. UV Index
+	const uv = daily.uv_index_max ? daily.uv_index_max[0] : 0;
+	const uvLevel = uv < 3 ? "Rendah" : (uv < 6 ? "Sedang" : (uv < 8 ? "Tinggi" : (uv < 11 ? "Sangat Tinggi" : "Ekstrem")));
+	const uvPct = Math.min((uv / 11) * 100, 100);
+
+	// 2. Sunset/Sunrise with Arc Visualization
+	const sunriseDate = new Date(daily.sunrise[0]);
+	const sunsetDate = new Date(daily.sunset[0]);
+	const tomorrowSunriseDate = new Date(daily.sunrise[1]);
+	const now = new Date();
+	let sunProgress = 0;
+	let isSunUp = now > sunriseDate && now < sunsetDate;
+	let sunLabel, sunTime, subText;
+
+	if (isSunUp) {
+		sunLabel = "Matahari Terbenam";
+		sunTime = sunsetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		subText = `Terbit pada ${sunriseDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+		sunProgress = (now.getTime() - sunriseDate.getTime()) / (sunsetDate.getTime() - sunriseDate.getTime());
+	} else {
+		if (now < sunriseDate) {
+			sunLabel = "Matahari Terbit";
+			sunTime = sunriseDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+			subText = `Terbenam pada ${sunsetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+			sunProgress = 0;
+		} else {
+			sunLabel = "Matahari Terbit";
+			sunTime = tomorrowSunriseDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+			subText = `Terbenam pada ${sunsetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+			sunProgress = 1;
+		}
+	}
+	sunProgress = Math.max(0, Math.min(1, sunProgress));
+	const angle = 180 - (sunProgress * 180);
+	const rad = angle * (Math.PI / 180);
+	const sunX = 50 - 45 * Math.cos(rad);
+	const sunY = 50 - 45 * Math.sin(rad);
+	const sunArcSvg = `<div class="relative w-full h-24 -mb-4 mt-2"><svg viewBox="0 0 100 55" class="w-full h-full overflow-visible"><path d="M 5 50 A 45 45 0 0 1 95 50" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none" stroke-dasharray="2,3"></path>${isSunUp ? `<circle cx="${sunX}" cy="${sunY}" r="4" fill="#facc15" stroke="white" stroke-width="1.5" />` : ''}<text x="5" y="55" font-size="8" fill="rgba(255,255,255,0.7)">${sunriseDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</text><text x="95" y="55" font-size="8" fill="rgba(255,255,255,0.7)" text-anchor="end">${sunsetDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</text></svg></div>`;
+	const sunIcon = isSunUp ? "sunset" : "sunrise";
+
+	// 3. Wind
+	const windSpeed = current.windspeed;
+	const windDir = current.winddirection;
+
+	// 4. Feels Like
+	const feelsLike = hourly.apparent_temperature[hIdx];
+	const diff = feelsLike - current.temperature;
+	let feelDesc = "Sama dengan suhu asli.";
+	if (diff <= -2) feelDesc = "Terasa lebih dingin karena angin.";
+	if (diff >= 2) feelDesc = "Terasa lebih panas karena lembab.";
+
+	// 5. Precipitation
+	const precip = daily.precipitation_sum[0];
+
+	// 6. Visibility
+	const vis = hourly.visibility[hIdx] / 1000; // km
+	let visDesc = "Pandangan sangat jelas.";
+	if (vis < 1) visDesc = "Kabut tebal.";
+	else if (vis < 5) visDesc = "Ada sedikit kabut.";
+
+	// 7. Humidity with Gauge
+	const hum = hourly.relativehumidity_2m[hIdx];
+	const dew = hourly.dewpoint_2m[hIdx];
+	const humidityGauge = `<div class="w-full h-1 bg-gradient-to-r from-slate-600 to-blue-300 rounded-full mt-4 relative"><div class="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full border border-black/50" style="left: calc(${hum}% - 4px);"></div></div>`;
+
+	// 8. Pressure with Gauge
+	const press = hourly.surface_pressure[hIdx];
+	const prevPress = hourly.surface_pressure[hIdx - 3] || press;
+	let pressureTrend = "Stabil";
+	if (press > prevPress + 0.5) pressureTrend = "Naik";
+	if (press < prevPress - 0.5) pressureTrend = "Turun";
+	const minP = 950, maxP = 1050;
+	const pressureProgress = Math.max(0, Math.min(1, (press - minP) / (maxP - minP)));
+	const pressureAngle = -120 + (pressureProgress * 240);
+	const pressureGauge = `<div class="relative w-full h-24 -mb-4 mt-2 flex items-center justify-center"><svg viewBox="0 0 100 60" class="w-full h-full overflow-visible"><defs><linearGradient id="pressureGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3b82f6" /><stop offset="50%" stop-color="#22c55e" /><stop offset="100%" stop-color="#ef4444" /></linearGradient></defs><path d="M 10 50 A 40 40 0 0 1 90 50" stroke="url(#pressureGrad)" stroke-width="5" fill="none" stroke-linecap="round"></path><g transform="translate(50 50) rotate(${pressureAngle})"><path d="M 0 -35 L -2 -42 L 2 -42 Z" fill="white" /></g><text x="10" y="55" font-size="8" fill="rgba(255,255,255,0.7)">L</text><text x="90" y="55" font-size="8" fill="rgba(255,255,255,0.7)" text-anchor="end">H</text></svg></div>`;
+
+	// Helper for Tile
+	const createTile = (icon, title, value, sub, extraHtml = '', isFullWidth = false) => {
+		const colSpan = isFullWidth ? 'col-span-2' : '';
+		const heightClass = isFullWidth ? 'h-48' : 'h-36';
+		return `<div class="bg-neutral-900/50 backdrop-blur-xl rounded-xl border border-white/20 p-3 flex flex-col justify-between ${heightClass} shadow-lg hover:bg-neutral-800/60 transition-colors ${colSpan}"><div class="flex items-center gap-1 text-slate-400 text-[10px] font-bold uppercase tracking-wider"><i data-lucide="${icon}" class="w-3 h-3"></i> ${title}</div><div><div class="text-2xl font-bold text-white">${value}</div><div class="text-[10px] text-slate-300 font-medium leading-tight mt-1 line-clamp-2">${sub}</div></div>${extraHtml}</div>`;
+	};
+
+	container.innerHTML = `
+        ${createTile('sun', 'UV Index', uv, uvLevel, `<div class="w-full h-1 bg-slate-700 rounded-full mt-2 overflow-hidden"><div class="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500" style="width: ${uvPct}%"></div></div>`)}
+        ${createTile('thermometer', 'Terasa Seperti', `${feelsLike}°`, feelDesc)}
+        ${createTile(sunIcon, sunLabel, sunTime, subText, sunArcSvg, true)}
+        ${createTile('wind', 'Angin', `${windSpeed} <span class="text-sm">km/h</span>`, `Hembusan ${data.hourly.windgusts_10m[hIdx]} km/h`, `<div class="flex items-center gap-2 mt-1"><div class="w-8 h-8 rounded-full border border-slate-500 flex items-center justify-center bg-white/5"><i data-lucide="arrow-up" class="w-4 h-4 text-white" style="transform: rotate(${windDir}deg)"></i></div><span class="text-[10px] text-slate-400 font-bold">${getCardinalDirection(windDir)}</span></div>`)}
+        ${createTile('droplets', 'Curah Hujan', `${precip} mm`, `Dalam 24 jam terakhir. ${data.daily.precipitation_probability_max[0]}% kemungkinan.`)}
+        ${createTile('droplet', 'Kelembaban', `${hum}%`, `Titik Embun saat ini ${dew}°`, humidityGauge)}
+        ${createTile('eye', 'Jarak Pandang', `${vis} km`, visDesc)}
+        ${createTile('gauge', 'Tekanan', `${Math.round(press)} hPa`, `Tren: ${pressureTrend}`, pressureGauge, true)}
+    `;
+
+	lucide.createIcons({ root: container });
+}
+
+function getCardinalDirection(angle) {
+    const directions = ['U', 'TL', 'T', 'TG', 'S', 'BD', 'B', 'BL'];
+    return directions[Math.round(angle / 45) % 8];
 }
 
 // Apply responsive styles immediately on load
