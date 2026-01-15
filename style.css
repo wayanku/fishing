@@ -1,4 +1,5 @@
 
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
 
 /* --- NATIVE APP FEEL: Disable Selection & Callouts --- */
@@ -265,13 +266,5 @@ body.light-mode {
         background: rgba(15, 23, 42, 0.65); 
         backdrop-filter: blur(16px); 
         -webkit-backdrop-filter: blur(16px);
-    }
-}
-
-@media (max-width: 767px) {
-    /* Matikan semua efek blur di HP untuk menjaga FPS stabil saat scrolling */
-    [class*="backdrop-blur"] {
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
     }
 }
