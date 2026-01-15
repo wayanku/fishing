@@ -1,5 +1,6 @@
 
 
+
 // --- HIGH-PERFORMANCE WEATHER ANIMATION (CANVAS) ---
 let canvas = document.getElementById('weather-canvas');
 let ctx = canvas ? canvas.getContext('2d') : null;
@@ -1625,16 +1626,11 @@ function injectCardStyles() {
             margin-bottom: 4px !important;
         }
         
-        /* Mobile Optimization for Weather Cards */
+        /* Liquid Glass Style for Weather Cards (Mobile & Desktop) */
         .weather-card-fixed {
-            background-color: rgba(10, 10, 10, 0.85) !important; /* Solid Dark on Mobile */
-        }
-        @media (min-width: 768px) {
-            .weather-card-fixed {
-                background-color: rgba(10, 10, 10, 0.5) !important;
-                backdrop-filter: blur(16px) !important;
-                -webkit-backdrop-filter: blur(16px) !important;
-            }
+            background-color: rgba(10, 10, 10, 0.5) !important; /* Semi-transparent dark */
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
         }
     `;
     document.head.appendChild(style);
