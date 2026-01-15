@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fishing-spot-v236-preload-fix'; // Naikkan versi untuk memicu update ini
+const CACHE_NAME = 'fishing-spot-v2326-preload-fix'; // Naikkan versi untuk memicu update ini
 const ASSETS = [
     './',
     './index.html',
